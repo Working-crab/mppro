@@ -1,0 +1,51 @@
+version: '3.8'
+
+# networks:
+#   app_network:
+#     driver: bridge
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    container_name: 'postgres'
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - '5432:5432'
+    volumes: 
+      - postgres:/var/lib/postgresql/data
+    # networks:
+    #     - app_network
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: 'rabbitmq'
+    restart: always
+    ports:
+        - 5672:5672
+        - 15672:15672
+    volumes:
+        - rabbitmq:/var/lib/rabbitmq/
+        - rabbitmq:/var/log/rabbitmq
+    # networks:
+    #     - app_network
+  redis:
+    image: redis:6-alpine
+    container_name: 'redis'
+    restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
+    volumes: 
+      - redis:/data
+    # networks:
+    #     - app_network
+
+volumes:
+  postgres:
+    driver: local
+  rabbitmq:
+    driver: local
+  redis:
+    driver: local
