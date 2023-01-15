@@ -1,0 +1,733 @@
+{
+  "pages": [
+    {
+      "positions": [1, 2, 24, 25, 27, 35, 46, 62, 84, 98],
+      "page": 1,
+      "count": 10
+    },
+    {
+      "positions": [1, 2, 23, 24, 25, 38, 49, 63, 70, 85],
+      "page": 2,
+      "count": 10
+    },
+    {
+      "positions": [1, 2, 17, 20, 28, 42, 51, 84, 93, 96],
+      "page": 3,
+      "count": 10
+    },
+    {
+      "positions": [1, 2, 16, 24, 29, 51, 64, 65, 68, 89],
+      "page": 4,
+      "count": 10
+    },
+    {
+      "positions": [1, 2, 11, 14, 27, 33, 36, 59, 77, 95],
+      "page": 5,
+      "count": 10
+    }
+  ],
+  "prioritySubjects": [69, 70, 4000, 2613, 2905],
+  "adverts": [
+    {
+      "code": "",
+      "advertId": 4081817,
+      "id": 140077228,
+      "cpm": 801,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 2600488,
+      "id": 116340846,
+      "cpm": 470,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4020095,
+      "id": 91046513,
+      "cpm": 378,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4163555,
+      "id": 97330070,
+      "cpm": 342,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3949348,
+      "id": 138135929,
+      "cpm": 341,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3986366,
+      "id": 139643276,
+      "cpm": 341,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4057197,
+      "id": 77253449,
+      "cpm": 309,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 2728090,
+      "id": 119771661,
+      "cpm": 305,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3716223,
+      "id": 133276277,
+      "cpm": 300,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4002500,
+      "id": 139646639,
+      "cpm": 270,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3445233,
+      "id": 98745250,
+      "cpm": 262,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3707784,
+      "id": 134547030,
+      "cpm": 250,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4116451,
+      "id": 90094634,
+      "cpm": 250,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 2276575,
+      "id": 74634895,
+      "cpm": 226,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3994609,
+      "id": 124093974,
+      "cpm": 200,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3994553,
+      "id": 132687645,
+      "cpm": 200,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3944326,
+      "id": 73112656,
+      "cpm": 200,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3964126,
+      "id": 139979513,
+      "cpm": 190,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4165266,
+      "id": 140682078,
+      "cpm": 189,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4039760,
+      "id": 141821245,
+      "cpm": 170,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4051781,
+      "id": 141324050,
+      "cpm": 160,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4100530,
+      "id": 105017479,
+      "cpm": 151,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4049696,
+      "id": 140959651,
+      "cpm": 150,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4146461,
+      "id": 139876614,
+      "cpm": 150,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3945289,
+      "id": 97485082,
+      "cpm": 150,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4162987,
+      "id": 140306550,
+      "cpm": 150,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4137341,
+      "id": 141979810,
+      "cpm": 150,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4155540,
+      "id": 141191808,
+      "cpm": 150,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3985992,
+      "id": 140042328,
+      "cpm": 150,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3963807,
+      "id": 140853729,
+      "cpm": 129,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3633602,
+      "id": 122412075,
+      "cpm": 126,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3577040,
+      "id": 129435302,
+      "cpm": 121,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3978991,
+      "id": 138943400,
+      "cpm": 120,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3721461,
+      "id": 134438801,
+      "cpm": 116,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3713024,
+      "id": 138052570,
+      "cpm": 110,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4154306,
+      "id": 139652088,
+      "cpm": 110,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3879843,
+      "id": 90169649,
+      "cpm": 109,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3939699,
+      "id": 139991748,
+      "cpm": 101,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4043007,
+      "id": 139763194,
+      "cpm": 100,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3928585,
+      "id": 140567154,
+      "cpm": 100,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4154636,
+      "id": 60783549,
+      "cpm": 100,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4137591,
+      "id": 142891089,
+      "cpm": 100,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4165486,
+      "id": 124693902,
+      "cpm": 100,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4082523,
+      "id": 138823945,
+      "cpm": 100,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4137593,
+      "id": 142889870,
+      "cpm": 100,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3768519,
+      "id": 139144827,
+      "cpm": 100,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4158707,
+      "id": 139208402,
+      "cpm": 100,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4145826,
+      "id": 113308612,
+      "cpm": 100,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4100575,
+      "id": 140193840,
+      "cpm": 100,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3646682,
+      "id": 135176725,
+      "cpm": 100,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3984084,
+      "id": 141160376,
+      "cpm": 100,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4158549,
+      "id": 93163285,
+      "cpm": 100,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3358339,
+      "id": 122197917,
+      "cpm": 100,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 2926486,
+      "id": 49646077,
+      "cpm": 100,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4113144,
+      "id": 139412945,
+      "cpm": 100,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 2910565,
+      "id": 15158708,
+      "cpm": 100,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3300039,
+      "id": 105446147,
+      "cpm": 98,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 2731124,
+      "id": 112640299,
+      "cpm": 97,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3713300,
+      "id": 138003305,
+      "cpm": 97,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3828247,
+      "id": 138052571,
+      "cpm": 90,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4091236,
+      "id": 99678427,
+      "cpm": 90,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3787493,
+      "id": 136999278,
+      "cpm": 90,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3872298,
+      "id": 101900139,
+      "cpm": 90,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4090342,
+      "id": 96977509,
+      "cpm": 90,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3836760,
+      "id": 138918755,
+      "cpm": 88,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3441600,
+      "id": 126056835,
+      "cpm": 88,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4145881,
+      "id": 139048990,
+      "cpm": 86,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4053139,
+      "id": 57162527,
+      "cpm": 81,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3387024,
+      "id": 127047093,
+      "cpm": 81,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4160690,
+      "id": 100780611,
+      "cpm": 81,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3584559,
+      "id": 133770808,
+      "cpm": 80,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3690178,
+      "id": 101413604,
+      "cpm": 80,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4114806,
+      "id": 137425138,
+      "cpm": 80,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4114824,
+      "id": 137425135,
+      "cpm": 80,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3757174,
+      "id": 137533498,
+      "cpm": 80,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3680725,
+      "id": 137029476,
+      "cpm": 80,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3788293,
+      "id": 47695502,
+      "cpm": 70,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3744749,
+      "id": 124018416,
+      "cpm": 70,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3572210,
+      "id": 133774404,
+      "cpm": 70,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4124891,
+      "id": 10382524,
+      "cpm": 70,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4020027,
+      "id": 139114408,
+      "cpm": 70,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 1188015,
+      "id": 62981579,
+      "cpm": 70,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3662464,
+      "id": 135256498,
+      "cpm": 70,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4081513,
+      "id": 124453790,
+      "cpm": 70,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4035662,
+      "id": 140646052,
+      "cpm": 65,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4035663,
+      "id": 140646051,
+      "cpm": 65,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4149619,
+      "id": 11390190,
+      "cpm": 63,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4065142,
+      "id": 140853727,
+      "cpm": 61,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4145577,
+      "id": 137697484,
+      "cpm": 61,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4065132,
+      "id": 140996589,
+      "cpm": 60,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4133658,
+      "id": 142133567,
+      "cpm": 60,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4115032,
+      "id": 125741454,
+      "cpm": 60,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3588999,
+      "id": 76552733,
+      "cpm": 60,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4090077,
+      "id": 137251448,
+      "cpm": 60,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3062220,
+      "id": 110635711,
+      "cpm": 60,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3616681,
+      "id": 134958774,
+      "cpm": 60,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 2984423,
+      "id": 101330846,
+      "cpm": 60,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 4158550,
+      "id": 93163617,
+      "cpm": 60,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3023133,
+      "id": 101307310,
+      "cpm": 60,
+      "subject": 69
+    },
+    {
+      "code": "",
+      "advertId": 3674325,
+      "id": 138082832,
+      "cpm": 60,
+      "subject": 69
+    }
+  ],
+  "minCPM": 50
+}

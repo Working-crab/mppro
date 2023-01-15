@@ -1,0 +1,5 @@
+https://static-basket-01.wb.ru/vol0/data/subject-base.json - объект parent-childe категорий товаров
+
+https://catalog-ads.wildberries.ru/api/v5/search?keyword=<слово для поиска> - поиск рекламы
+
+https://www.wildberries.ru/catalog/{p_id}/detail.aspx - ссылка на товар в wildberries гду p_id - это id товара

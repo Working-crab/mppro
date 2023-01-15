@@ -14,8 +14,9 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     telegram_user_id = Column(BigInteger, nullable=False, unique=True)
     telegram_chat_id = Column(BigInteger, nullable=False, unique=True)
-    telegram_username = Column(String(120))
-    wb_main_token = Column(String(255))
+    telegram_username = Column(String(255))
+    wb_main_token = Column(String(2048))
+    wb_cmp_token = Column(String(2048))
     
 
     def __repr__(self):

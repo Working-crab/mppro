@@ -13,7 +13,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     ports:
-      - '5432:5432'
+      - '127.0.0.1:5432:5432'
     volumes: 
       - postgres:/var/lib/postgresql/data
     # networks:
@@ -23,8 +23,8 @@ services:
     container_name: 'rabbitmq'
     restart: always
     ports:
-        - 5672:5672
-        - 15672:15672
+        - 127.0.0.1:5672:5672
+        - 127.0.0.1:15672:15672
     volumes:
         - rabbitmq:/var/lib/rabbitmq/
         - rabbitmq:/var/log/rabbitmq
@@ -35,7 +35,7 @@ services:
     container_name: 'redis'
     restart: always
     ports:
-      - '6379:6379'
+      - '127.0.0.1:6379:6379'
     command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
     volumes: 
       - redis:/data
