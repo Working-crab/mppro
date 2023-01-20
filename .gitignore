@@ -164,3 +164,4 @@ cython_debug/
 
 # test folders
 help_info/
+logs/
