@@ -2,11 +2,9 @@
 import telebot
 import requests
 import re
-import json
-from datetime import datetime
 
-from src.ui_backend.db.models import User, Advert
 from src.ui_backend.db.queries import db_queries
+from src.wb_common.wb_queries import wb_queries
 
 BOT_NAME = 'mp_pro_bot'
 TOKEN = '5972133433:AAERP_hpf9p-zYjTigzEd-MCpQWGQNCvgWs'
@@ -69,15 +67,11 @@ def list_atrevds(message):
 
     cookies = {
       'WBToken': user_cmp_token,
-      'x-supplier-id-external': 'f05df88e-0b40-462e-9d55-753712a8a59b' # GET https://cmp.wildberries.ru/backend/supplierslist
+      'x-supplier-id-external': 'f05df88e-0b40-462e-9d55-753712a8a59b'
     }
 
-    # временные токены хранить в кешах с ключем в формате "WB_user" + наш изер ид + "_" + наименование токена
-    # !!! https://cmp.wildberries.ru/passport/api/v2/auth/introspect также возвращает НОВЫЙ WBToken
-    # !!! все токены логировать в файл !!!
-
     headers = {
-      'X-User-Id': '61712490', # GET https://cmp.wildberries.ru/passport/api/v2/auth/introspect
+      'X-User-Id': '61712490',
       'Referer': 'https://cmp.wildberries.ru/campaigns/list/all',
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 YaBrowser/22.11.5.715 Yowser/2.5 Safari/537.36',
     }
@@ -111,9 +105,17 @@ def list_atrevds(message):
 
 @bot.message_handler(commands=['add_advert'])
 def add_advert(message):
+    """
+    Команда для запсии в бд информацию о том, что юзер включает рекламную компанию
+    TO wOrKeD:
+    (индентификатор, бюджет, место которое хочет занять)
+    записать это в бд
+    """
     try:
         user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-        compagin_id = re.sub('/add_advert ', '', message.text)
+
+        #(индентификатор, бюджет, место которое хочет занять)args*
+        compagin_id = re.sub('/add_advert ', 'ЖОПА', message.text)
         max_budget = re.sub('/add_advert ', '', message.text)
         place = re.sub('/add_advert ', '', message.text)
 
@@ -128,10 +130,20 @@ def get_adverts(message):
     try:
         user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
         adverts = db_queries.get_user_adverts(user.id)
-        print('adverts')
-        print(adverts)
         
         bot.send_message(message.chat.id, adverts)
+    except Exception as e:
+        bot.send_message(message.chat.id, f'Произошла ошибка: {e}')
+
+
+
+@bot.message_handler(commands=['reset_base_tokens'])
+def reset_base_tokens(message):
+    try:
+        user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+        tokens = wb_queries.reset_base_tokens(user)
+        
+        bot.send_message(message.chat.id, str(tokens))
     except Exception as e:
         bot.send_message(message.chat.id, f'Произошла ошибка: {e}')
 

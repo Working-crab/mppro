@@ -1,3 +1,5 @@
+
+from datetime import datetime
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy import select
 
@@ -20,6 +22,17 @@ class db_queries:
               session.commit()
       except Exception as e:
           print(f'Запрос не выполнени по причине: TypeError: {type(e).__name__}: {e}.')
+
+
+
+  def get_user_by_id(user_id):
+
+      try:
+          with Session(engine) as session:
+              return session.query(User).filter(User.id == user_id).first()
+      except Exception as e:
+          print(f'Запрос не выполнени по причине: TypeError: {type(e).__name__}: {e}.')
+
 
 
   def get_user_by_telegram_user_id(telegram_user_id):
@@ -75,7 +88,19 @@ class db_queries:
 
       try:
           with Session(engine) as session:
-              return session.query(Advert).filter(Advert.user_id == user_id).all()
+            return session.query(Advert).filter(Advert.user_id == user_id).all()
+
+      except Exception as e:
+          print(f'Запрос не выполнен по причине: TypeError: {type(e).__name__}: {e}.')
+
+
+      
+  def get_adverts_chunk(user_id):
+
+      try:
+          with Session(engine) as session:
+            date = datetime.datetime.now() - datetime.timedelta(days=1)
+            return session.query(Advert).filter(Advert.time_updated >= date).order_by(Advert.time_updated).limit(100).all()
 
       except Exception as e:
           print(f'Запрос не выполнен по причине: TypeError: {type(e).__name__}: {e}.')
