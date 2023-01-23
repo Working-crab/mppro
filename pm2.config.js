@@ -9,33 +9,28 @@ module.exports = {
       wait_ready: true,
       autorestart: true,
       max_restarts: 0,
-      // instances : 2,
-      // exec_mode : "cluster",
-      out_file: "/data/logs/mp_pro_ui_test.log",
-      error_file: "/data/logs/mp_pro_ui_test_error.log",
+      out_file: "/data/logs/mp_pro_ui_telega.log",
+      error_file: "/data/logs/mp_pro_ui_telega_error.log",
       interpreter : '/data/venv/bin/python',
       // interpreter_args: '-m ui_backend.main',
       cwd: '/data/',
       env: {
-        PYTHONPATH: '/data/'
+        PYTHONPATH: '/data/src/'
       }
     },
     {
-      name: 'user_automation',
+      name: 'mp_pro_user_automation',
       script: '/data/src/user_automation/main.py',
       args: [''],
       wait_ready: true,
-      autorestart: true,
-      max_restarts: 0,
-      // instances : 2,
-      // exec_mode : "cluster",
+      autorestart: false,
+      cron_restart: '*/2 * * * *', // once per 2 minutes
       out_file: "/data/logs/user_automation.log",
       error_file: "/data/logs/user_automation_error.log",
       interpreter : '/data/venv/bin/python',
-      // interpreter_args: '-m ui_backend.main',
       cwd: '/data/',
       env: {
-        PYTHONPATH: '/data/'
+        PYTHONPATH: '/data/src/'
       }
     },
     {

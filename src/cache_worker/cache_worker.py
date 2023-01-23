@@ -29,11 +29,21 @@ class cache_worker:
 
     return result
 
+
   def set_user_wb_tokens(user_id, user_wb_tokens):
       
       expire = 60 * 60 * 24 * 7 # 7 days
       redis_client.set(make_wb_key(user_id, 'wb_cmp_token'),    user_wb_tokens['wb_cmp_token'],   ex=expire)
       redis_client.set(make_wb_key(user_id, 'wb_supplier_id'),  user_wb_tokens['wb_supplier_id'], ex=expire)
       redis_client.set(make_wb_key(user_id, 'wb_user_id'),      user_wb_tokens['wb_user_id'],     ex=expire)
+
+      return True
+
+
+  def delete_user_wb_tokens(user_id):
+      
+      redis_client.delete(make_wb_key(user_id, 'wb_cmp_token'))
+      redis_client.delete(make_wb_key(user_id, 'wb_supplier_id'))
+      redis_client.delete(make_wb_key(user_id, 'wb_user_id'))
 
       return True

@@ -17,7 +17,7 @@ class User(Base):
     wb_cmp_token = Column(String(2048))
 
     time_created = Column(DateTime(timezone=True), server_default=func.now())
-    time_updated = Column(DateTime(timezone=True), onupdate=func.now())
+    time_updated = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     adverts = relationship("Advert")
 
@@ -36,7 +36,7 @@ class Advert(Base):
     status = Column(String, nullable=False)
     
     time_created = Column(DateTime(timezone=True), server_default=func.now())
-    time_updated = Column(DateTime(timezone=True), onupdate=func.now())
+    time_updated = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="adverts")
 

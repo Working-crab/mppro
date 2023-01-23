@@ -1,5 +1,5 @@
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy import select
 
@@ -67,20 +67,23 @@ class db_queries:
           print(f'Запрос не выполнен по причине: TypeError: {type(e).__name__}: {e}.')
 
 
-  def add_user_advert(user, compagin_id, max_budget, place):
+  def add_user_advert(user, status, compagin_id, max_budget, place):
 
       try:
           with Session(engine) as session:
               advert = Advert(
-                  max_budget = max_budget,
+                  max_budget = max_budget, #(int())
                   user_id = user.id,
-                  place = place,
-                  compagin_id = compagin_id,
+                  place = place, # maybe string
+                  compagin_id = int(compagin_id),
+                  status = status
               )
               session.add(advert)
               session.commit()
       except Exception as e:
-          print(f'Запрос не выполнен по причине: TypeError: {type(e).__name__}: {e}.')
+          err_msg = f'Запрос не выполнен по причине: TypeError: {type(e).__name__}: {e}.'
+          print(err_msg)
+          raise ValueError(err_msg)
 
 
 
@@ -95,11 +98,12 @@ class db_queries:
 
 
       
-  def get_adverts_chunk(user_id):
+  def get_adverts_chunk():
 
       try:
           with Session(engine) as session:
-            date = datetime.datetime.now() - datetime.timedelta(days=1)
+            date = datetime.now() - timedelta(days=1)
+            print(date)
             return session.query(Advert).filter(Advert.time_updated >= date).order_by(Advert.time_updated).limit(100).all()
 
       except Exception as e:
