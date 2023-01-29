@@ -67,19 +67,53 @@ class db_queries:
           print(f'Запрос не выполнен по причине: TypeError: {type(e).__name__}: {e}.')
 
 
-  def add_user_advert(user, status, compagin_id, max_budget, place):
+  def add_user_advert(user, status, campaign_id, max_budget, place):
 
       try:
           with Session(engine) as session:
-              advert = Advert(
-                  max_budget = max_budget, #(int())
-                  user_id = user.id,
-                  place = place, # maybe string
-                  compagin_id = int(compagin_id),
-                  status = status
-              )
-              session.add(advert)
-              session.commit()
+
+              advert = session.query(Advert).filter(Advert.user_id == user.id, Advert.campaign_id == int(campaign_id)).first()
+
+              if not advert:
+                  advert = Advert(
+                      max_budget = max_budget, #(int())
+                      user_id = user.id,
+                      place = place, # maybe string
+                      campaign_id = int(campaign_id),
+                      status = status
+                  )
+                  session.add(advert)
+                  session.commit()
+                  return 'ADDED'
+              
+              else:
+                  advert.max_budget = max_budget
+                  advert.place = place
+                  advert.status = status
+                  session.commit()
+                  return 'UPDATED'
+              
+      except Exception as e:
+          err_msg = f'Запрос не выполнен по причине: TypeError: {type(e).__name__}: {e}.'
+          print(err_msg)
+          raise ValueError(err_msg)
+
+
+
+  def delete_user_advert(user, campaign_id):
+
+      try:
+          with Session(engine) as session:
+
+              advert = session.query(Advert).filter(Advert.user_id == user.id, Advert.campaign_id == int(campaign_id)).first()
+
+              if advert:
+                  session.delete(advert)
+                  session.commit()
+                  return True
+              else:
+                  return False
+              
       except Exception as e:
           err_msg = f'Запрос не выполнен по причине: TypeError: {type(e).__name__}: {e}.'
           print(err_msg)

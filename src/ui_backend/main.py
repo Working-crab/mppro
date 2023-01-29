@@ -1,8 +1,10 @@
-
-import json
 import telebot
-import requests
+from telebot import types
+from fastapi import FastAPI
+
+from typing import Union, Dict, Any
 import re
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -11,9 +13,26 @@ from wb_common.wb_queries import wb_queries
 
 BOT_NAME = 'mp_pro_bot'
 TOKEN = '5972133433:AAERP_hpf9p-zYjTigzEd-MCpQWGQNCvgWs'
+WEBHOOK_URL = 'https://admp.pro/'# урл доменя
 
 #Создание бота
 bot = telebot.TeleBot(TOKEN)
+
+app = FastAPI(openapi_url=None)
+
+print('mp_pro_ui_telega service started!')
+
+@app.on_event('startup')
+def on_startup():
+    webhook_info = bot.get_webhook_info()
+    if webhook_info.url != WEBHOOK_URL:
+        bot.set_webhook(url=WEBHOOK_URL)
+
+@app.post('/')
+async def webhook(update: Dict[str, Any]):
+    update = types.Update.de_json(update)
+    bot.process_new_updates([update])
+    return 'ok'
 
 def try_except_decorator(fn):
     
@@ -37,20 +56,21 @@ def msg_handler(*args, **kwargs):
 @msg_handler(commands=['start'])
 def start(message):
     db_queries.create_user(telegram_user_id=message.from_user.id, telegram_chat_id=message.chat.id, telegram_username=message.from_user.username)
-    return f'Здравствуйте, {message.from_user.first_name}'
+    return f'Здравствуйте, {message}'
 
 
 @msg_handler(commands=['set_token_cmp'])
 def set_token_cmp(message):
     clear_token = message.text.replace('/set_token_cmp ', '').strip()
     db_queries.set_user_wb_cmp_token(telegram_user_id=message.from_user.id, wb_cmp_token=clear_token)
-    return 'Ваш токен установлен!'
+    return 'Ваш токен установлен\!'
 
 
 @msg_handler(commands=['get_token_cmp'])
 def getToken(message):
 
     token = db_queries.get_user_wb_cmp_token(telegram_user_id=message.from_user.id)
+    token = re.sub('_', '\_', token)
     return token
 
 
@@ -79,15 +99,13 @@ def list_atrevds(message):
     req_params = wb_queries.get_base_request_params(user_wb_tokens)
 
     status_dict = { # TODO УБРАТЬ ЭТОТ СРАМ!
-      '4': 'Готова к запуску',
-      '9': 'Активна',
-      '8': 'Отказана',
-      '11': 'Приостановлено',
+      4: 'Готова к запуску',
+      9: 'Активна',
+      8: 'Отказана',
+      11: 'Приостановлено',
     }
 
-    # TODO Вынести запрос в wb_queries
-    user_atrevds = requests.get('https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate', cookies=req_params['cookies'], headers=req_params['headers'])
-    view = user_atrevds.json()['content']
+    view = wb_queries.get_user_atrevds(req_params)
     result_msg = ''
 
     for product in view:
@@ -96,10 +114,14 @@ def list_atrevds(message):
         stat = status_dict.get(product['statusId'], 'Статус не известен')
         if date_str != None:
             date_str = date_str[:10]
+            date_str = re.sub('-', '\-', date_str)
         
-        # TODO Сделать вывод по-красивше
-        result_msg += f"{product['id']} \t {product['categoryName']} \t {product['campaignName']} \t {product['campaignId']} \t {date_str} {stat}\n"
-    
+        # TODO Сделать вывод по страницам через кнопки tg бота и добавить сумму текущей ставки на рекламную компанию
+        result_msg += f"*Имя компании: {product['campaignName']}*\n"
+        result_msg += f"\t ID Рекламной компании: {product['id']}\n"
+        result_msg += f"\t Имя категории: {product['categoryName']}\n"
+        result_msg += f"\t Дата начала: {date_str}\n"
+        result_msg += f"\t Текущий статус: {stat}\n\n"
 
     return result_msg
 
@@ -120,26 +142,54 @@ def add_advert(message):
         bot.send_message(message.chat.id, f'Для использования команды используйте формат: /add_advert <campaign_id> <max_budget> <place> <status>')
         return
 
-    compagin_id = re.sub('/add_advert ', '', message_args[0])
+    campaign_id = re.sub('/add_advert ', '', message_args[0])
     max_budget = re.sub('/add_advert ', '', message_args[1])
     place = re.sub('/add_advert ', '', message_args[2])
     status = re.sub('/add_advert ', '', message_args[3])
 
-    db_queries.add_user_advert(user, status, compagin_id, max_budget, place)
-    return 'Ваша рекламная компания успешно добавлена!'
+    add_result = db_queries.add_user_advert(user, status, campaign_id, max_budget, place)
+
+    if add_result == 'UPDATED':
+        return 'Ваша рекламная компания успешно обновлена\!'
+    elif add_result == 'ADDED':
+        return 'Ваша рекламная компания успешно добавлена\!'
+
+    return 'Произошла ошибка\!'
     
 
+
+@msg_handler(commands=['delete_advert'])
+def delete_advert(message):
+    user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+    campaign_id = int(re.sub('/delete_advert ', '', message.text))
+
+    if not campaign_id:
+        return 'Необходимо указать ID рекламной компании\!'
+
+    delete_result = db_queries.delete_user_advert(user, campaign_id)
+
+    if not delete_result:
+        return f'Компания {campaign_id} не найдена\!'
+
+    return f'Компания {campaign_id} удалена\!'
+
   
-@msg_handler(commands=['get_adverts'])
-def get_adverts(message):
+@msg_handler(commands=['my_auto_adverts'])
+def my_auto_adverts(message):
 
     user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
     adverts = db_queries.get_user_adverts(user.id)
 
-    result = json.dumps(adverts)
+    result = ''
+
+    for advert in adverts:
+        result += f"{advert.campaign_id} \t Ставка: {advert.max_budget} \t Место: {advert.place} \t Статус: {advert.status}\n"
+        result = re.sub('-', '\-', result)
+        result = re.sub('_', '\_', result)
+        result = re.sub('!', '\!', result)
 
     if not adverts:
-        result = 'Вы ещё не добавили нам команий! Используйте add_advert'
+        result = 'Вы ещё не добавили команий\! Используйте add\_advert'
     
     return result
 
@@ -154,9 +204,9 @@ def reset_base_tokens(message):
 
 # TODO Сделать хелп команду
 
-# TODO Сделать общий абстрактный декоратор
+# TODO Сделать логер
 
 # TODO Перейти на вебхуки
 
 #Начало пулинга
-bot.polling(interval=3, none_stop=True)
+# bot.polling(interval=3, none_stop=True)

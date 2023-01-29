@@ -92,20 +92,27 @@ class wb_queries:
 
   def get_campaign_info(user, campaign):
     user_wb_tokens = wb_queries.get_base_tokens(user)
-    custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.compagin_id}'
+    custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
     req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
 
-    print(req_params)
+    print('get_campaign_info', req_params)
 
-    r = requests.get(f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.compagin_id}/placement', 
+    r = requests.get(f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/placement', 
       cookies=req_params['cookies'],
       headers=req_params['headers']
     ).json()
 
+    campaign_key_word = ''
+
+    if 'place' in r and len(r['place']) > 0:
+      campaign_key_word = r['place'][0]['keyWord']
+    else:
+      campaign_key_word = r['place'][0]['keyWord']
+
     res = {
-      'campaign_id': campaign.compagin_id,
+      'campaign_id': campaign.campaign_id,
       'campaign_bid': r['place'][0]['price'],
-      'campaign_key_word': r['place'][0]['keyWord'],
+      'campaign_key_word': campaign_key_word,
       'search_elements': r['place'][0]['searchElements']
     }
 
@@ -114,7 +121,7 @@ class wb_queries:
 
   def set_campaign_bid(user, campaign, campaign_info, new_bid, approximate_place):
     user_wb_tokens = wb_queries.get_base_tokens(user)
-    custom_referer = f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.compagin_id}'
+    custom_referer = f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}'
     req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
     req_params['headers']['Content-type'] = 'application/json'
 
@@ -128,13 +135,13 @@ class wb_queries:
       ]
     }
 
-    r = requests.put(f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.compagin_id}/save',
+    r = requests.put(f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/save',
       cookies=req_params['cookies'],
       headers=req_params['headers'],
       data=json.dumps(request_body)
     ).json()
 
-    print(f'{datetime.now()} \t check_campaign \t Campaign {campaign.compagin_id} updated! \t New bid: {new_bid} \t Approximate place: {approximate_place}')
+    print(f'{datetime.now()} \t check_campaign \t Campaign {campaign.campaign_id} updated! \t New bid: {new_bid} \t Approximate place: {approximate_place}')
 
 
     return r
@@ -152,3 +159,9 @@ class wb_queries:
         'X-User-Id': str(user_wb_tokens['wb_user_id']),
       }
     }
+    
+  def get_user_atrevds(req_params):
+
+    user_atrevds = requests.get('https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate', cookies=req_params['cookies'], headers=req_params['headers'])
+    view = user_atrevds.json()['content']
+    return view

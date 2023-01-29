@@ -4,15 +4,13 @@ module.exports = {
   apps: [
     {
       name: 'mp_pro_ui_telega',
-      script: '/data/src/ui_backend/main.py',
-      args: [''],
-      wait_ready: true,
-      autorestart: true,
+      script: '/data/venv/bin/python -m uvicorn ui_backend.main:app --reload',
+      wait_ready: false, 
+      autorestart: false,
       max_restarts: 0,
       out_file: "/data/logs/mp_pro_ui_telega.log",
       error_file: "/data/logs/mp_pro_ui_telega_error.log",
-      interpreter : '/data/venv/bin/python',
-      // interpreter_args: '-m ui_backend.main',
+      // interpreter : '/data/venv/bin/python',
       cwd: '/data/',
       env: {
         PYTHONPATH: '/data/src/'
