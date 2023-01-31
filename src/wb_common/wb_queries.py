@@ -20,7 +20,7 @@ class wb_queries:
     return user_wb_tokens
 
   
-  def wb_query(method, url, cookies, headers): # TODO make abstract "requests" methods 
+  def wb_query(method, url, cookies, headers):
     response = requests[method](url, cookies=cookies, headers=headers)
     result = response.json()
     print(f'{datetime.now()} \t wb_query \t url: {url} \t cookies: {str(cookies)} \t headers: {str(headers)} \t result: {str(result)}')
@@ -85,7 +85,7 @@ class wb_queries:
       result.append({
         "price": advert['cpm'],
         "p_id": advert['id'],
-        "position": advert['id'] # TODO add position
+        "position": advert['id']
       })
     return result
 
@@ -114,6 +114,35 @@ class wb_queries:
       'campaign_bid': r['place'][0]['price'],
       'campaign_key_word': campaign_key_word,
       'search_elements': r['place'][0]['searchElements']
+    }
+
+    return res
+
+
+  def get_stat_words(user, campaign):
+    user_wb_tokens = wb_queries.get_base_tokens(user)
+    custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
+    req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+
+    print('get_campaign_info', req_params)
+
+    r = requests.get(f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/stat-words', 
+      cookies=req_params['cookies'],
+      headers=req_params['headers']
+    ).json()
+
+    pluses = []
+    main_pluse_word = ''
+
+    if 'words' in r and 'pluses' in r['words']:
+      pluses = r['words']['pluses']
+
+    if len(pluses) > 0:
+      main_pluse_word = pluses[0]
+
+    res = {
+      'pluses': pluses,
+      'main_pluse_word': main_pluse_word
     }
 
     return res

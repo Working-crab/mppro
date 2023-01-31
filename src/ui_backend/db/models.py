@@ -18,6 +18,8 @@ class User(Base):
 
     time_created = Column(DateTime(timezone=True), server_default=func.now())
     time_updated = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    subscriptions = relationship('Subscription', back_populates='user')
 
     adverts = relationship("Advert")
 
@@ -42,3 +44,20 @@ class Advert(Base):
 
     def __repr__(self):
         return f"Advert(id={self.id!r}, max_budget={self.max_budget!r}, user_id={self.user_id!r}, place={self.place!r})"
+
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    title = Column(String, nullable=False)
+    price = Column(Integer, nullable=False)
+    start_date = Column(DateTime, nullable=False)
+    end_date = Column(DateTime, nullable=False)
+
+    user = relationship('User', back_populates='subscriptions')
+
+    def __repr__(self):
+        return f"Subscription(id={self.id!r}, title={self.title!r}, price={self.price!r}, user_id={self.user_id!r})"
+    

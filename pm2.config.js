@@ -22,7 +22,7 @@ module.exports = {
       args: [''],
       wait_ready: true,
       autorestart: false,
-      cron_restart: '*/2 * * * *', // once per 2 minutes
+      cron_restart: '*/10 * * * *', // once per 10 minutes
       out_file: "/data/logs/user_automation.log",
       error_file: "/data/logs/user_automation_error.log",
       interpreter : '/data/venv/bin/python',
@@ -31,21 +31,21 @@ module.exports = {
         PYTHONPATH: '/data/src/'
       }
     },
-    {
-      name: 'mp_pro_web_test',
-      script: '/data/src/web_test_frontend/index.js',
-      args: [''],
-      wait_ready: true,
-      autorestart: true,
-      max_restarts: 0,
-      instances : 2,
-      exec_mode : "cluster",
-      out_file: "/data/logs/mp_pro_web_test.log",
-      error_file: "/data/logs/mp_pro_web_test_error.log",
-      cwd: '/data/',
-      env: {
-        NODE_ENV: '/data/'
-      }
-    }
+    // {
+    //   name: 'mp_pro_web_test',
+    //   script: '/data/src/web_test_frontend/index.js',
+    //   args: [''],
+    //   wait_ready: true,
+    //   autorestart: true,
+    //   max_restarts: 0,
+    //   instances : 2,
+    //   exec_mode : "cluster",
+    //   out_file: "/data/logs/mp_pro_web_test.log",
+    //   error_file: "/data/logs/mp_pro_web_test_error.log",
+    //   cwd: '/data/',
+    //   env: {
+    //     NODE_ENV: '/data/'
+    //   }
+    // }
   ]
 }

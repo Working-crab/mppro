@@ -138,7 +138,7 @@ class db_queries:
           with Session(engine) as session:
             date = datetime.now() - timedelta(days=1)
             print(date)
-            return session.query(Advert).filter(Advert.time_updated >= date).order_by(Advert.time_updated).limit(100).all()
+            return session.query(Advert).order_by(Advert.time_updated).limit(100).all() # .filter(Advert.time_updated >= date)
 
       except Exception as e:
           print(f'Запрос не выполнен по причине: TypeError: {type(e).__name__}: {e}.')

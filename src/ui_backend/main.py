@@ -4,8 +4,10 @@ from fastapi import FastAPI
 
 from typing import Union, Dict, Any
 import re
+from datetime import datetime
 
 import logging
+logging.basicConfig(filename="logs/loger_user_actions.log")
 logger = logging.getLogger(__name__)
 
 from ui_backend.db.queries import db_queries
@@ -38,11 +40,13 @@ def try_except_decorator(fn):
     
     def the_wrapper(message):
         try:
-            logger.info(f'{message.from_user.id}: {message.text}')
-            bot.send_message(message.chat.id, fn(message)) # , parse_mode='MarkdownV2'
+            sucsess_message = fn(message)
+            bot.send_message(message.chat.id, sucsess_message)
+            logger.info(f'{datetime.now()}: {message.from_user.id}: {message.text}: {sucsess_message}')
         except Exception as e:
-            logger.error(e)
-            bot.send_message(message.chat.id, f'Произошла ошибка: {type(e).__name__}: {e}')
+            err_message = f'Произошла ошибка: {type(e).__name__}: {e}'
+            bot.send_message(message.chat.id, err_message)
+            logger.error(f'{datetime.now()}: {message.from_user.id}: {message.text}: {err_message}: {e}')
 
     return the_wrapper
 
@@ -56,7 +60,7 @@ def msg_handler(*args, **kwargs):
 @msg_handler(commands=['start'])
 def start(message):
     db_queries.create_user(telegram_user_id=message.from_user.id, telegram_chat_id=message.chat.id, telegram_username=message.from_user.username)
-    return f'Здравствуйте, {message}'
+    return f'Здравствуйте, {message.from_user.first_name}'
 
 
 @msg_handler(commands=['set_token_cmp'])
@@ -86,7 +90,6 @@ def search(message):
             for item_idex in range(len(item_dicts)):
                 price = item_dicts[item_idex]['price']
                 p_id = item_dicts[item_idex]['p_id']
-                # TODO Сделать вывод по-красивше
                 result_message += f'{item_idex + 1}\\)  {price}р,  [ссылка на товар](https://www.wildberries.ru/catalog/{p_id}/detail.aspx) \n' 
             return result_message
 
@@ -98,7 +101,7 @@ def list_atrevds(message):
     user_wb_tokens = wb_queries.get_base_tokens(user)
     req_params = wb_queries.get_base_request_params(user_wb_tokens)
 
-    status_dict = { # TODO УБРАТЬ ЭТОТ СРАМ!
+    status_dict = {
       4: 'Готова к запуску',
       9: 'Активна',
       8: 'Отказана',
@@ -116,7 +119,6 @@ def list_atrevds(message):
             date_str = date_str[:10]
             date_str = re.sub('-', '\-', date_str)
         
-        # TODO Сделать вывод по страницам через кнопки tg бота и добавить сумму текущей ставки на рекламную компанию
         result_msg += f"*Имя компании: {product['campaignName']}*\n"
         result_msg += f"\t ID Рекламной компании: {product['id']}\n"
         result_msg += f"\t Имя категории: {product['categoryName']}\n"
@@ -148,7 +150,7 @@ def add_advert(message):
     status = re.sub('/add_advert ', '', message_args[3])
 
     add_result = db_queries.add_user_advert(user, status, campaign_id, max_budget, place)
-
+    
     if add_result == 'UPDATED':
         return 'Ваша рекламная компания успешно обновлена\!'
     elif add_result == 'ADDED':
@@ -202,11 +204,48 @@ def reset_base_tokens(message):
         
         return str(tokens)
 
-# TODO Сделать хелп команду
 
-# TODO Сделать логер
+@bot.message_handler(commands=['get'])
+def test_def(message):
+    print(message)
+    markup_inline = types.InlineKeyboardMarkup()
+    btn = types.InlineKeyboardButton(text='Введите ключевое слово', callback_data='adv')
+    markup_inline.add(btn)
+    bot.send_message(message.chat.id, "text", reply_markup=markup_inline)
 
-# TODO Перейти на вебхуки
+@bot.callback_query_handler(func=lambda call: call.data == 'adv')
+def cb_adverts(call):
+    try:
+        sent = bot.reply_to(call, 'Оставьте сообщение')
+        bot.register_next_step_handler(sent,test_next_step_handler)
+    except Exception as e:
+        bot.send_message(call.from_user.id, e)
+    # selected_option = call.data
+    # text = "Вы выбрали: {}".format(selected_option)
+    # bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=text)
+    # bot.send_message(call.chat.id, "text")
+    # markup_inline = types.InlineKeyboardMarkup()
+    # btn = types.InlineKeyboardButton(text='Текущие ставки', callback_data='adv')
+    # markup_inline.add(btn)
+    # bot.send_message(message.chat.id, "1", reply_markup=markup_inline)
 
-#Начало пулинга
-# bot.polling(interval=3, none_stop=True)
+
+def test_next_step_handler(call):
+    keyword = re.sub('/search ', '', call.message.text)
+    item_dicts = wb_queries.search_adverts_by_keyword(keyword)
+    result_message = ''
+
+    if len(item_dicts) == 0:
+        bot.send_message(call.from_user.id, 'ставки неизвестны')
+        # return 'ставки неизвестны'
+    else:
+        for item_idex in range(len(item_dicts)):
+            price = item_dicts[item_idex]['price']
+            p_id = item_dicts[item_idex]['p_id']
+            result_message += f'{item_idex + 1}\\)  {price}р,  [ссылка на товар](https://www.wildberries.ru/catalog/{p_id}/detail.aspx) \n'
+        bot.send_message(call.from_user.id, result_message)
+        # return result_message
+
+@bot.message_handler(commands=['buy'])
+def buy_subscription(message):
+    pass
