@@ -19,7 +19,15 @@ class User(Base):
     time_created = Column(DateTime(timezone=True), server_default=func.now())
     time_updated = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
-    subscriptions = relationship('Subscription', back_populates='user')
+    subscriptions_id = Column(Integer, ForeignKey('subscriptions.id'), nullable=True)
+
+    subscriptions = relationship("Subscription", back_populates="user")
+    
+    transactions = relationship("Transaction", back_populates="user")
+    
+    
+    sub_start_date = Column(DateTime(timezone=True))
+    sub_end_date = Column(DateTime(timezone=True))
 
     adverts = relationship("Advert")
 
@@ -50,14 +58,32 @@ class Subscription(Base):
     __tablename__ = "subscriptions"
     
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     title = Column(String, nullable=False)
-    price = Column(Integer, nullable=False)
-    start_date = Column(DateTime, nullable=False)
-    end_date = Column(DateTime, nullable=False)
+    description = Column(String, nullable=True)
+    price = Column(Integer, default=0)
 
     user = relationship('User', back_populates='subscriptions')
+    transactions = relationship('Transaction', back_populates='subscriptions')
 
     def __repr__(self):
         return f"Subscription(id={self.id!r}, title={self.title!r}, price={self.price!r}, user_id={self.user_id!r})"
+    
+    
+class Transaction(Base):
+    __tablename__ = "transactions"
+    
+    id = Column(Integer, primary_key=True)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    total = Column(Integer, nullable=False)
+    time_created = Column(DateTime(timezone=True), server_default=func.now())
+    
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    subscription_id = Column(Integer, ForeignKey('subscriptions.id'), nullable=False)
+
+    user = relationship('User', back_populates='transactions')
+    subscriptions = relationship('Subscription', back_populates='transactions')
+
+    def __repr__(self):
+        return f"Transaction(id={self.id!r}, title={self.title!r}, total={self.total!r}, user_id={self.user_id!r}, subscription_id={self.subscription_id!r})"
     

@@ -1,5 +1,6 @@
 import telebot
 from telebot import types
+from telebot.types import LabeledPrice
 from fastapi import FastAPI
 
 from typing import Union, Dict, Any
@@ -15,6 +16,7 @@ from wb_common.wb_queries import wb_queries
 
 BOT_NAME = 'mp_pro_bot'
 TOKEN = '5972133433:AAERP_hpf9p-zYjTigzEd-MCpQWGQNCvgWs'
+PAYMENT_TOKEN = '381764678:TEST:49601'
 WEBHOOK_URL = 'https://admp.pro/'# урл доменя
 
 #Создание бота
@@ -56,11 +58,74 @@ def msg_handler(*args, **kwargs):
     return decorator
 
 
+def reply_markup_without_subscription():
+    markup_inline = types.ReplyKeyboardMarkup()
+    btn_help = types.KeyboardButton(text='Помощь')
+    btn_search = types.KeyboardButton(text='Поиск')
+    btn_set_token_cmp = types.KeyboardButton(text='Установить токен')
+    markup_inline.add(btn_help, btn_search, btn_set_token_cmp)
+    return markup_inline
+
+
+def reply_markup_trial(trial):
+    markup = types.InlineKeyboardMarkup()
+    if not trial:
+        markup.add(
+            types.InlineKeyboardButton(text='Согласиться', callback_data='Trial_Yes'),
+            types.InlineKeyboardButton(text='Отказаться', callback_data='Trial_No'),
+            types.InlineKeyboardButton(text='Информация', callback_data='Trial_info'),
+        )
+    else:
+        markup.add(
+            types.InlineKeyboardButton(text='Информация', callback_data='Trial_info'),
+        )
+    return markup
+
 #Команды бота
-@msg_handler(commands=['start'])
+@bot.message_handler(commands=['start'])
 def start(message):
-    db_queries.create_user(telegram_user_id=message.from_user.id, telegram_chat_id=message.chat.id, telegram_username=message.from_user.username)
-    return f'Здравствуйте, {message.from_user.first_name}'
+    get_user = db_queries.get_user_by_telegram_user_id(telegram_user_id=message.from_user.id)
+    if not get_user:
+        db_queries.create_user(telegram_user_id=message.from_user.id, telegram_chat_id=message.chat.id, telegram_username=message.from_user.username)
+        markup_inline = reply_markup_without_subscription()
+        bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}, вы зарегистрировались в *{bot.get_me().username}*', parse_mode='Markdown', reply_markup=markup_inline)
+        bot.send_message(message.chat.id, f'Так как вы только зарегистрировались, предлагаем Вам *Trial* подписку на нашего бота', parse_mode='Markdown', reply_markup=reply_markup_trial(trial=False))
+    else:
+        bot.send_message(message.chat.id, f'Вы уже зарегистрированы')
+        if get_user.subscriptions_id == None:
+            markup_inline = reply_markup_without_subscription()
+            bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}', reply_markup=markup_inline)
+        else:
+            pass
+        
+
+@bot.callback_query_handler(func=lambda call:True)
+def callback_query(call):
+    if call.data == "Trial_Yes":
+        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text="Активируем Вам подписку, а пока можете посмотреть что она предоставляет: Информация\nИли /trial - Информация", reply_markup=reply_markup_trial(trial=True))
+        db_queries.set_trial(user_id=call.message.chat.id, sub_name='Trial')
+    if call.data == "Trial_No":
+        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text=f'Хорошо, но если вы всё же захотите активировать подписку, введите команду /trial', parse_mode='Markdown')
+    if call.data == "Trial_info":
+        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text='`Trial` подписка предоставляет: "Функционал"', parse_mode='Markdown')
+
+        
+@bot.message_handler(commands=['trial'])
+def trial(message):
+    user = db_queries.get_user_by_telegram_user_id(message.chat.id)
+    transaction = db_queries.get_transaction(user_id=user.id, transaction_title="Trial")
+    if user.subscriptions_id == None:
+        if transaction:
+            bot.send_message(message.chat.id, f'У вас уже была активирована Пробная подписка', parse_mode='Markdown')
+        else:
+            bot.send_message(message.chat.id, f'Информация о пробной подписке\nКнопка *Согласиться* активирует Вам подписку', reply_markup=reply_markup_trial(trial=False), parse_mode='Markdown')
+    else:    
+        sub = db_queries.get_sub(sub_id=user.subscriptions_id)
+        if sub.title != 'Trial':
+            bot.send_message(message.chat.id, f'У вас сейчас не пробная подписка', parse_mode='Markdown')
+        elif sub.title == 'Trial':
+            bot.send_message(message.chat.id, f'Нажмите на `Информация` чтобы узнать, что дает пробная подписка', reply_markup=reply_markup_trial(trial=True), parse_mode='Markdown')
+    
 
 
 @msg_handler(commands=['set_token_cmp'])
@@ -199,53 +264,99 @@ def my_auto_adverts(message):
 
 @msg_handler(commands=['reset_base_tokens'])
 def reset_base_tokens(message):
-        user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-        tokens = wb_queries.reset_base_tokens(user)
-        
-        return str(tokens)
+    user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+    tokens = wb_queries.reset_base_tokens(user)
+    
+    return str(tokens)
 
 
-@bot.message_handler(commands=['get'])
-def test_def(message):
-    print(message)
-    markup_inline = types.InlineKeyboardMarkup()
-    btn = types.InlineKeyboardButton(text='Введите ключевое слово', callback_data='adv')
-    markup_inline.add(btn)
-    bot.send_message(message.chat.id, "text", reply_markup=markup_inline)
-
-@bot.callback_query_handler(func=lambda call: call.data == 'adv')
-def cb_adverts(call):
+# Хендлеры кнопок
+@bot.message_handler(regexp='Поиск')
+def cb_adverts(message):
     try:
-        sent = bot.reply_to(call, 'Оставьте сообщение')
-        bot.register_next_step_handler(sent,test_next_step_handler)
+        sent = bot.send_message(message.chat.id, 'Введите ключевое слово', reply_markup=types.ReplyKeyboardRemove())
+        bot.register_next_step_handler(sent,search_next_step_handler)
     except Exception as e:
-        bot.send_message(call.from_user.id, e)
-    # selected_option = call.data
-    # text = "Вы выбрали: {}".format(selected_option)
-    # bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=text)
-    # bot.send_message(call.chat.id, "text")
-    # markup_inline = types.InlineKeyboardMarkup()
-    # btn = types.InlineKeyboardButton(text='Текущие ставки', callback_data='adv')
-    # markup_inline.add(btn)
-    # bot.send_message(message.chat.id, "1", reply_markup=markup_inline)
+        bot.send_message(message.chat.id, e)
 
+@bot.message_handler(regexp='Установить токен')
+def cb_adverts(message):
+    try:
+        sent = bot.send_message(message.chat.id, 'Введите токен', reply_markup=types.ReplyKeyboardRemove())
+        bot.register_next_step_handler(sent,set_token_cmp_handler)
+    except Exception as e:
+        bot.send_message(message.chat.id, e)
 
-def test_next_step_handler(call):
-    keyword = re.sub('/search ', '', call.message.text)
-    item_dicts = wb_queries.search_adverts_by_keyword(keyword)
-    result_message = ''
+# Функции для кнопок
+def search_next_step_handler(message):
+    try:
+        keyword = re.sub('/search ', '', message.text)
+        item_dicts = wb_queries.search_adverts_by_keyword(keyword)
+        result_message = ''
 
-    if len(item_dicts) == 0:
-        bot.send_message(call.from_user.id, 'ставки неизвестны')
-        # return 'ставки неизвестны'
-    else:
-        for item_idex in range(len(item_dicts)):
-            price = item_dicts[item_idex]['price']
-            p_id = item_dicts[item_idex]['p_id']
-            result_message += f'{item_idex + 1}\\)  {price}р,  [ссылка на товар](https://www.wildberries.ru/catalog/{p_id}/detail.aspx) \n'
-        bot.send_message(call.from_user.id, result_message)
-        # return result_message
+        if len(item_dicts) == 0:
+            bot.send_message(message.chat.id, 'ставки неизвестны')
+        else:
+            for item_idex in range(len(item_dicts)):
+                price = item_dicts[item_idex]['price']
+                p_id = item_dicts[item_idex]['p_id']
+                result_message += f'{item_idex + 1}\\)  {price}р,  [ссылка на товар](https://www.wildberries.ru/catalog/{p_id}/detail.aspx) \n'
+            bot.send_message(message.chat.id, result_message, reply_markup=reply_markup_without_subscription())
+    except Exception as e:
+        bot.send_message(message.chat.id, e)
+
+def set_token_cmp_handler(message):
+    clear_token = message.text.replace('/set_token_cmp ', '').strip()
+    db_queries.set_user_wb_cmp_token(telegram_user_id=message.from_user.id, wb_cmp_token=clear_token)
+    
+    bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=reply_markup_without_subscription(), parse_mode='MarkdownV2')
+
 
 @bot.message_handler(commands=['buy'])
 def buy_subscription(message):
-    pass
+    sub_list = db_queries.get_all_sub()
+    
+    if PAYMENT_TOKEN.split(':')[1] == 'TEST':
+        keyword = re.sub('/buy ', '', message.text)
+        for sub in sub_list:
+            product_price = [LabeledPrice(label=sub.title, amount=sub.price * 100)]
+            bot.send_invoice(message.chat.id,
+                            title=sub.title,
+                            description=sub.description,
+                            invoice_payload=sub.title,
+                            provider_token=PAYMENT_TOKEN,
+                            currency='rub',
+                            prices=product_price,
+                            start_parameter='one-month-sub',
+                            is_flexible=False,
+                            )
+        
+            
+
+@bot.pre_checkout_query_handler(func=lambda query: True)
+def checkout(pre_checkout_query):
+    bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True,
+                                  error_message="Aliens tried to steal your card's CVV, but we successfully protected your credentials,"
+                                                " try to pay again in a few minutes, we need a small rest.")
+    
+    
+@bot.message_handler(content_types=['successful_payment'])
+def got_payment(message):
+    total = message.successful_payment.total_amount / 100
+    bot.send_message(message.chat.id,
+                     'Ура ты купил `{}` за `{} {}` Спасибо за покупку!'.format(message.successful_payment.invoice_payload,
+                         total, message.successful_payment.currency),
+                     parse_mode='Markdown')
+
+    
+    db_queries.update_sub(user_id=message.chat.id, sub_name=message.successful_payment.invoice_payload, total=total)
+
+
+@bot.message_handler(commands=['show_active_sub'])
+def show_active_sub(message):
+    user = db_queries.get_user_by_telegram_user_id(message.chat.id)
+    sub = db_queries.get_sub(sub_id=user.subscriptions_id)
+    if user.subscriptions_id != None:
+        bot.send_message(message.chat.id, 'Подключен: `{}`\nСрок действия с `{}` по `{}`'.format(sub.title, user.sub_start_date.strftime('%d/%m/%Y'), user.sub_end_date.strftime('%d/%m/%Y')))
+    else:
+        bot.send_message(message.chat.id, 'У вас не подключено никаких платных подписок')
