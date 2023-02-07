@@ -16,8 +16,8 @@ from wb_common.wb_queries import wb_queries
 
 BOT_NAME = 'mp_pro_bot'
 TOKEN = '5972133433:AAERP_hpf9p-zYjTigzEd-MCpQWGQNCvgWs'
-PAYMENT_TOKEN = '381764678:TEST:49601'
-WEBHOOK_URL = 'https://admp.pro/'# урл доменя
+PAYMENT_TOKEN = '390540012:LIVE:30668'
+WEBHOOK_URL = 'https://admp.pro/'# урл домена
 
 #Создание бота
 bot = telebot.TeleBot(TOKEN)
@@ -25,7 +25,7 @@ bot = telebot.TeleBot(TOKEN)
 app = FastAPI(openapi_url=None)
 
 print('mp_pro_ui_telega service started!')
-
+# ---------------------------------------------------------------------------------------------------------
 @app.on_event('startup')
 def on_startup():
     webhook_info = bot.get_webhook_info()
@@ -37,7 +37,7 @@ async def webhook(update: Dict[str, Any]):
     update = types.Update.de_json(update)
     bot.process_new_updates([update])
     return 'ok'
-
+# Декораторы ---------------------------------------------------------------------------------------------------------
 def try_except_decorator(fn):
     
     def the_wrapper(message):
@@ -56,14 +56,25 @@ def msg_handler(*args, **kwargs):
     def decorator(fn):
         return bot.message_handler(*args, **kwargs)(try_except_decorator(fn))
     return decorator
+# ----------------------------------------------------------------------------------------------------------------------
 
+def universal_reply_markup(user_id):
 
-def reply_markup_without_subscription():
     markup_inline = types.ReplyKeyboardMarkup()
+
     btn_help = types.KeyboardButton(text='Помощь')
     btn_search = types.KeyboardButton(text='Поиск')
     btn_set_token_cmp = types.KeyboardButton(text='Установить токен')
-    markup_inline.add(btn_help, btn_search, btn_set_token_cmp)
+
+    btn_list_adverts = types.KeyboardButton(text='Список рекламных компаний')
+    btn_add_adverts = types.KeyboardButton(text='Добавить рекламную компанию')
+
+    user = db_queries.get_user_by_telegram_user_id(user_id)
+
+    if user.subscriptions_id == None:
+        markup_inline.add(btn_help, btn_search, btn_set_token_cmp)
+    else:
+        markup_inline.add(btn_help, btn_search, btn_set_token_cmp, btn_list_adverts, btn_add_adverts)
     return markup_inline
 
 
@@ -81,22 +92,20 @@ def reply_markup_trial(trial):
         )
     return markup
 
-#Команды бота
+#Команды бота -------------------------------------------------------------------------------------------------------
 @bot.message_handler(commands=['start'])
 def start(message):
     get_user = db_queries.get_user_by_telegram_user_id(telegram_user_id=message.from_user.id)
     if not get_user:
         db_queries.create_user(telegram_user_id=message.from_user.id, telegram_chat_id=message.chat.id, telegram_username=message.from_user.username)
-        markup_inline = reply_markup_without_subscription()
+        markup_inline = universal_reply_markup(message.from_user.id)
         bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}, вы зарегистрировались в *{bot.get_me().username}*', parse_mode='Markdown', reply_markup=markup_inline)
         bot.send_message(message.chat.id, f'Так как вы только зарегистрировались, предлагаем Вам *Trial* подписку на нашего бота', parse_mode='Markdown', reply_markup=reply_markup_trial(trial=False))
     else:
         bot.send_message(message.chat.id, f'Вы уже зарегистрированы')
-        if get_user.subscriptions_id == None:
-            markup_inline = reply_markup_without_subscription()
-            bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}', reply_markup=markup_inline)
-        else:
-            pass
+        markup_inline = universal_reply_markup(message.from_user.id)
+        bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}', reply_markup=markup_inline)
+
         
 
 @bot.callback_query_handler(func=lambda call:True)
@@ -270,7 +279,7 @@ def reset_base_tokens(message):
     return str(tokens)
 
 
-# Хендлеры кнопок
+# Хендлеры кнопок --------------------------------------------------------------------------------------------------------
 @bot.message_handler(regexp='Поиск')
 def cb_adverts(message):
     try:
@@ -278,6 +287,16 @@ def cb_adverts(message):
         bot.register_next_step_handler(sent,search_next_step_handler)
     except Exception as e:
         bot.send_message(message.chat.id, e)
+        
+
+# Кнопка "Помощь" --------------------------------------------------------------------------------------------------------
+@bot.message_handler(regexp='Помощь')
+def cb_adverts(message):
+    try:
+        bot.send_message(message.chat.id, 'Здравствуйте, если у Вас возникли проблемы, напишите: \nПо техническим: `` \nПо каким-то ``')
+    except Exception as e:
+        bot.send_message(message.chat.id, e)
+
 
 @bot.message_handler(regexp='Установить токен')
 def cb_adverts(message):
@@ -287,7 +306,23 @@ def cb_adverts(message):
     except Exception as e:
         bot.send_message(message.chat.id, e)
 
-# Функции для кнопок
+@bot.message_handler(regexp='Список рекламных компаний')
+def cb_adverts(message):
+    try:
+        list_adverts_handler(message)
+    except Exception as e:
+        bot.send_message(message.chat.id, e)
+
+@bot.message_handler(regexp='Добавить рекламную компанию')
+def cb_adverts(message):
+    try:
+        msg_text = 'Введите данные в формате "<campaign_id> <max_budget> <place> <status>" в следующем сообщение.'
+        sent = bot.send_message(message.chat.id, msg_text, reply_markup=types.ReplyKeyboardRemove())
+        bot.register_next_step_handler(sent,add_advert_handler)
+    except Exception as e:
+        bot.send_message(message.chat.id, e)
+
+# Функции для кнопок --------------------------------------------------------------------------------------------------------
 def search_next_step_handler(message):
     try:
         keyword = re.sub('/search ', '', message.text)
@@ -301,35 +336,119 @@ def search_next_step_handler(message):
                 price = item_dicts[item_idex]['price']
                 p_id = item_dicts[item_idex]['p_id']
                 result_message += f'{item_idex + 1}\\)  {price}р,  [ссылка на товар](https://www.wildberries.ru/catalog/{p_id}/detail.aspx) \n'
-            bot.send_message(message.chat.id, result_message, reply_markup=reply_markup_without_subscription())
+            bot.send_message(message.chat.id, result_message, reply_markup=universal_reply_markup(message.from_user.id), parse_mode='MarkdownV2')
     except Exception as e:
         bot.send_message(message.chat.id, e)
 
-def set_token_cmp_handler(message):
-    clear_token = message.text.replace('/set_token_cmp ', '').strip()
-    db_queries.set_user_wb_cmp_token(telegram_user_id=message.from_user.id, wb_cmp_token=clear_token)
-    
-    bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=reply_markup_without_subscription(), parse_mode='MarkdownV2')
 
+def set_token_cmp_handler(message):
+    try:
+        clear_token = message.text.replace('/set_token_cmp ', '').strip()
+        db_queries.set_user_wb_cmp_token(telegram_user_id=message.from_user.id, wb_cmp_token=clear_token)
+        
+        bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=universal_reply_markup(message.from_user.id), parse_mode='MarkdownV2')
+    except Exception as e:
+        logger.error(e)
+
+
+def list_adverts_handler(message):
+    try:
+        user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+        user_wb_tokens = wb_queries.get_base_tokens(user)
+        req_params = wb_queries.get_base_request_params(user_wb_tokens)
+
+        status_dict = {
+            4: 'Готова к запуску',
+            9: 'Активна',
+            8: 'Отказана',
+            11: 'Приостановлено',
+        }
+
+        view = wb_queries.get_user_atrevds(req_params)
+        result_msg = ''
+
+        for product in view:
+            date_str = product['startDate']
+            
+            stat = status_dict.get(product['statusId'], 'Статус не известен')
+            if date_str != None:
+                date_str = date_str[:10]
+                date_str = re.sub('-', '\-', date_str)
+            
+            result_msg += f"*Имя компании: {product['campaignName']}*\n"
+            result_msg += f"\t ID Рекламной компании: {product['id']}\n"
+            result_msg += f"\t Имя категории: {product['categoryName']}\n"
+            result_msg += f"\t Дата начала: {date_str}\n"
+            result_msg += f"\t Текущий статус: {stat}\n\n"
+
+        bot.send_message(message.chat.id, result_msg, reply_markup=universal_reply_markup(message.from_user.id), parse_mode='MarkdownV2')
+
+    except Exception as e:
+        bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup(message.from_user.id))
+        logger.error(e)
+
+def add_advert_handler(message):
+    """
+    Команда для запсии в бд информацию о том, что юзер включает рекламную компанию
+    TO wOrKeD:
+    (индентификатор, бюджет, место которое хочет занять)
+    записать это в бд
+    """
+    try:
+        user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+
+        #(индентификатор, бюджет, место которое хочет занять)args*
+        message_args = re.sub('/add_advert ', '', message.text).split(sep=' ', maxsplit=4)
+        if len(message_args) != 4:
+            msg_text = 'Для использования команды используйте формат: /add_advert <campaign_id> <max_budget> <place> <status>'
+            bot.send_message(message.chat.id, msg_text, reply_markup=universal_reply_markup(message.from_user.id))
+            return
+
+        campaign_id = re.sub('/add_advert ', '', message_args[0])
+        max_budget = re.sub('/add_advert ', '', message_args[1])
+        place = re.sub('/add_advert ', '', message_args[2])
+        status = re.sub('/add_advert ', '', message_args[3])
+
+        add_result = db_queries.add_user_advert(user, status, campaign_id, max_budget, place)
+        
+        res_msg = ''
+        if add_result == 'UPDATED':
+            res_msg = 'Ваша рекламная компания успешно обновлена\!'
+        elif add_result == 'ADDED':
+            res_msg = 'Ваша рекламная компания успешно добавлена\!'
+
+        bot.send_message(message.chat.id, res_msg, reply_markup=universal_reply_markup(message.from_user.id), parse_mode='MarkdownV2')
+    except Exception as e:
+        bot.send_message(message.chat.id, 'Что-то пошло не так')
+        logger.error(e)
+
+# --------------------------------------------------------------------------------------------------------------------------------
 
 @bot.message_handler(commands=['buy'])
 def buy_subscription(message):
-    sub_list = db_queries.get_all_sub()
-    
-    if PAYMENT_TOKEN.split(':')[1] == 'TEST':
-        keyword = re.sub('/buy ', '', message.text)
-        for sub in sub_list:
-            product_price = [LabeledPrice(label=sub.title, amount=sub.price * 100)]
-            bot.send_invoice(message.chat.id,
-                            title=sub.title,
-                            description=sub.description,
-                            invoice_payload=sub.title,
-                            provider_token=PAYMENT_TOKEN,
-                            currency='rub',
-                            prices=product_price,
-                            start_parameter='one-month-sub',
-                            is_flexible=False,
-                            )
+    try:
+        sub_list = db_queries.get_all_sub()
+        
+        if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
+            keyword = re.sub('/buy ', '', message.text)
+            for sub in sub_list:
+                product_price = [LabeledPrice(label=sub.title, amount=sub.price * 100)]
+                bot.send_invoice(message.chat.id,
+                                title=sub.title,
+                                description=sub.description,
+                                invoice_payload=sub.title,
+                                provider_token=PAYMENT_TOKEN,
+                                currency='rub',
+                                prices=product_price,
+                                start_parameter='one-month-sub',
+                                is_flexible=False,
+                                )
+                
+    except Exception as e:
+        bot.send_message(message.chat.id, e)
+        
+            
+        
         
             
 

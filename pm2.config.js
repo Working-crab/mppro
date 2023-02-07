@@ -7,6 +7,8 @@ module.exports = {
       script: '/data/venv/bin/python -m uvicorn ui_backend.main:app --reload',
       wait_ready: false, 
       autorestart: false,
+      kill_timeout: 10000,
+      instances : 2,
       max_restarts: 0,
       out_file: "/data/logs/mp_pro_ui_telega.log",
       error_file: "/data/logs/mp_pro_ui_telega_error.log",
