@@ -1,6 +1,6 @@
 
 import json
-from ui_backend.db.queries import db_queries
+from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
 
 class campaign_automation:
@@ -12,9 +12,13 @@ class campaign_automation:
       return False
     
     for campaign in campaigns:
-      print('campaign')
+      print('=== campaign automation ===')
       print(campaign)
-      campaign_automation.check_campaign(campaign)
+
+      try:
+        campaign_automation.check_campaign(campaign)
+      except Exception as e:
+        print(f'Exception: {e}.')
 
 
   def check_campaign(campaign):
@@ -31,6 +35,7 @@ class campaign_automation:
 
     new_bid = 0
     approximate_place = 0
+    bid_p_id = 0
 
     for bid in current_bids_table:
       if bid['price'] < campaign.max_budget:

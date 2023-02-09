@@ -1,0 +1,29 @@
+from fastapi import FastAPI
+from telebot import types
+
+from typing import Union, Dict, Any
+from .bot import bot
+import ui_backend.common
+import ui_backend.handlers
+import ui_backend.commands
+
+
+app = FastAPI(openapi_url=None)
+WEBHOOK_URL = 'https://admp.pro/'# урл домена
+
+
+@app.on_event('startup')
+def on_startup():
+    webhook_info = bot.get_webhook_info()
+    if webhook_info.url != WEBHOOK_URL:
+        bot.set_webhook(url=WEBHOOK_URL)
+
+@app.post('/')
+async def webhook(update: Dict[str, Any]):
+    update = types.Update.de_json(update)
+    bot.process_new_updates([update])
+    return 'ok'
+
+@app.get('/')
+async def webhook(update: Dict[str, Any]):
+    return 'https://t.me/mp_pro_bot'
