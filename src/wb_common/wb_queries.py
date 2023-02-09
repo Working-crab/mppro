@@ -194,3 +194,26 @@ class wb_queries:
     user_atrevds = requests.get('https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate', cookies=req_params['cookies'], headers=req_params['headers'])
     view = user_atrevds.json()['content']
     return view
+
+  def get_budget(user, campaign):
+    user_wb_tokens = wb_queries.get_base_tokens(user)
+    custom_referer = f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}'
+    req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+
+    print('get_campaign_info', req_params)
+
+    r = requests.get(f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}/budget', 
+    cookies=req_params['cookies'],
+    headers=req_params['headers']
+    ).json()
+
+    total_budget = 0
+
+    if 'budget' in r:
+      total_budget = int(r['total'])
+
+    res = {
+      'budget': total_budget,
+    }
+
+    return res

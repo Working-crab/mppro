@@ -3,22 +3,25 @@ import json
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
 
-class campaign_automation:
+class analitics_automation:
 
   def start():
-    campaigns = db_queries.get_adverts_chunk()
-
-    if not campaigns:
-      return False
+    #campaigns = db_queries.get_adverts_chunk()
+    user = db_queries.get_user_by_id(2)
+    campaign_popa = db_queries.get_campaign_by_user_id_and_campaign_id(user.id, 4260658)
+    total_budget = wb_queries.get_budget(user, campaign_popa)
+    print(total_budget)
+    # if not campaigns:
+    #   return False
     
-    for campaign in campaigns:
-      print('=== campaign automation ===')
-      print(campaign)
+    # for campaign in campaigns:
+    #   print('=== campaign automation ===')
+    #   print(campaign)
 
-      try:
-        campaign_automation.check_campaign(campaign)
-      except Exception as e:
-        print(f'Exception: {e}.')
+      # try:
+      #   analitics_automation.check_campaign(campaign)
+      # except Exception as e:
+      #   print(f'Exception: {e}.')
 
 
   def check_campaign(campaign):
