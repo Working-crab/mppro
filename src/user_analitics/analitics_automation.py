@@ -5,53 +5,9 @@ from wb_common.wb_queries import wb_queries
 
 class analitics_automation:
 
-  def start():
-    #campaigns = db_queries.get_adverts_chunk()
-    user = db_queries.get_user_by_id(2)
-    campaign_popa = db_queries.get_campaign_by_user_id_and_campaign_id(user.id, 4260658)
+  def start(user_id,campaign_id):
+    user = db_queries.get_user_by_id(user_id)
+    campaign_popa = db_queries.get_campaign_by_user_id_and_campaign_id(user.id, campaign_id)
     total_budget = wb_queries.get_budget(user, campaign_popa)
     print(total_budget)
-    # if not campaigns:
-    #   return False
-    
-    # for campaign in campaigns:
-    #   print('=== campaign automation ===')
-    #   print(campaign)
-
-      # try:
-      #   analitics_automation.check_campaign(campaign)
-      # except Exception as e:
-      #   print(f'Exception: {e}.')
-
-
-  def check_campaign(campaign):
-
-    campaign_user = db_queries.get_user_by_id(campaign.user_id)
-    campaign_info = wb_queries.get_campaign_info(campaign_user, campaign)
-    campaign_pluse_words = wb_queries.get_stat_words(campaign_user, campaign)
-
-    check_word = campaign_info['campaign_key_word']
-    if campaign_pluse_words['main_pluse_word']:
-      check_word = campaign_pluse_words['main_pluse_word']
-
-    current_bids_table = wb_queries.search_adverts_by_keyword(check_word)
-
-    new_bid = 0
-    approximate_place = 0
-    bid_p_id = 0
-
-    for bid in current_bids_table:
-      if bid['price'] < campaign.max_budget:
-        new_bid = bid['price'] + 1
-        bid_p_id = bid['p_id']
-        approximate_place = bid['position']
-        break
-
-    print(f'check_campaign id: {campaign.id} \t new_bid: {new_bid} \t old_bid: {campaign_info["campaign_bid"]}')
-
-    if new_bid != campaign_info['campaign_bid'] and bid_p_id != campaign.campaign_id:
-      wb_queries.set_campaign_bid(campaign_user, campaign, campaign_info, new_bid, approximate_place)
-
-
-    pass
 

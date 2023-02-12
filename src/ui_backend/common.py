@@ -48,6 +48,7 @@ def universal_reply_markup(user_id):
         markup_inline.add(btn_help, btn_search, btn_set_token_cmp, btn_list_adverts, btn_add_adverts)
     return markup_inline
 
+
 def reply_markup_trial(trial):
     markup = types.InlineKeyboardMarkup()
     if not trial:
@@ -61,3 +62,22 @@ def reply_markup_trial(trial):
             types.InlineKeyboardButton(text='Информация', callback_data='Trial_info'),
         )
     return markup
+
+
+def reply_markup_payment(user_data):
+    markup = types.InlineKeyboardMarkup()
+    markup.add(
+        types.InlineKeyboardButton(text='Оплата через telegram', callback_data=f"Telegram {user_data}"),
+        types.InlineKeyboardButton(text='Оплата через сайт', callback_data=f"Сайт {user_data}"),
+    )
+    return markup
+
+def status_parser(status_id):
+    status_dict = {
+      4: 'Готова к запуску',
+      9: 'Активна',
+      8: 'Отказана',
+      11: 'Приостановлено',
+    }
+    return status_dict.get(status_id, 'Статус не известен')
+    

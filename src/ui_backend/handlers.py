@@ -1,14 +1,13 @@
 from ui_backend.app import bot
-from ui_backend.common import universal_reply_markup
+from ui_backend.common import universal_reply_markup, status_parser
 import re
 from datetime import datetime
 from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
 
-import logging
-logging.basicConfig(filename="logs/loger_user_actions.log")
-logger = logging.getLogger(__name__)
+from common.appLogger import appLogger
+logger = appLogger.getLogger(__name__)
 
 
 
@@ -33,10 +32,10 @@ def search_next_step_handler(message):
             for item_idex in range(len(item_dicts)):
                 price = item_dicts[item_idex]['price']
                 p_id = item_dicts[item_idex]['p_id']
-                result_message += f'{item_idex + 1}\\)  {price}р,  [ссылка на товар](https://www.wildberries.ru/catalog/{p_id}/detail.aspx) \n'
+                result_message += f'\\[{item_idex + 1}\\]   *{price}₽*,  [{p_id}](https://www.wildberries.ru/catalog/{p_id}/detail.aspx) 🛍\n'
             bot.send_message(message.chat.id, result_message, reply_markup=universal_reply_markup(message.from_user.id), parse_mode='MarkdownV2')
     except Exception as e:
-        bot.send_message(message.chat.id, e)
+        bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup(message.from_user.id))
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Ветка "Помощь" ---------------------------------------------------------------------------------------------------------------------------------
@@ -46,7 +45,7 @@ def cb_adverts(message):
     try:
         bot.send_message(message.chat.id, 'Здравствуйте, если у Вас возникли проблемы, напишите: \nПо техническим: `` \nПо каким-то ``')
     except Exception as e:
-        bot.send_message(message.chat.id, e)
+        bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup(message.from_user.id))
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Ветка "Установить токен" -----------------------------------------------------------------------------------------------------------------------
@@ -83,20 +82,13 @@ def list_adverts_handler(message):
         user_wb_tokens = wb_queries.get_base_tokens(user)
         req_params = wb_queries.get_base_request_params(user_wb_tokens)
 
-        status_dict = {
-            4: 'Готова к запуску',
-            9: 'Активна',
-            8: 'Отказана',
-            11: 'Приостановлено',
-        }
-
         view = wb_queries.get_user_atrevds(req_params)
         result_msg = ''
 
         for product in view:
             date_str = product['startDate']
             
-            stat = status_dict.get(product['statusId'], 'Статус не известен')
+            stat = status_parser(product['statusId'])
             if date_str != None:
                 date_str = date_str[:10]
                 date_str = re.sub('-', '\-', date_str)

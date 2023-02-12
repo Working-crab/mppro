@@ -144,6 +144,14 @@ class db_queries:
             print(f'Запрос не выполнени по причине: TypeError: {type(e).__name__}: {e}.')
             
 
+    def get_sub_name(sub_name):
+            try:
+                with Session(engine) as session:
+                    return session.query(Subscription).filter(Subscription.title == sub_name).first()
+            except Exception as e:
+                print(f'Запрос не выполнени по причине: TypeError: {type(e).__name__}: {e}.')
+            
+
        
     def get_all_sub():
         try:

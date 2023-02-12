@@ -3,6 +3,7 @@ from telebot import types
 
 from typing import Union, Dict, Any
 from .bot import bot
+from db.queries import db_queries
 import ui_backend.common
 import ui_backend.handlers
 import ui_backend.commands
@@ -27,3 +28,13 @@ async def webhook(update: Dict[str, Any]):
 @app.get('/')
 async def webhook(update: Dict[str, Any]):
     return 'https://t.me/mp_pro_bot'
+
+
+@app.post("/payment")
+async def webhook(data: dict):
+    # process the incoming data
+    if data['object']['status'] == "succeeded":
+        total = data['object']['amount']['value']
+        db_queries.update_sub(user_id=data['object']['metadata']['telegram_user_id'], sub_name=data['object']['metadata']['subscription_name'], total=int(float(total)))
+        bot.send_message(data['object']['metadata']['telegram_user_id'], f"Была подключена подписка: {data['object']['metadata']['subscription_name']}\nЕсли хотите узнать подробнее - введите /show_active_sub")
+    return 'ok'
