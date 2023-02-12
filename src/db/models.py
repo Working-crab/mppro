@@ -86,4 +86,21 @@ class Transaction(Base):
 
     def __repr__(self):
         return f"Transaction(id={self.id!r}, title={self.title!r}, total={self.total!r}, user_id={self.user_id!r}, subscription_id={self.subscription_id!r})"
+
+
+class User_budget_analitics_logs(Base):
+    __tablename__ = "user_budget_analitics_logs"
     
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    campaign_id = Column(Integer, ForeignKey("adverts.id"), nullable=False)
+    date_time = Column(DateTime(timezone=True), server_default=func.now())
+    budget = Column(Integer, default=0)
+    spent_money = Column(Integer, default=0)
+    up_money = Column(Integer, default=0)
+
+    user = relationship('User', back_populates='user_budget_analitics_logs')
+    subscriptions = relationship('Advert', back_populates='user_budget_analitics_logs')
+
+    def __repr__(self):
+        return f"User_budget_analitics_logs(id={self.id!r}, user_id={self.user_id!r}, campaign_id={self.campaign_id!r})"
