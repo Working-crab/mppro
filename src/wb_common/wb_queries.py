@@ -4,14 +4,18 @@ from datetime import datetime
 from cache_worker.cache_worker import cache_worker
 import requests
 
+from common.appLogger import appLogger
+logger = appLogger.getLogger(__name__)
+
+# appLogger.getLogger('urllib3')
+# logger = logging.getLogger('urllib3') 
+
 CONSTS = {
   'Referer_default': 'https://cmp.wildberries.ru/campaigns/list/all',
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 YaBrowser/22.11.5.715 Yowser/2.5 Safari/537.36'
 }
 
-
 class wb_queries:
-
   def get_base_tokens(user):
     user_wb_tokens = cache_worker.get_user_wb_tokens(user.id)
     if not user_wb_tokens['wb_cmp_token'] or not user_wb_tokens['wb_user_id'] or not user_wb_tokens['wb_supplier_id']:
@@ -20,10 +24,11 @@ class wb_queries:
     return user_wb_tokens
 
   
-  def wb_query(method, url, cookies, headers):
-    response = requests[method](url, cookies=cookies, headers=headers)
+  def wb_query(method, url, cookies=None, headers=None, data=None):
+    response = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data)
+    # logger.debug("Request headers: {headers}".format(headers=response.request.headers))
     result = response.json()
-    print(f'{datetime.now()} \t wb_query \t url: {url} \t cookies: {str(cookies)} \t headers: {str(headers)} \t result: {str(result)}')
+    logger.debug(f'{datetime.now()} \t wb_query \t url: {url} \t cookies: {str(cookies)} \t headers: {str(headers)} \t result: {str(result)}')
     return result
 
 
@@ -50,8 +55,9 @@ class wb_queries:
     }
 
     print('cookies, headers', cookies, headers)
-
-    introspect_result = requests.get('https://cmp.wildberries.ru/passport/api/v2/auth/introspect', cookies=cookies, headers=headers).json()
+    
+    introspect_result = wb_queries.wb_query(method='get', url='https://cmp.wildberries.ru/passport/api/v2/auth/introspect', cookies=cookies, headers=headers)
+    # introspect_result = requests.get('https://cmp.wildberries.ru/passport/api/v2/auth/introspect', cookies=cookies, headers=headers).json()
 
     if not introspect_result or not 'sessionID' in introspect_result or not 'userID' in introspect_result:
       cache_worker.delete_user_wb_tokens(user.id)
@@ -65,7 +71,7 @@ class wb_queries:
     headers['X-User-Id']            = str(introspect_result['userID'])
 
 
-    supplierslist_result = requests.get('https://cmp.wildberries.ru/backend/supplierslist', cookies=cookies, headers=headers).json()
+    supplierslist_result = wb_queries.wb_query(method="get", url='https://cmp.wildberries.ru/backend/supplierslist', cookies=cookies, headers=headers)
 
     user_wb_tokens['wb_supplier_id'] = supplierslist_result[0]['id']
 
@@ -77,15 +83,14 @@ class wb_queries:
 
 
   def search_adverts_by_keyword(keyword):
-    res = requests.get(f'https://catalog-ads.wildberries.ru/api/v5/search?keyword={keyword}')
-    res = res.json()['adverts'][0:10]
-
+    res = wb_queries.wb_query(method="get", url=f'https://catalog-ads.wildberries.ru/api/v5/search?keyword={keyword}')
+    res = res['adverts'][0:10] if res.get('adverts') is not None else []
     result = []
     for advert in res:
       result.append({
-        "price": advert['cpm'],
-        "p_id": advert['id'],
-        "position": advert['id']
+      "price": advert['cpm'],
+      "p_id": advert['id'],
+      "position": advert['id']
       })
     return result
 
@@ -97,10 +102,10 @@ class wb_queries:
 
     print('get_campaign_info', req_params)
 
-    r = requests.get(f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/placement', 
+    r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/placement', 
       cookies=req_params['cookies'],
       headers=req_params['headers']
-    ).json()
+    )
 
     campaign_key_word = ''
 
@@ -126,7 +131,7 @@ class wb_queries:
 
     print('get_campaign_info', req_params)
 
-    r = requests.get(f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/stat-words', 
+    r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/stat-words', 
       cookies=req_params['cookies'],
       headers=req_params['headers']
     ).json()
@@ -164,11 +169,11 @@ class wb_queries:
       ]
     }
 
-    r = requests.put(f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/save',
+    r = wb_queries.wb_query(method="put", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/save',
       cookies=req_params['cookies'],
       headers=req_params['headers'],
       data=json.dumps(request_body)
-    ).json()
+    )
 
     print(f'{datetime.now()} \t check_campaign \t Campaign {campaign.campaign_id} updated! \t New bid: {new_bid} \t Approximate place: {approximate_place}')
 
@@ -191,8 +196,8 @@ class wb_queries:
     
   def get_user_atrevds(req_params):
 
-    user_atrevds = requests.get('https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate', cookies=req_params['cookies'], headers=req_params['headers'])
-    view = user_atrevds.json()['content']
+    user_atrevds = wb_queries.wb_query(method="get", url='https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate', cookies=req_params['cookies'], headers=req_params['headers'])
+    view = user_atrevds['content']
     return view
 
   def get_budget(user, campaign):
@@ -202,10 +207,10 @@ class wb_queries:
 
     print('get_campaign_info', req_params)
 
-    r = requests.get(f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/budget',
+    r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/budget',
     cookies=req_params['cookies'],
     headers=req_params['headers']
-    ).json()
+    )
 
     total_budget = 0
 

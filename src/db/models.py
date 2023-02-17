@@ -22,16 +22,14 @@ class User(Base):
     subscriptions_id = Column(Integer, ForeignKey('subscriptions.id'), nullable=True)
 
     subscriptions = relationship("Subscription", back_populates="user")
-    
     transactions = relationship("Transaction", back_populates="user")
-    
-    
+    user_budget_analitics_logs = relationship("User_budget_analitics_logs", back_populates="user")
+       
     sub_start_date = Column(DateTime(timezone=True))
     sub_end_date = Column(DateTime(timezone=True))
 
     adverts = relationship("Advert")
 
-    
     def __repr__(self):
         return f"User(id={self.id!r}, username={self.telegram_username!r})"
 
@@ -49,6 +47,7 @@ class Advert(Base):
     time_updated = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="adverts")
+    user_budget_analitics_logs = relationship('User_budget_analitics_logs', back_populates='adverts')
 
     def __repr__(self):
         return f"Advert(id={self.id!r}, max_budget={self.max_budget!r}, user_id={self.user_id!r}, place={self.place!r})"
@@ -100,7 +99,7 @@ class User_budget_analitics_logs(Base):
     up_money = Column(Integer, default=0)
 
     user = relationship('User', back_populates='user_budget_analitics_logs')
-    subscriptions = relationship('Advert', back_populates='user_budget_analitics_logs')
+    adverts = relationship('Advert', back_populates='user_budget_analitics_logs')
 
     def __repr__(self):
         return f"User_budget_analitics_logs(id={self.id!r}, user_id={self.user_id!r}, campaign_id={self.campaign_id!r})"

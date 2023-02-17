@@ -9,8 +9,6 @@ from wb_common.wb_queries import wb_queries
 from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
 
-
-
 # Ветка "Поиск" --------------------------------------------------------------------------------------------------------
 @bot.message_handler(regexp='Поиск')
 def cb_adverts(message):
@@ -43,7 +41,8 @@ def search_next_step_handler(message):
 @bot.message_handler(regexp='Помощь')
 def cb_adverts(message):
     try:
-        bot.send_message(message.chat.id, 'Здравствуйте, если у Вас возникли проблемы, напишите: \nПо техническим: `` \nПо каким-то ``')
+        bot.send_message(message.chat.id, 'По вопросам работы бота обращайтесь: \n(https://t.me/tNeymik)\n'
+        '(https://t.me/plazmenni_rezak)')
     except Exception as e:
         bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup(message.from_user.id))
 # ------------------------------------------------------------------------------------------------------------------------------------------------
