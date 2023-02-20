@@ -130,7 +130,7 @@ def search(message):
         result_message = ''
 
         if len(item_dicts) == 0:
-            return 'ставки неизвестны'
+            return 'ставки неизвестны'#Максим добавь чтобы при неправильном ввроде перекидывало на /start
         else:
             for item_idex in range(len(item_dicts)):
                 price = item_dicts[item_idex]['price']

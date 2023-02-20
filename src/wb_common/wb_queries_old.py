@@ -6,7 +6,6 @@ import requests
 
 from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
-logger_token = appLogger.getLogger(__name__+'_token')
 
 # appLogger.getLogger('urllib3')
 # logger = logging.getLogger('urllib3') 
@@ -26,30 +25,25 @@ class wb_queries:
 
   
   def wb_query(method, url, cookies=None, headers=None, data=None):
-    result = {}
-    try:
-      response = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data)
-      result = response.json()
-    except Exception as e:
-      logger.error(e)
-
-    logger.debug(f' url: {url} \t headers: {str(headers)} \t result: {str(result)}')
-
+    response = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data)
+    # logger.debug("Request headers: {headers}".format(headers=response.request.headers))
+    result = response.json()
+    logger.debug(f'{datetime.now()} \t wb_query \t url: {url} \t cookies: {str(cookies)} \t headers: {str(headers)} \t result: {str(result)}')
     return result
 
 
   def reset_base_tokens(user):
 
     user_wb_tokens = cache_worker.get_user_wb_tokens(user.id)
-    logger_token.info('cache token', user_wb_tokens['wb_cmp_token'])
+    print('cache token', user_wb_tokens['wb_cmp_token'])
     if not user_wb_tokens['wb_cmp_token']:
       user_wb_tokens['wb_cmp_token'] = user.wb_cmp_token
-      logger_token.info('bd token', user_wb_tokens['wb_cmp_token'])
+      print('bd token', user_wb_tokens['wb_cmp_token'])
 
     if not user_wb_tokens['wb_cmp_token']:
       raise Exception('Не найден токен! wb_cmp_token')
 
-    logger_token.info(f' \t reset_base_tokens \t User id: {user.id} \t Old tokens: {str(user_wb_tokens)}')
+    print(f'{datetime.now()} \t reset_base_tokens \t User id: {user.id} \t Old tokens: {str(user_wb_tokens)}')
 
     cookies = {
       'WBToken': user_wb_tokens['wb_cmp_token'],
@@ -60,11 +54,10 @@ class wb_queries:
       'User-Agent': CONSTS['User-Agent']
     }
 
-    logger_token.info('cookies, headers', cookies, headers)
+    print('cookies, headers', cookies, headers)
     
     introspect_result = wb_queries.wb_query(method='get', url='https://cmp.wildberries.ru/passport/api/v2/auth/introspect', cookies=cookies, headers=headers)
-
-    logger_token.info('introspect_result', introspect_result)
+    # introspect_result = requests.get('https://cmp.wildberries.ru/passport/api/v2/auth/introspect', cookies=cookies, headers=headers).json()
 
     if not introspect_result or not 'sessionID' in introspect_result or not 'userID' in introspect_result:
       cache_worker.delete_user_wb_tokens(user.id)
@@ -84,7 +77,7 @@ class wb_queries:
 
     cache_worker.set_user_wb_tokens(user.id, user_wb_tokens)
 
-    logger_token.info(f'\t reset_base_tokens \t User id: {user.id} \t New tokens: {str(user_wb_tokens)}')
+    print(f'{datetime.now()} \t reset_base_tokens \t User id: {user.id} \t New tokens: {str(user_wb_tokens)}')
 
     return user_wb_tokens
 
@@ -201,9 +194,9 @@ class wb_queries:
       }
     }
     
-  def get_user_atrevds(req_params, page):
+  def get_user_atrevds(req_params):
 
-    user_atrevds = wb_queries.wb_query(method="get", url='https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate&pageNumber=1&pageSize=6', cookies=req_params['cookies'], headers=req_params['headers'])
+    user_atrevds = wb_queries.wb_query(method="get", url='https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate', cookies=req_params['cookies'], headers=req_params['headers'])
     view = user_atrevds['content']
     return view
 

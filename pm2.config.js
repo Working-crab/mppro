@@ -10,9 +10,23 @@ module.exports = {
       kill_timeout: 10000,
       instances : 1,
       max_restarts: 0,
-      out_file: "/data/logs/mp_pro_ui_telega.log",
-      error_file: "/data/logs/mp_pro_ui_telega_error.log",
+      log_file: "/data/logs/pm2/mp_pro_ui_telega.log",
       // interpreter : '/data/venv/bin/python',
+      cwd: '/data/',
+      env: {
+        PYTHONPATH: '/data/src/'
+      }
+    },
+    {
+      name: 'bot_message_sender',
+      script: '/data/src/ui_backend/bot_message_sender/bot_message_sender.py',
+      wait_ready: false, 
+      autorestart: false,
+      kill_timeout: 10000,
+      instances : 1,
+      max_restarts: 0,
+      log_file: "/data/logs/pm2/bot_message_sender.log",
+      interpreter : '/data/venv/bin/python',
       cwd: '/data/',
       env: {
         PYTHONPATH: '/data/src/'
@@ -25,8 +39,7 @@ module.exports = {
     //   wait_ready: true,
     //   autorestart: false,
     //   cron_restart: '*/10 * * * *', // once per 10 minutes
-    //   out_file: "/data/logs/user_automation.log",
-    //   error_file: "/data/logs/user_automation_error.log",
+    //   log_file: "/data/logs/pm2/user_automation.log",
     //   interpreter : '/data/venv/bin/python',
     //   cwd: '/data/',
     //   env: {
@@ -42,8 +55,7 @@ module.exports = {
     //   max_restarts: 0,
     //   instances : 2,
     //   exec_mode : "cluster",
-    //   out_file: "/data/logs/mp_pro_web_test.log",
-    //   error_file: "/data/logs/mp_pro_web_test_error.log",
+    //   log_file: "/data/logs/pm2/mp_pro_web_test.log",
     //   cwd: '/data/',
     //   env: {
     //     NODE_ENV: '/data/'

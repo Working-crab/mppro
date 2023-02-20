@@ -4,7 +4,6 @@ import logging
 from telebot import types
 
 from db.queries import db_queries #TODO Удалить после полного переноса команд
-from wb_common.wb_queries import wb_queries #TODO Удалить после полного переноса команд
 
 logging.basicConfig(filename="logs/loger_user_actions.log")
 logger = logging.getLogger(__name__)
@@ -81,3 +80,9 @@ def status_parser(status_id):
     }
     return status_dict.get(status_id, 'Статус не известен')
     
+
+def get_reply_markup(markup_name, user_id):
+  if locals[markup_name]:
+    return locals[markup_name](user_id)
+  else:
+    return universal_reply_markup(user_id)

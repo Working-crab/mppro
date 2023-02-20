@@ -1,7 +1,9 @@
 
-import json
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
+
+from common.appLogger import appLogger
+logger = appLogger.getLogger(__name__)
 
 class campaign_automation:
 
@@ -44,7 +46,7 @@ class campaign_automation:
         approximate_place = bid['position']
         break
 
-    print(f'check_campaign id: {campaign.id} \t new_bid: {new_bid} \t old_bid: {campaign_info["campaign_bid"]}')
+    logger.info(f'check_campaign id: {campaign.id} \t new_bid: {new_bid} \t old_bid: {campaign_info["campaign_bid"]}')
 
     if new_bid != campaign_info['campaign_bid'] and bid_p_id != campaign.campaign_id:
       wb_queries.set_campaign_bid(campaign_user, campaign, campaign_info, new_bid, approximate_place)

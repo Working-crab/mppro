@@ -5,6 +5,11 @@ from datetime import datetime
 from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
+import traceback
+
+import time
+
+# from ui_backend.message_queue import queue_message
 
 from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
@@ -25,7 +30,7 @@ def search_next_step_handler(message):
         result_message = ''
 
         if len(item_dicts) == 0:
-            bot.send_message(message.chat.id, 'ставки неизвестны')
+            bot.send_message(message.chat.id, 'Такой товар не найден', reply_markup=universal_reply_markup(message.chat.id))
         else:
             for item_idex in range(len(item_dicts)):
                 price = item_dicts[item_idex]['price']
@@ -33,18 +38,19 @@ def search_next_step_handler(message):
                 result_message += f'\\[{item_idex + 1}\\]   *{price}₽*,  [{p_id}](https://www.wildberries.ru/catalog/{p_id}/detail.aspx) 🛍\n'
             bot.send_message(message.chat.id, result_message, reply_markup=universal_reply_markup(message.from_user.id), parse_mode='MarkdownV2')
     except Exception as e:
-        bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup(message.from_user.id))
+        bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup(message.chat.id))
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Ветка "Помощь" ---------------------------------------------------------------------------------------------------------------------------------
 
 @bot.message_handler(regexp='Помощь')
 def cb_adverts(message):
-    try:
-        bot.send_message(message.chat.id, 'По вопросам работы бота обращайтесь: \n(https://t.me/tNeymik)\n'
-        '(https://t.me/plazmenni_rezak)')
-    except Exception as e:
-        bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup(message.from_user.id))
+  # queue_message(
+  #   destination_id=message.chat.id,
+  #   message='По вопросам работы бота обращайтесь: \n (https://t.me/tNeymik) \n (https://t.me/plazmenni_rezak)',
+  #   user_id=message.from_user.id
+  # )    
+  pass
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Ветка "Установить токен" -----------------------------------------------------------------------------------------------------------------------
@@ -54,7 +60,7 @@ def cb_adverts(message):
         sent = bot.send_message(message.chat.id, 'Введите токен', reply_markup=types.ReplyKeyboardRemove())
         bot.register_next_step_handler(sent,set_token_cmp_handler)
     except Exception as e:
-        bot.send_message(message.chat.id, e)
+        bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup(message.from_user.id))
 
 def set_token_cmp_handler(message):
     try:
@@ -70,39 +76,59 @@ def set_token_cmp_handler(message):
 # Ветка "Список рекламных компаний" --------------------------------------------------------------------------------------------------------------
 @bot.message_handler(regexp='Список рекламных компаний')
 def cb_adverts(message):
+
     try:
-        list_adverts_handler(message)
+
+      # msg = bot.send_message(message.chat.id, "Вайлдберис говно 🔄")
+      list_adverts_handler(message)
+      # bot.edit_message_text('Готово', msg.chat.id, msg.id)
+
     except Exception as e:
-        bot.send_message(message.chat.id, e)
+        traceback.print_exc() # Maxim molodec TODO print_exc in all Exceptions
+        logger.error(e)
+        bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup())
+
 
 def list_adverts_handler(message):
-    try:
-        user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-        user_wb_tokens = wb_queries.get_base_tokens(user)
-        req_params = wb_queries.get_base_request_params(user_wb_tokens)
 
-        view = wb_queries.get_user_atrevds(req_params)
-        result_msg = ''
+  user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  user_wb_tokens = wb_queries.get_base_tokens(user)
+  req_params = wb_queries.get_base_request_params(user_wb_tokens)
+  
 
-        for product in view:
-            date_str = product['startDate']
-            
-            stat = status_parser(product['statusId'])
-            if date_str != None:
-                date_str = date_str[:10]
-                date_str = re.sub('-', '\-', date_str)
-            
-            result_msg += f"*Имя компании: {product['campaignName']}*\n"
-            result_msg += f"\t ID Рекламной компании: {product['id']}\n"
-            result_msg += f"\t Имя категории: {product['categoryName']}\n"
-            result_msg += f"\t Дата начала: {date_str}\n"
-            result_msg += f"\t Текущий статус: {stat}\n\n"
+  page = 1
+  view = wb_queries.get_user_atrevds(req_params, page)
+  result_msg = ''
 
-        bot.send_message(message.chat.id, result_msg, reply_markup=universal_reply_markup(message.from_user.id), parse_mode='MarkdownV2')
+  inline_keyboard = types.InlineKeyboardMarkup()
+  button1 = types.InlineKeyboardButton('1',callback_data='page:1')
+  button2 = types.InlineKeyboardButton('2',callback_data='page:2')
+  button3 = types.InlineKeyboardButton('3',callback_data='page:3')
+  button4 = types.InlineKeyboardButton('4',callback_data='page:4')
+  button5 = types.InlineKeyboardButton('5',callback_data='page:5')
+  inline_keyboard.row(button1, button2, button3, button4, button5)
 
-    except Exception as e:
-        bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup(message.from_user.id))
-        logger.error(e)
+  for product in view:
+      date_str = product['startDate']
+      
+      stat = status_parser(product['statusId'])
+      if date_str != None:
+          date_str = date_str[:10]
+          date_str = re.sub('-', '\-', date_str)
+      
+      result_msg += f"*Имя компании: {product['campaignName']}*\n"
+      result_msg += f"\t ID Рекламной компании: {product['id']}\n"
+      result_msg += f"\t Имя категории: {product['categoryName']}\n"
+      result_msg += f"\t Дата начала: {date_str}\n"
+      result_msg += f"\t Текущий статус: {stat}\n\n"
+
+  try:
+    bot.send_message(message.chat.id, result_msg, reply_markup=universal_reply_markup(message.from_user.id))
+    # bot.edit_message_text("result_msg ✅", message.chat.id, message.message_id)
+    # bot.edit_message_reply_markup(message.chat.id, message.id, reply_markup=inline_keyboard)
+  except Exception as e:
+    #   bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup(message.from_user.id))
+    logger.error(e)
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Ветка "Добавить рекламную компанию" ------------------------------------------------------------------------------------------------------------
@@ -147,6 +173,14 @@ def add_advert_handler(message):
 
         bot.send_message(message.chat.id, res_msg, reply_markup=universal_reply_markup(message.from_user.id), parse_mode='MarkdownV2')
     except Exception as e:
-        bot.send_message(message.chat.id, 'Что-то пошло не так')
+        bot.send_message(message.chat.id, 'Что-то пошло не так', reply_markup=universal_reply_markup(message.from_user.id))
         logger.error(e)
 # ------------------------------------------------------------------------------------------------------------------------------------------------
+
+@bot.callback_query_handler(func=lambda x: re.match('page', x.data))
+def kek(data):
+    try:
+        bot.answer_callback_query(data.id)
+        bot.send_message(data.message.chat.id, re.sub('page:', '', data.data)) 
+    except Exception as e:
+        bot.send_message(data.message.chat.id, e)
