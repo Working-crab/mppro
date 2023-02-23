@@ -8,9 +8,6 @@ from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
 logger_token = appLogger.getLogger(__name__+'_token')
 
-# appLogger.getLogger('urllib3')
-# logger = logging.getLogger('urllib3') 
-
 CONSTS = {
   'Referer_default': 'https://cmp.wildberries.ru/campaigns/list/all',
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 YaBrowser/22.11.5.715 Yowser/2.5 Safari/537.36'
@@ -69,7 +66,7 @@ class wb_queries:
     if not introspect_result or not 'sessionID' in introspect_result or not 'userID' in introspect_result:
       cache_worker.delete_user_wb_tokens(user.id)
       print(f'{datetime.now()} \t reset_base_tokens \t introspect error! \t {introspect_result}')
-      raise Exception('Не верный токен!')
+      raise Exception('Неверный токен!')
 
     user_wb_tokens['wb_cmp_token']  = introspect_result['sessionID']
     user_wb_tokens['wb_user_id']    = introspect_result['userID']
@@ -201,10 +198,13 @@ class wb_queries:
       }
     }
     
-  def get_user_atrevds(req_params, page):
-
-    user_atrevds = wb_queries.wb_query(method="get", url='https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate&pageNumber=1&pageSize=6', cookies=req_params['cookies'], headers=req_params['headers'])
-    view = user_atrevds['content']
+  def get_user_atrevds(req_params, page_number=1, pagesize=6):
+    url = f'https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate&pageNumber={page_number}&pageSize={pagesize}'
+    
+    user_atrevds = wb_queries.wb_query(method="get",
+                                       url=url,
+                                       cookies=req_params['cookies'], headers=req_params['headers'])
+    view = {'adverts': user_atrevds['content'], 'total_count': user_atrevds['counts']['totalCount']}
     return view
 
   def get_budget(user, campaign):

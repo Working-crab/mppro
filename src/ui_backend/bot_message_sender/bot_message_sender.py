@@ -16,14 +16,13 @@ def send_message(**kwargs):
   # kwargs['parse_mode'] = 'Markdown'
   destination_id = kwargs['destination_id']
   message = kwargs['message']
-  user_id = kwargs['user_id']
 
   reply_markup_name = ''
   if kwargs.get('reply_markup'):
     reply_markup_name = kwargs['reply_markup']
   else:
     reply_markup_name = DEFAULT_MARKUP
-  kwargs["reply_markup"] = get_reply_markup(reply_markup_name, user_id)
+  kwargs["reply_markup"] = get_reply_markup(reply_markup_name)
 
   request_message = ''
   if kwargs.get('request_message'):
@@ -31,24 +30,49 @@ def send_message(**kwargs):
 
   logger.info(f'destination_id: {destination_id} {request_message} sent_message: {message}')
 
-  bot.send_message(destination_id, message, **kwargs)
+  reply_kwargs = {}
+  set_reply_kwarg(reply_kwargs, kwargs, 'reply_markup')
+  set_reply_kwarg(reply_kwargs, kwargs, 'parse_mode')
+
+  try:
+    bot.send_message(destination_id, message, **reply_kwargs)
+  except Exception as e:
+    logger.error(f' tg send_message error: {e}')
+    bot.send_message(destination_id, 'На сервере произошла ошибка, попробуйте ещё раз позже или обратитесь к разработчику')
+
+
+def set_reply_kwarg(reply_kwargs, kwargs, param):
+  if kwargs.get(param):
+    reply_kwargs[param] = kwargs[param]
+
 
 
 def main():
-  connection = pika.SelectConnection(pika.ConnectionParameters(host='localhost'))
-  channel = connection.channel()
 
-  channel.queue_declare(queue=CONSUMER_QUEUE)
+  host='localhost'
+
+  connection = None
+  channel = None
 
   def callback(ch, method, properties, body):
+    check_connection()
     body_loaded = json.loads(body)
-    print(body_loaded)
-    # send_message(**body_loaded)
+    logger.info(body_loaded)
+    send_message(**body_loaded)
 
-  channel.basic_consume(queue=CONSUMER_QUEUE, on_message_callback=callback, auto_ack=True)
+  def check_connection():
+    nonlocal connection
+    nonlocal channel
 
+    if not connection or connection.is_closed:
+      connection = pika.BlockingConnection(pika.ConnectionParameters(host=host))
+      channel = connection.channel()
+      channel.queue_declare(queue=CONSUMER_QUEUE)
+      channel.basic_consume(queue=CONSUMER_QUEUE, on_message_callback=callback, auto_ack=True)
+      channel.start_consuming()
+
+  check_connection()
   logger.info(' Started, waiting for messages')
-  channel.start_consuming()
 
 
 if __name__ == '__main__':

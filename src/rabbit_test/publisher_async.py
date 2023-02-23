@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# pylint: disable=C0111,C0103,R0205
 
 import functools
 import logging
@@ -8,8 +10,7 @@ from pika.exchange_type import ExchangeType
 from common.appLogger import appLogger
 
 LOGGER = appLogger.getLogger('message_publisher')
-
-LOGGER.setLevel(logging.ERROR) # ya karpos
+LOGGER.setLevel(logging.DEBUG)
 
 # LOG_FORMAT = ('%(levelname) -10s %(asctime)s %(name) -30s %(funcName) '
 #               '-35s %(lineno) -5d: %(message)s')
@@ -25,11 +26,11 @@ class ExamplePublisher(object):
     It uses delivery confirmations and illustrates one way to keep track of
     messages that have been sent and if they've been confirmed by RabbitMQ.
     """
-    EXCHANGE = 'bot_message_sender_queue'
+    EXCHANGE = 'hello'
     EXCHANGE_TYPE = ExchangeType.topic
-    PUBLISH_INTERVAL = 0.1
-    QUEUE = 'bot_message_sender_queue'
-    ROUTING_KEY = 'bot_message_sender_queue'
+    PUBLISH_INTERVAL = 1
+    QUEUE = 'hello'
+    ROUTING_KEY = 'hello'
 
     def __init__(self, amqp_url):
         """Setup the example publisher object, passing in the URL we will use
@@ -90,7 +91,6 @@ class ExamplePublisher(object):
         """
         self._channel = None
         if self._stopping:
-            LOGGER.info('Stopping 1')
             self._connection.ioloop.stop()
         else:
             LOGGER.warning('Connection closed, reopening in 5 seconds: %s',
@@ -258,18 +258,10 @@ class ExamplePublisher(object):
         """If we are not closing our connection to RabbitMQ, schedule another
         message to be delivered in PUBLISH_INTERVAL seconds.
         """
-
-        LOGGER.info('Scheduling 1')
-
-        self.publish_message()
-
-        LOGGER.info('Scheduling 2')
-
-        # LOGGER.info('Scheduling next message for %0.1f seconds',
-        #             self.PUBLISH_INTERVAL)
-                    
-        # self._connection.ioloop.call_later(self.PUBLISH_INTERVAL,
-        #                                    self.publish_message)
+        LOGGER.info('Scheduling next message for %0.1f seconds',
+                    self.PUBLISH_INTERVAL)
+        self._connection.ioloop.call_later(self.PUBLISH_INTERVAL,
+                                           self.publish_message)
 
     def publish_message(self):
         """If the class is not stopping, publish a message to RabbitMQ,
@@ -282,14 +274,9 @@ class ExamplePublisher(object):
         delivery intervals by changing the PUBLISH_INTERVAL constant in the
         class.
         """
-
-        LOGGER.info('Publishing 1')
-
         if self._channel is None or not self._channel.is_open or len(self.messages) == 0:
             self.stop()
             return
-
-        LOGGER.info('Publishing 2')
 
         properties = pika.BasicProperties(app_id='example-publisher',
                                           content_type='application/json')
@@ -300,7 +287,6 @@ class ExamplePublisher(object):
                                     properties)
         self._message_number += 1
         self._deliveries[self._message_number] = True
-        LOGGER.info('Publishing 3')
         LOGGER.info('Published message # %i', self._message_number, message)
         self.schedule_next_message()
 
@@ -318,7 +304,6 @@ class ExamplePublisher(object):
                 self._connection = self.connect()
                 self._connection.ioloop.start()
             except KeyboardInterrupt:
-                LOGGER.info('Stopping 2')
                 self.stop()
                 if (self._connection is not None and
                         not self._connection.is_closed):
@@ -355,15 +340,21 @@ class ExamplePublisher(object):
 
 
     def queue_message(self, **kwargs):
-        LOGGER.info(kwargs)
         self.messages.append(kwargs)
 
 
 def queue_message(**kwargs):
-
   message_publisher = ExamplePublisher(
     'amqp://guest:guest@localhost:5672/%2F?connection_attempts=3&heartbeat=3600'
   )
   message_publisher.queue_message(**kwargs)
   message_publisher.run()
 
+
+LOGGER.info('queue_message a', 1)
+queue_message(sadf='a', asdfasdf=1)
+LOGGER.info('queue_message b', 2)
+queue_message(qqqq='b', asdsadsa=2)
+LOGGER.info('queue_message c', 3)
+queue_message(wwww='c', asdfasdf=3)
+LOGGER.info('queue_message end')

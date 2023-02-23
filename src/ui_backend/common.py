@@ -3,7 +3,7 @@ from .bot import bot
 import logging
 from telebot import types
 
-from db.queries import db_queries #TODO Удалить после полного переноса команд
+import math
 
 logging.basicConfig(filename="logs/loger_user_actions.log")
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ def msg_handler(*args, **kwargs):
     return decorator
 
 
-def universal_reply_markup(user_id):
+def universal_reply_markup():
 
     markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
@@ -39,12 +39,8 @@ def universal_reply_markup(user_id):
     btn_list_adverts = types.KeyboardButton(text='Список рекламных компаний')
     btn_add_adverts = types.KeyboardButton(text='Добавить рекламную компанию')
 
-    user = db_queries.get_user_by_telegram_user_id(user_id)
+    markup_inline.add(btn_help, btn_search, btn_set_token_cmp, btn_list_adverts, btn_add_adverts)
 
-    if user.subscriptions_id == None:
-        markup_inline.add(btn_help, btn_search, btn_set_token_cmp)
-    else:
-        markup_inline.add(btn_help, btn_search, btn_set_token_cmp, btn_list_adverts, btn_add_adverts)
     return markup_inline
 
 
@@ -81,8 +77,32 @@ def status_parser(status_id):
     return status_dict.get(status_id, 'Статус не известен')
     
 
-def get_reply_markup(markup_name, user_id):
-  if locals[markup_name]:
-    return locals[markup_name](user_id)
+def get_reply_markup(markup_name):
+  if markup_name in locals():
+    return locals()[markup_name]()
   else:
-    return universal_reply_markup(user_id)
+    return universal_reply_markup()
+
+
+def paginate_buttons(page_number, total_count_adverts, page_size, user_id):
+  start_index = 0
+  end_index = 0
+  page_count = math.ceil(total_count_adverts/page_size)
+
+  if(page_number <= 3):
+    start_index = 1
+    end_index = 6
+  elif(page_number >= page_count-2):
+    start_index = page_count-4
+    end_index = page_count+1
+  else:
+    start_index = page_number - 2
+    end_index = page_number + 3
+
+  buttons_array = []
+  inline_keyboard = types.InlineKeyboardMarkup()
+  for i in range(start_index, end_index):
+    buttons_array.append(types.InlineKeyboardButton(f'{i}', callback_data=f'page:{i}:{user_id}'))
+
+  inline_keyboard.row(*buttons_array)
+  return inline_keyboard
