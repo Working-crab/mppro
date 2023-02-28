@@ -1,5 +1,6 @@
 
 import redis
+import json
 
 redis_client = redis.Redis(host='127.0.0.1', port=6379, db=0, password='eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81', decode_responses=True)
 
@@ -8,6 +9,7 @@ WB_CONSTANTS = {
     'wb_cmp_token': 'WBToken',
     'wb_supplier_id': 'x-supplier-id-external',
     'wb_user_id': 'X-User-Id',
+    'categories': 'categories'
 }
 
 def make_wb_key(user_id, wb_token_name):
@@ -47,3 +49,31 @@ class cache_worker:
       redis_client.delete(make_wb_key(user_id, 'wb_user_id'))
 
       return True
+  
+
+  def set_wb_categories(categories):
+    redis_client.set(make_wb_key('routine', 'categories'), json.dumps(categories))
+
+  def get_wb_categories():
+    return json.loads(redis_client.get(make_wb_key('routine', 'categories')))
+  
+  
+  def set_search(user_id, message):
+    redis_client.set(f'Выбор-{user_id}', json.dumps(message.json))
+    
+  def set_city(user_id, city):
+    redis_client.set(f'Город-{user_id}', city)
+    
+  def get_city(user_id):
+    if redis_client.get(f'Город-{user_id}'):
+      city = redis_client.get(f'Город-{user_id}')
+      return city
+    else:
+      return None
+  
+  def get_search(user_id):
+    if redis_client.get(f"Выбор-{user_id}"):
+      message = json.loads(redis_client.get(f"Выбор-{user_id}"))
+      return message
+    else:
+      return None

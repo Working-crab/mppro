@@ -17,6 +17,7 @@ def getToken(message):
 
   token = db_queries.get_user_wb_cmp_token(telegram_user_id=message.from_user.id)
   token = re.sub('_', '\_', token)
+  token = re.sub('-', '\-', token)
   return token
 
 # Команды бота -------------------------------------------------------------------------------------------------------

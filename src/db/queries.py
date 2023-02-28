@@ -1,6 +1,6 @@
 
 from datetime import datetime, timedelta
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from .models import User, Advert, Subscription, Transaction

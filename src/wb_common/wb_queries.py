@@ -4,13 +4,16 @@ from datetime import datetime
 from cache_worker.cache_worker import cache_worker
 import requests
 
+from db.queries import db_queries
+
 from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
 logger_token = appLogger.getLogger(__name__+'_token')
 
 CONSTS = {
   'Referer_default': 'https://cmp.wildberries.ru/campaigns/list/all',
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 YaBrowser/22.11.5.715 Yowser/2.5 Safari/537.36'
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 YaBrowser/22.11.5.715 Yowser/2.5 Safari/537.36',
+  'slice_count': 10
 }
 
 class wb_queries:
@@ -81,6 +84,9 @@ class wb_queries:
 
     cache_worker.set_user_wb_tokens(user.id, user_wb_tokens)
 
+    # TODO move to mq db microservice
+    db_queries.set_user_wb_cmp_token(telegram_user_id=user.telegram_user_id, wb_cmp_token=user_wb_tokens['wb_cmp_token'])
+
     logger_token.info(f'\t reset_base_tokens \t User id: {user.id} \t New tokens: {str(user_wb_tokens)}')
 
     return user_wb_tokens
@@ -88,13 +94,15 @@ class wb_queries:
 
   def search_adverts_by_keyword(keyword):
     res = wb_queries.wb_query(method="get", url=f'https://catalog-ads.wildberries.ru/api/v5/search?keyword={keyword}')
-    res = res['adverts'][0:10] if res.get('adverts') is not None else []
+    res = res['adverts'][0:CONSTS['slice_count']] if res.get('adverts') is not None else []
     result = []
+    position = 0
     for advert in res:
+      position += 1
       result.append({
       "price": advert['cpm'],
       "p_id": advert['id'],
-      "position": advert['id']
+      "position": position
       })
     return result
 
@@ -138,7 +146,7 @@ class wb_queries:
     r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/stat-words', 
       cookies=req_params['cookies'],
       headers=req_params['headers']
-    ).json()
+    )
 
     pluses = []
     main_pluse_word = ''
@@ -229,3 +237,57 @@ class wb_queries:
     }
 
     return res
+
+
+  def get_all_categories():
+    return wb_queries.wb_query(method='get', url='https://static-basket-01.wb.ru/vol0/data/subject-base.json')
+  
+  def get_category_by_id(subjectId):
+    categories = cache_worker.get_wb_categories()
+    category = categories.get(str(subjectId))
+
+    if not category:
+      return {}
+
+    return category
+  
+
+  def get_products_info_by_wb_ids(wb_ids, city):
+
+    # default_query = f'https://search.wb.ru/exactmatch/ru/common/v4/search?appType=1&couponsGeo=12,3,18,15,21&curr=rub&dest=-1257786&emp=0&lang=ru&locale=ru&pricemarginCoeff=1.0&query={keyword}&reg=0&regions=80,64,38,4,83,33,68,70,69,30,86,75,40,1,22,66,31,48,110,71&resultset=catalog&sort=popular&spp=0&suppressSpellcheck=false'
+    nm_parameter = ';'.join(wb_ids)
+    # Запрос для Москвы
+    if city == "Москва":
+      query = f'https://card.wb.ru/cards/list?spp=0&regions=80,64,38,4,83,33,68,70,69,30,86,75,40,1,22,66,31,48,110,71&pricemarginCoeff=1.0&reg=0&appType=1&emp=0&locale=ru&lang=ru&curr=rub&couponsGeo=12,3,18,15,21&dest=-1257786&nm={nm_parameter}'
+    # Запрос Казань
+    if city == "Казань":
+      query= f'https://card.wb.ru/cards/list?spp=0&regions=80,64,38,4,83,33,68,70,69,30,86,40,1,22,66,31,48,110&pricemarginCoeff=1.0&reg=0&appType=1&emp=0&locale=ru&lang=ru&curr=rub&couponsGeo=2,12,7,3,6,18,22,21&dest=-2133461&nm={nm_parameter}'
+    # Запрос Краснодар
+    if city == "Краснодар":
+      query = f'https://card.wb.ru/cards/list?spp=0&regions=80,64,38,4,83,33,68,70,69,30,86,40,1,22,66,31,48,110&pricemarginCoeff=1.0&reg=0&appType=1&emp=0&locale=ru&lang=ru&curr=rub&couponsGeo=2,7,3,6,19,21,8&dest=12358075&nm={nm_parameter}'
+    # Запрос Питер
+    if "Санкт" in city:
+      query = f'https://card.wb.ru/cards/list?spp=0&regions=80,64,38,4,83,33,68,70,69,30,86,40,1,22,66,31,48&pricemarginCoeff=1.0&reg=0&appType=1&emp=0&locale=ru&lang=ru&curr=rub&couponsGeo=12,7,3,6,5,18,21&dest=-1181032&nm={nm_parameter}'
+      
+    res = wb_queries.wb_query(method="get", url=query)
+
+    if not res.get('data') or not res['data'].get('products') or not len(res['data']['products']):
+      return {}
+    
+    products = res['data']['products'][0:CONSTS['slice_count']]
+    result = {}
+    for product in products:
+      if not product.get('id'):
+        continue
+      result[product['id']] = {
+        'id': product['id'],
+        'name': product.get('name'),
+        'time1': product.get('time1'),
+        'time2': product.get('time2'),
+        'subjectId': product.get('subjectId'),
+        'subjectParentId': product.get('subjectParentId'),
+        'category_name': wb_queries.get_category_by_id(product.get('subjectId')).get('name'),
+      }
+
+    return result
+  

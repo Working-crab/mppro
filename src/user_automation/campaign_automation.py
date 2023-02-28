@@ -2,6 +2,7 @@
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
 
+import traceback
 from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
 
@@ -20,6 +21,7 @@ class campaign_automation:
       try:
         campaign_automation.check_campaign(campaign)
       except Exception as e:
+        traceback.print_exc()
         print(f'Exception: {e}.')
 
 
