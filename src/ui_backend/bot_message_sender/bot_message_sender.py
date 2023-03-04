@@ -1,5 +1,5 @@
 
-from ui_backend.bot import bot
+from ui_backend.bot import syncBot
 from ui_backend.common import get_reply_markup
 import pika, sys, os
 import json
@@ -14,6 +14,10 @@ CONSUMER_QUEUE = 'bot_message_sender_queue'
 def send_message(**kwargs):
 
   # kwargs['parse_mode'] = 'Markdown'
+
+  if not kwargs.get('destination_id') or not kwargs.get('message'):
+    return
+
   destination_id = kwargs['destination_id']
   message = kwargs['message']
 
@@ -35,10 +39,10 @@ def send_message(**kwargs):
   set_reply_kwarg(reply_kwargs, kwargs, 'parse_mode')
 
   try:
-    bot.send_message(destination_id, message, **reply_kwargs)
+    syncBot.send_message(destination_id, message, **reply_kwargs)
   except Exception as e:
     logger.error(f' tg send_message error: {e}')
-    bot.send_message(destination_id, 'На сервере произошла ошибка, попробуйте ещё раз позже или обратитесь к разработчику')
+    syncBot.send_message(destination_id, 'На сервере произошла ошибка, попробуйте ещё раз позже или обратитесь к разработчику')
 
 
 def set_reply_kwarg(reply_kwargs, kwargs, param):

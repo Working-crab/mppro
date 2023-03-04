@@ -1,5 +1,5 @@
 from datetime import datetime
-from .bot import bot
+from .bot import syncBot
 from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
@@ -13,23 +13,36 @@ import math
 from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
 
+from ui_backend.message_queue import queue_message_sync
+
 def try_except_decorator(fn):
     
     def the_wrapper(message):
         try:
             sucsess_message = fn(message)
-            bot.send_message(message.chat.id, sucsess_message, parse_mode='MarkdownV2')
+            queue_message_sync(
+              destination_id = message.chat.id,
+              message = sucsess_message,
+              request_message = message.text,
+              parse_mode = 'MarkdownV2'
+            )
             logger.info(f'{datetime.now()}: {message.from_user.id}: {message.text}: {sucsess_message}')
         except Exception as e:
             err_message = f'Произошла ошибка: {type(e).__name__}: {e}'
-            bot.send_message(message.chat.id, err_message)
+            queue_message_sync(
+              destination_id = message.chat.id,
+              request_message = message.text,
+              error = err_message,
+              message = 'На стороне сервера произошла ошибка! Обратитесь к разработчику или попробуйте позже',
+              parse_mode = 'MarkdownV2'
+            )
             logger.error(f'{datetime.now()}: {message.from_user.id}: {message.text}: {err_message}: {e}')
 
     return the_wrapper
 
 def msg_handler(*args, **kwargs):
     def decorator(fn):
-        return bot.message_handler(*args, **kwargs)(try_except_decorator(fn))
+        return syncBot.message_handler(*args, **kwargs)(try_except_decorator(fn))
     return decorator
 
 
@@ -236,9 +249,10 @@ def advert_info_message_maker(adverts, page_number, **header):
     result_msg = header
 
   # /delete_adv
-  lst_adverts = [i['id'] for i in adverts]
-  logger.info(lst_adverts)
-  
+  lst_adverts_ids = [i['id'] for i in adverts]
+  lst_adverts = db_queries.get_adverts(lst_adverts_ids)
+  lst_adverts_ids = [i['id'] for i in lst_adverts]
+
   for advert in adverts:
     date_str = advert['startDate']
     stat = status_parser(advert['statusId'])
@@ -250,6 +264,7 @@ def advert_info_message_maker(adverts, page_number, **header):
     result_msg += f"*Имя компании: {advert['campaignName']}*\n"
     result_msg += f"\t ID Рекламной компании: {advert['id']}\n"
     result_msg += f"\t Имя категории: {advert['categoryName']}\n"
-    result_msg += f"\t Отслеживать РК: /add\_adv\_{advert['id']}\n" 
+    result_msg += f"\t Отслеживать РК: /add\_adv\_{advert['id']}\n"
+    result_msg += f"\t Перестать отслеживать РК: /delete_adv\_adv\_{advert['id']}\n" if advert['id'] in lst_adverts_ids else ''
     result_msg += f"\t Текущий статус: {stat}\n\n"
   return result_msg

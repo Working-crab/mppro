@@ -2,14 +2,15 @@ from fastapi import FastAPI
 from telebot import types
 from fastapi.responses import RedirectResponse
 
+import asyncio
 from typing import Union, Dict, Any
 from .bot import bot
 from db.queries import db_queries
 import ui_backend.common
-import ui_backend.handlers
 import ui_backend.commands
+import ui_backend.handlers
 
-# from ui_backend.message_queue import message_queue_connection
+from ui_backend.message_queue import main, queue_message_async
 
 
 app = FastAPI(openapi_url=None)
@@ -17,15 +18,16 @@ WEBHOOK_URL = 'https://admp.pro/'# урл домена
 
 
 @app.on_event('startup')
-def on_startup():
-    webhook_info = bot.get_webhook_info()
+async def on_startup():
+    webhook_info = await bot.get_webhook_info()
     if webhook_info.url != WEBHOOK_URL:
-        bot.set_webhook(url=WEBHOOK_URL)
+        await bot.set_webhook(url=WEBHOOK_URL)
+    asyncio.create_task(main(asyncio.get_event_loop()))
 
 @app.post('/')
 async def webhook(update: Dict[str, Any]):
     update = types.Update.de_json(update)
-    bot.process_new_updates([update])
+    await bot.process_new_updates([update])
     return 'ok'
 
 @app.get('/')
@@ -39,7 +41,7 @@ async def webhook(data: dict):
     if data['object']['status'] == "succeeded":
         total = data['object']['amount']['value']
         db_queries.update_sub(user_id=data['object']['metadata']['telegram_user_id'], sub_name=data['object']['metadata']['subscription_name'], total=int(float(total)))
-        bot.send_message(data['object']['metadata']['telegram_user_id'], f"Была подключена подписка: {data['object']['metadata']['subscription_name']}\nЕсли хотите узнать подробнее - введите /show_active_sub")
+        await bot.send_message(data['object']['metadata']['telegram_user_id'], f"Была подключена подписка: {data['object']['metadata']['subscription_name']}\nЕсли хотите узнать подробнее - введите /show_active_sub")
     return 'ok'
 
   

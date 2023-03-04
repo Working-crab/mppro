@@ -100,7 +100,7 @@ class db_queries:
     def get_adverts(adverts):
         try:
             with Session(engine) as session:
-                adverts_from_db = session.query(Advert).filter(Advert.id in adverts).all()
+                adverts_from_db = session.query(Advert).filter(Advert.id.in_(adverts)).all()
                 return adverts_from_db
         except Exception as e:
             err_msg = f'Запрос не выполнен по причине: TypeError: {type(e).__name__}: {e}.'

@@ -81,13 +81,16 @@ class cache_worker:
     else:
       return None
 
-  def set_user_session(user_id, key, session_data):
-    key = make_general_key(user_id, key)
+  def set_user_session(user_id, session_data):
+    key = make_general_key(user_id, 'user_session_key')
     redis_client.set(key, json.dumps(session_data))
 
-  def get_user_session(user_id, key):
-    key = make_general_key(user_id, key)
-    message = json.loads(redis_client.get(key))
+  def get_user_session(user_id):
+    key = make_general_key(user_id, 'user_session_key')
+    data = redis_client.get(key)
+    message = {}
+    if data:
+      message = json.loads(data)
     return message
   
   def delete_user_session(user_id, key):

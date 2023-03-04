@@ -9,6 +9,8 @@ from ui_backend.bot import *
 from yookassa import Payment
 import uuid
 
+from ui_backend.message_queue import queue_message_sync
+
 
 # PAYMENT_TOKEN = '390540012:LIVE:30668'
 
@@ -23,30 +25,35 @@ def getToken(message):
 
 # Команды бота -------------------------------------------------------------------------------------------------------
 @bot.message_handler(commands=['start'])
-def start(message):
+async def start(message):
     get_user = db_queries.get_user_by_telegram_user_id(telegram_user_id=message.from_user.id)
     if not get_user:
         db_queries.create_user(telegram_user_id=message.from_user.id, telegram_chat_id=message.chat.id, telegram_username=message.from_user.username)
         markup_inline = universal_reply_markup(user_id=message.from_user.id)
-        bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}, вы зарегистрировались в *{bot.get_me().username}*', parse_mode='Markdown', reply_markup=markup_inline)
-        bot.send_message(message.chat.id, f'Так как вы только зарегистрировались, предлагаем Вам *Trial* подписку на нашего бота', parse_mode='Markdown', reply_markup=reply_markup_trial(trial=False))
+
+        # queue_message_sync(
+        #   message
+        # )
+
+        await bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}, вы зарегистрировались в *{await bot.get_me().username}*', parse_mode='Markdown', reply_markup=markup_inline)
+        await bot.send_message(message.chat.id, f'Так как вы только зарегистрировались, предлагаем Вам *Trial* подписку на нашего бота', parse_mode='Markdown', reply_markup=reply_markup_trial(trial=False))
     else:
-        bot.send_message(message.chat.id, f'Вы уже зарегистрированы')
+        await bot.send_message(message.chat.id, f'Вы уже зарегистрированы')
         
         markup_inline = universal_reply_markup()
-        bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}', reply_markup=markup_inline)
+        await bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}', reply_markup=markup_inline)
 
 
 
 @bot.callback_query_handler(func=lambda call:True)
-def callback_query(call):
+async def callback_query(call):
     if call.data == "Trial_Yes":
-        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text="Активируем Вам подписку, а пока можете посмотреть что она предоставляет: Информация\nИли /trial - Информация", reply_markup=reply_markup_trial(trial=True))
+        await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text="Активируем Вам подписку, а пока можете посмотреть что она предоставляет: Информация\nИли /trial - Информация", reply_markup=reply_markup_trial(trial=True))
         db_queries.set_trial(user_id=call.message.chat.id, sub_name='Trial')
     if call.data == "Trial_No":
-        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text=f'Хорошо, но если вы всё же захотите активировать подписку, введите команду /trial', parse_mode='Markdown')
+        await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text=f'Хорошо, но если вы всё же захотите активировать подписку, введите команду /trial', parse_mode='Markdown')
     if call.data == "Trial_info":
-        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text='`Trial` подписка предоставляет: "Функционал"', parse_mode='Markdown')
+        await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text='`Trial` подписка предоставляет: "Функционал"', parse_mode='Markdown')
     
     
     #Обработка кнопок покупки подписки
@@ -55,7 +62,7 @@ def callback_query(call):
             sub_name = call.data.replace('Telegram ', '')
             sub = db_queries.get_sub_name(sub_name=sub_name)
             product_price = [LabeledPrice(label=sub.title, amount=sub.price * 100)]
-            bot.send_invoice(call.message.chat.id,
+            await bot.send_invoice(call.message.chat.id,
                             title=sub.title,
                             description=sub.description,
                             invoice_payload=sub.title,
@@ -66,7 +73,7 @@ def callback_query(call):
                             is_flexible=False,
                             )
         except Exception as e:
-            bot.send_message(call.message.chat.id, e)
+            await bot.send_message(call.message.chat.id, e)
     
     if "Сайт" in call.data:
         try:
@@ -96,9 +103,9 @@ def callback_query(call):
         
         
             confirmation_url = payment.confirmation.confirmation_url
-            bot.send_message(call.message.chat.id, confirmation_url)
+            await bot.send_message(call.message.chat.id, confirmation_url)
         except Exception as e:
-            bot.send_message(call.message.chat.id, e)
+            await bot.send_message(call.message.chat.id, e)
             
             
     # Показать логи человека -----------------------------------
@@ -106,37 +113,37 @@ def callback_query(call):
         if "wb_queries" in call.data:
             search_user_id = call.data.split()[3]
             timestamp = call.data.split()[5] + " " + call.data.split()[6]
-            bot.send_message(call.message.chat.id, f'Идет поиск по: {search_user_id}\nВремя: {timestamp}')
+            await bot.send_message(call.message.chat.id, f'Идет поиск по: {search_user_id}\nВремя: {timestamp}')
         
 
 
 @bot.message_handler(commands=['trial'])
-def trial(message):
+async def trial(message):
     user = db_queries.get_user_by_telegram_user_id(message.chat.id)
     transaction = db_queries.get_transaction(user_id=user.id, transaction_title="Trial")
     if user.subscriptions_id == None:
         if transaction:
-            bot.send_message(message.chat.id, f'У вас уже была активирована Пробная подписка', parse_mode='Markdown')
+            await bot.send_message(message.chat.id, f'У вас уже была активирована Пробная подписка', parse_mode='Markdown')
         else:
-            bot.send_message(message.chat.id, f'Информация о пробной подписке\nКнопка *Согласиться* активирует Вам подписку', reply_markup=reply_markup_trial(trial=False), parse_mode='Markdown')
+            await bot.send_message(message.chat.id, f'Информация о пробной подписке\nКнопка *Согласиться* активирует Вам подписку', reply_markup=reply_markup_trial(trial=False), parse_mode='Markdown')
     else:    
         sub = db_queries.get_sub(sub_id=user.subscriptions_id)
         if sub.title != 'Trial':
-            bot.send_message(message.chat.id, f'У вас сейчас не пробная подписка', parse_mode='Markdown')
+            await bot.send_message(message.chat.id, f'У вас сейчас не пробная подписка', parse_mode='Markdown')
         elif sub.title == 'Trial':
-            bot.send_message(message.chat.id, f'Нажмите на `Информация` чтобы узнать, что дает пробная подписка', reply_markup=reply_markup_trial(trial=True), parse_mode='Markdown')
+            await bot.send_message(message.chat.id, f'Нажмите на `Информация` чтобы узнать, что дает пробная подписка', reply_markup=reply_markup_trial(trial=True), parse_mode='Markdown')
 
 
 
 @msg_handler(commands=['set_token_cmp'])
-def set_token_cmp(message):
+async def set_token_cmp(message):
     clear_token = message.text.replace('/set_token_cmp ', '').strip()
     db_queries.set_user_wb_cmp_token(telegram_user_id=message.from_user.id, wb_cmp_token=clear_token)
     return 'Ваш токен установлен\!'
 
 
 @msg_handler(commands=['search'])
-def search(message):
+async def search(message):
         keyword = re.sub('/search ', '', message.text)
         item_dicts = wb_queries.search_adverts_by_keyword(keyword)
         result_message = ''
@@ -153,7 +160,7 @@ def search(message):
 
 
 @msg_handler(commands=['list_atrevds'])
-def list_atrevds(message):
+async def list_atrevds(message):
     user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
     user_wb_tokens = wb_queries.get_base_tokens(user)
     req_params = wb_queries.get_base_request_params(user_wb_tokens)
@@ -179,7 +186,7 @@ def list_atrevds(message):
 
 
 @msg_handler(commands=['add_advert'])
-def add_advert(message):
+async def add_advert(message):
     """
     Команда для запсии в бд информацию о том, что юзер включает рекламную компанию
     TO wOrKeD:
@@ -191,7 +198,7 @@ def add_advert(message):
     #(индентификатор, бюджет, место которое хочет занять)args*
     message_args = re.sub('/add_advert ', '', message.text).split(sep=' ', maxsplit=4)
     if len(message_args) != 4:
-        bot.send_message(message.chat.id, f'Для использования команды используйте формат: /add_advert <campaign_id> <max_budget> <place> <status>')
+        await bot.send_message(message.chat.id, f'Для использования команды используйте формат: /add_advert <campaign_id> <max_budget> <place> <status>')
         return
 
     campaign_id = re.sub('/add_advert ', '', message_args[0])
@@ -209,21 +216,21 @@ def add_advert(message):
     return 'Произошла ошибка\!'
 
 @bot.message_handler(regexp='/add_adv')
-def get_max_budget(message):
+async def get_max_budget(message):
     user_text = message.text
     adv_id = re.sub('/add_adv_', '', user_text)
     info_dict = {
         "adv_id": adv_id
     }
     cache_worker.set_user_session(message.from_user.id, 'add_adv', info_dict)
-    msg = bot.send_message(message.chat.id, f'Укажите максимальный бюджет для РК с ID={adv_id} в рублях')
-    bot.register_next_step_handler(msg, add_advert_with_define_id)
+    msg = await bot.send_message(message.chat.id, f'Укажите максимальный бюджет для РК с ID={adv_id} в рублях')
+    await bot.register_next_step_handler(msg, add_advert_with_define_id)
 
-def add_advert_with_define_id(message):
+async def add_advert_with_define_id(message):
     user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
     adv_id = cache_worker.get_user_session(message.from_user.id, 'add_adv')
     db_queries.add_user_advert(user, adv_id["adv_id"], message.text, status='ON')
-    bot.send_message(message.chat.id, f'компания с id {adv_id["adv_id"]} отслеживается с максимальным бюджетом {message.text}')
+    await bot.send_message(message.chat.id, f'компания с id {adv_id["adv_id"]} отслеживается с максимальным бюджетом {message.text}')
     cache_worker.delete_user_session(message.from_user.id, 'add_adv')
 
 # @bot.message_handler(regexp='/delete_adv')
@@ -236,7 +243,7 @@ def add_advert_with_define_id(message):
 
 
 @msg_handler(commands=['delete_advert'])
-def delete_advert(message):
+async def delete_advert(message):
     user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
     campaign_id = int(re.sub('/delete_advert ', '', message.text))
 
@@ -252,7 +259,7 @@ def delete_advert(message):
 
 
 @msg_handler(commands=['my_auto_adverts'])
-def my_auto_adverts(message):
+async def my_auto_adverts(message):
 
     user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
     adverts = db_queries.get_user_adverts(user.id)
@@ -273,7 +280,7 @@ def my_auto_adverts(message):
 
 
 @msg_handler(commands=['reset_base_tokens'])
-def reset_base_tokens(message):
+async def reset_base_tokens(message):
     user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
     tokens = wb_queries.reset_base_tokens(user)
     
@@ -282,28 +289,28 @@ def reset_base_tokens(message):
 
 
 @bot.message_handler(commands=['buy'])
-def buy_subscription(message):
+async def buy_subscription(message):
     try:
         sub_list = db_queries.get_all_sub()
         if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
             for sub in sub_list:
-                bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
+                await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
     except Exception as e:
-        bot.send_message(message.chat.id, e)
+        await bot.send_message(message.chat.id, e)
 
 
 
 @bot.pre_checkout_query_handler(func=lambda query: True)
-def checkout(pre_checkout_query):
-    bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True,
+async def checkout(pre_checkout_query):
+    await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True,
                                   error_message="Aliens tried to steal your card's CVV, but we successfully protected your credentials,"
                                                 " try to pay again in a few minutes, we need a small rest.")
 
 
 @bot.message_handler(content_types=['successful_payment'])
-def got_payment(message):
+async def got_payment(message):
     total = message.successful_payment.total_amount / 100
-    bot.send_message(message.chat.id,
+    await bot.send_message(message.chat.id,
                      'Была подключена подписка: {}\nЕсли хотите узнать подробнее - введите /show_active_sub'.format(message.successful_payment.invoice_payload))
 
 
@@ -311,30 +318,30 @@ def got_payment(message):
 
 
 @bot.message_handler(commands=['show_active_sub'])
-def show_active_sub(message):
+async def show_active_sub(message):
     user = db_queries.get_user_by_telegram_user_id(message.chat.id)
     sub = db_queries.get_sub(sub_id=user.subscriptions_id)
     if user.subscriptions_id != None:
-        bot.send_message(message.chat.id, 'Подключен: `{}`\nСрок действия с `{}` по `{}`'.format(sub.title, user.sub_start_date.strftime('%d/%m/%Y'), user.sub_end_date.strftime('%d/%m/%Y')))
+        await bot.send_message(message.chat.id, 'Подключен: `{}`\nСрок действия с `{}` по `{}`'.format(sub.title, user.sub_start_date.strftime('%d/%m/%Y'), user.sub_end_date.strftime('%d/%m/%Y')))
     else:
-        bot.send_message(message.chat.id, 'У вас не подключено никаких платных подписок')
+        await bot.send_message(message.chat.id, 'У вас не подключено никаких платных подписок')
         
         
         
 @bot.message_handler(commands=['enable_dev_mode'])
-def enabled_dev_mode(message):
+async def enabled_dev_mode(message):
     try:
         cache_worker.set_user_dev_mode(user_id=message.from_user.id)
-        bot.send_message(message.chat.id, 'Здравствуйте, Вы включили режим разработчика', reply_markup=universal_reply_markup(user_id=message.from_user.id))
+        await bot.send_message(message.chat.id, 'Здравствуйте, Вы включили режим разработчика', reply_markup=universal_reply_markup(user_id=message.from_user.id))
     except Exception as e:
-        bot.send_message(message.chat.id, e)
+        await bot.send_message(message.chat.id, e)
 
 @bot.message_handler(commands=['disable_dev_mode'])
-def disabled_dev_mode(message):
+async def disabled_dev_mode(message):
     try:
         if cache_worker.delete_user_dev_mode(user_id=message.from_user.id):
-            bot.send_message(message.chat.id, 'Вы успешно выключили режим разработчика', reply_markup=universal_reply_markup(user_id=message.from_user.id))
+            await bot.send_message(message.chat.id, 'Вы успешно выключили режим разработчика', reply_markup=universal_reply_markup(user_id=message.from_user.id))
         else:
-            bot.send_message(message.chat.id, 'Произошла ошибка при отключении режима разработчика', reply_markup=universal_reply_markup(user_id=message.from_user.id))
+            await bot.send_message(message.chat.id, 'Произошла ошибка при отключении режима разработчика', reply_markup=universal_reply_markup(user_id=message.from_user.id))
     except Exception as e:
-        bot.send_message(message.chat.id, e)
+        await bot.send_message(message.chat.id, e)

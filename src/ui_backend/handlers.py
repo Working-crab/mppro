@@ -1,124 +1,160 @@
-from ui_backend.app import bot
-from ui_backend.common import universal_reply_markup, status_parser, paginate_buttons, get_bids_table, city_reply_markup, escape_telegram_specials, logs_types_reply_markup, universal_reply_markup_additionally, advert_info_message_maker
+
 import re
-from telebot import types, apihelper
+from ui_backend.app import bot
+from ui_backend.common import universal_reply_markup, paginate_buttons, city_reply_markup, escape_telegram_specials, logs_types_reply_markup, universal_reply_markup_additionally, advert_info_message_maker
+from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
-import traceback
-from datetime import datetime, timedelta
-
+from datetime import timedelta
 from cache_worker.cache_worker import cache_worker
+from ui_backend.message_queue import queue_message_async
 
-import time
-
-from ui_backend.message_queue import queue_message
-
+import traceback
 from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
 
 #Пример для создания истории действий
 #db_queries.add_action_history(user_id=message.chat.id, action=f"Какое-то событие")
 
-# Ветка "Поиск" --------------------------------------------------------------------------------------------------------
-@bot.message_handler(regexp='Поиск')
-def cb_adverts(message):
-    try:
-        sent = bot.send_message(message.chat.id, 'Введите ключевое слово', reply_markup=types.ReplyKeyboardRemove())
-        bot.register_next_step_handler(sent, search_next_step_handler)
-    except Exception as e:
-        bot.send_message(message.chat.id, e)
-        
-def search_next_step_handler(message, city=None, keyword=None, choose=False):
+# all messages handler
+@bot.message_handler(func=lambda m: True)
+async def message_handler(message):
+
   try:
-    user_id = message.from_user.id
-    if keyword == None:
-      keyword = re.sub('/search ', '', message.text)
-      
-    db_queries.add_action_history(user_id=message.chat.id, action=f"Поиск по запросу: '{keyword}'")
-    
-    city = cache_worker.get_city(user_id)
-    if city == None:
-      city = "Москва"
-    
-    
-    proccesing = bot.send_message(message.chat.id, 'Обработка запроса...')
-    item_dicts = wb_queries.search_adverts_by_keyword(keyword, user_id)
-    result_message = ''
-    position_ids = []
-    
-    chat_id_proccessing = proccesing.chat.id
-    message_id_proccessing = proccesing.message_id
-    
-    if len(item_dicts) == 0:
-      bot.delete_message(chat_id_proccessing, message_id_proccessing)
-      bot.send_message(message.chat.id, 'Такой товар не найден', reply_markup=universal_reply_markup())
-      return
+    logger.info('message from')
+    logger.info(message.chat.id)
+    logger.info('message text')
+    logger.info(message.text)
 
-    for item_idex in range(len(item_dicts)):
-      position_ids.append(str(item_dicts[item_idex]['p_id']))
+    telegram_user_id = message.from_user.id
 
-      price = item_dicts[item_idex]['price']
-      p_id = item_dicts[item_idex]['p_id']
-      result_message += f'\\[{item_idex + 1}\\]   *{price}₽*,  [{p_id}](https://www.wildberries.ru/catalog/{p_id}/detail.aspx) 🔄 \n'
-    
-    bot.delete_message(chat_id_proccessing, message_id_proccessing)
-    message_to_update = bot.send_message(message.chat.id, result_message, reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
+    user_session = cache_worker.get_user_session(telegram_user_id)
+    message.user_session = user_session
+    message.user_session_step_set = False
 
+    user_step = user_session.get('step')
+    if not user_step:
+      user_step = 'База'
 
-    result_message = f'Текущие рекламные ставки по запросу: *{keyword}*\nГород доставки: *{city}*\n\n'
-    adverts_info = wb_queries.get_products_info_by_wb_ids(position_ids, city, user_id)
+    possible_actions = step_map.get(user_step, {})
 
-    logger.info('adverts_info')
-    logger.info(adverts_info)
+    user_action = None
+    for key in possible_actions:
+      if re.search(key, message.text):
+        user_action = possible_actions[key]
+        break
 
-    logger.info('range(len(item_dicts))')
-    logger.info(range(len(item_dicts)))
-    for item_idex in range(len(item_dicts)):
+    logger.info('user_action')
+    logger.info(user_action)
 
-      product_id = item_dicts[item_idex]['p_id']
-      price = item_dicts[item_idex]['price']
-      message_string = f'\\[{item_idex + 1}\\]   *{price}₽*,  [{product_id}](https://www.wildberries.ru/catalog/{product_id}/detail.aspx)'
-      advert_info = adverts_info.get(product_id)
+    user_action_default = possible_actions.get('default')
+    if user_action:
+      await user_action(message)
+    elif user_action_default:
+      await user_action_default(message)
 
-      if advert_info:
-        product_name = escape_telegram_specials(advert_info.get('name')[:30]) if advert_info.get('name')[:30] else product_id
-        product_time = f'{advert_info.get("time2")}ч' if advert_info.get('time2') else ''
-        product_category_name = advert_info.get('category_name') if advert_info.get('category_name') else ''
-        message_string = f'\\[{item_idex + 1}\\] \t *{price}₽*, \t {product_category_name} \t {product_time} \t [{product_name}](https://www.wildberries.ru/catalog/{product_id}/detail.aspx)'
-      else:
-        message_string += ' возможно нет в наличии'
-
-      result_message += f'{message_string}\n'
-
-    if result_message:
-      bot.delete_message(message_to_update.chat.id, message_to_update.message_id)
-      bot.send_message(message.chat.id, result_message, reply_markup=universal_reply_markup(search=True), parse_mode='MarkdownV2')
-      if not choose: 
-        cache_worker.set_search(user_id=message.chat.id, message=message)
-
+    if not message.user_session_step_set:
+      set_user_session_step(message, 'База')
 
   except Exception as e:
+    logger.error(e)
     traceback.print_exc()
-    db_queries.add_action_history(user_id=message.chat.id, action=f"Произошла ошибка при поиске\nCуть ошибки: {e}")
-    bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup())
+    await queue_message_async(
+      destination_id = message.chat.id,
+      message = 'На стороне сервера произошла ошибка, обратитесь к разработчику или попробуйте позже'
+    )
 
 
-@bot.message_handler(regexp='Выбрать город')
-def choose_city(message):
+
+# Ветка "Поиск" --------------------------------------------------------------------------------------------------------
+
+async def search_adverts(message):
+  await bot.send_message(message.chat.id, 'Введите ключевое слово', reply_markup=types.ReplyKeyboardRemove())
+  set_user_session_step(message, 'Search_adverts')
+        
+async def search_next_step_handler(message, city=None, keyword=None, choose=False):
+  user_id = message.from_user.id
+  if keyword == None:
+    keyword = re.sub('/search ', '', message.text)
+    
+  db_queries.add_action_history(user_id=message.chat.id, action=f"Поиск по запросу: '{keyword}'")
+  
+  city = cache_worker.get_city(user_id)
+  if city == None:
+    city = "Москва"
+  
+  
+  proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
+  item_dicts = wb_queries.search_adverts_by_keyword(keyword, user_id)
+  result_message = ''
+  position_ids = []
+  
+  chat_id_proccessing = proccesing.chat.id
+  message_id_proccessing = proccesing.message_id
+  
+  if len(item_dicts) == 0:
+    await bot.delete_message(chat_id_proccessing, message_id_proccessing)
+    await bot.send_message(message.chat.id, 'Такой товар не найден', reply_markup=universal_reply_markup())
+    return
+
+  for item_idex in range(len(item_dicts)):
+    position_ids.append(str(item_dicts[item_idex]['p_id']))
+
+    price = item_dicts[item_idex]['price']
+    p_id = item_dicts[item_idex]['p_id']
+    result_message += f'\\[{item_idex + 1}\\]   *{price}₽*,  [{p_id}](https://www.wildberries.ru/catalog/{p_id}/detail.aspx) 🔄 \n'
+  
+  await bot.delete_message(chat_id_proccessing, message_id_proccessing)
+  message_to_update = await bot.send_message(message.chat.id, result_message, reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
+
+
+  result_message = f'Текущие рекламные ставки по запросу: *{keyword}*\nГород доставки: *{city}*\n\n'
+  adverts_info = wb_queries.get_products_info_by_wb_ids(position_ids, city, user_id)
+
+  logger.info('adverts_info')
+  logger.info(adverts_info)
+
+  logger.info('range(len(item_dicts))')
+  logger.info(range(len(item_dicts)))
+  for item_idex in range(len(item_dicts)):
+
+    product_id = item_dicts[item_idex]['p_id']
+    price = item_dicts[item_idex]['price']
+    message_string = f'\\[{item_idex + 1}\\]   *{price}₽*,  [{product_id}](https://www.wildberries.ru/catalog/{product_id}/detail.aspx)'
+    advert_info = adverts_info.get(product_id)
+
+    if advert_info:
+      product_name = escape_telegram_specials(advert_info.get('name')[:30]) if advert_info.get('name')[:30] else product_id
+      product_time = f'{advert_info.get("time2")}ч' if advert_info.get('time2') else ''
+      product_category_name = advert_info.get('category_name') if advert_info.get('category_name') else ''
+      message_string = f'\\[{item_idex + 1}\\] \t *{price}₽*, \t {product_category_name} \t {product_time} \t [{product_name}](https://www.wildberries.ru/catalog/{product_id}/detail.aspx)'
+    else:
+      message_string += ' возможно нет в наличии'
+
+    result_message += f'{message_string}\n'
+
+  if result_message:
+    await bot.delete_message(message_to_update.chat.id, message_to_update.message_id)
+    await bot.send_message(message.chat.id, result_message, reply_markup=universal_reply_markup(search=True), parse_mode='MarkdownV2')
+    if not choose: 
+      cache_worker.set_search(user_id=message.chat.id, message=message)
+
+
+
+async def choose_city(message):
     try:
       city = cache_worker.get_city(message.chat.id)
       if city == None:
         city = "Москва"
       
-      bot.send_message(message.chat.id, f'Выберите город из предоставленных на панели\nУ вас стоит: *{city}*', reply_markup=city_reply_markup(), parse_mode='MarkdownV2')
+      await bot.send_message(message.chat.id, f'Выберите город из предоставленных на панели\nУ вас стоит: *{city}*', reply_markup=city_reply_markup(), parse_mode='MarkdownV2')
     except Exception as e:
         traceback.print_exc()
         logger.error(e)
-        bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup())
+        await bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup())
         
         
-@bot.message_handler(regexp='Выбор:')
-def choose_city(message):
+async def choose_city_handler(message):
     try:
       city = message.text.split()[1]
       
@@ -132,68 +168,55 @@ def choose_city(message):
     except Exception as e:
         traceback.print_exc()
         logger.error(e)
-        bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup())
+        await bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup())
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Ветка "Помощь" ---------------------------------------------------------------------------------------------------------------------------------
 
-@bot.message_handler(regexp='Помощь')
-def cb_adverts(message):
-  queue_message(
-    destination_id=message.chat.id,
-    message='По вопросам работы бота обращайтесь: \n (https://t.me/tNeymik) \n (https://t.me/plazmenni_rezak)',
-    user_id=message.from_user.id
+async def help(message):
+  await queue_message_async(
+    destination_id = message.chat.id,
+    message = 'По вопросам работы бота обращайтесь: \n (https://t.me/tNeymik) \n (https://t.me/plazmenni_rezak)'
   )
   pass
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Ветка "Установить токен" -----------------------------------------------------------------------------------------------------------------------
-@bot.message_handler(regexp='Установить токен')
-def cb_adverts(message):
-    try:
-        sent = bot.send_message(message.chat.id, 'Введите токен', reply_markup=types.ReplyKeyboardRemove())
-        bot.register_next_step_handler(sent,set_token_cmp_handler)
-    except Exception as e:
-        bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup())
 
-def set_token_cmp_handler(message):
+async def set_token_cmp(message):
+  await bot.send_message(message.chat.id, 'Введите токен', reply_markup=types.ReplyKeyboardRemove())
+  set_user_session_step(message, 'Set_token_cmp')
+
+async def set_token_cmp_handler(message):
     try:
         clear_token = message.text.replace('/set_token_cmp ', '').strip()
         db_queries.set_user_wb_cmp_token(telegram_user_id=message.from_user.id, wb_cmp_token=clear_token)
         user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
         wb_queries.reset_base_tokens(user)
 
-        bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
+        await bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
         db_queries.add_action_history(user_id=message.chat.id, action=f"Был установлен токен: '{clear_token}'")
 
     except Exception as e:
 
         # TODO check Exception for "Неверный токен!" Exception
-        bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup())
+        await bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup())
         db_queries.add_action_history(user_id=message.chat.id, action=f"Произошла ошибка при установке токена")
         logger.error(e)
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Ветка "Список рекламных компаний" --------------------------------------------------------------------------------------------------------------
-@bot.message_handler(regexp='Список рекламных компаний')
-def cb_adverts(message):
-    """Функия которая запускает list_adverts_handler"""
-    try:
-      list_adverts_handler(message)
-    except Exception as e:
-        traceback.print_exc() # Maxim molodec TODO print_exc in all Exceptions
-        logger.error(e)
-        bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup())
+async def list_adverts(message):
+  await list_adverts_handler(message)
 
-
-def list_adverts_handler(message):
+async def list_adverts_handler(message):
   """Функия которая формирует и отправляет рекламные компании пользователя"""
+
   user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
   user_wb_tokens = wb_queries.get_base_tokens(user)
   req_params = wb_queries.get_base_request_params(user_wb_tokens)
   
-
   page_number = 1
   user_atrevds_data = wb_queries.get_user_atrevds(req_params, page_number)
 
@@ -203,18 +226,15 @@ def list_adverts_handler(message):
   total_count_adverts = user_atrevds_data['total_count']
   action = "page"
   inline_keyboard = paginate_buttons(action, page_number, total_count_adverts, page_size, message.from_user.id)
-  
-  try:
-    bot.send_message(message.chat.id, result_msg, reply_markup=inline_keyboard, parse_mode='MarkdownV2')
-  except Exception as e:
-    logger.error(e)
+
+  await bot.send_message(message.chat.id, result_msg, reply_markup=inline_keyboard, parse_mode='MarkdownV2')
 
 
 
 @bot.callback_query_handler(func=lambda x: re.match('page', x.data))
-def kek(data):
+async def kek(data):
     try:
-      bot.edit_message_text('Вайлдберис старается 🔄', data.message.chat.id, data.message.id, parse_mode='MarkdownV2')
+      await bot.edit_message_text('Вайлдберис старается 🔄', data.message.chat.id, data.message.id, parse_mode='MarkdownV2')
       type_of_callback, page_number, user_id = data.data.split(':') # parameters = [type_of_callback, page_number, user_id]
       page_number = int(page_number)
       user = db_queries.get_user_by_telegram_user_id(user_id)
@@ -231,9 +251,9 @@ def kek(data):
       action = "page"
       inline_keyboard = paginate_buttons(action, page_number, total_count, page_size, user_id)
 
-      bot.edit_message_text(result_msg, data.message.chat.id, data.message.id, parse_mode='MarkdownV2')
-      bot.edit_message_reply_markup(data.message.chat.id, data.message.id , reply_markup=inline_keyboard)
-      bot.answer_callback_query(data.id)
+      await bot.edit_message_text(result_msg, data.message.chat.id, data.message.id, parse_mode='MarkdownV2')
+      await bot.edit_message_reply_markup(data.message.chat.id, data.message.id , reply_markup=inline_keyboard)
+      await bot.answer_callback_query(data.id)
     except Exception as e:
         bot.send_message(data.message.chat.id, f'{e} ,')
         traceback.print_exc()
@@ -241,15 +261,13 @@ def kek(data):
 
 # Ветка "Добавить рекламную компанию" ------------------------------------------------------------------------------------------------------------
 @bot.message_handler(regexp='Добавить рекламную компанию')
-def cb_adverts(message):
-    try:
-        msg_text = 'Введите данные в формате "<campaign_id> <max_budget> <place> <status>" в следующем сообщение.'
-        sent = bot.send_message(message.chat.id, msg_text, reply_markup=types.ReplyKeyboardRemove())
-        bot.register_next_step_handler(sent,add_advert_handler)
-    except Exception as e:
-        bot.send_message(message.chat.id, e)
+async def cb_adverts(message):
+  pass # TODO refactor
+  # msg_text = 'Введите данные в формате "<campaign_id> <max_budget> <place> <status>" в следующем сообщение.'
+  # sent = await bot.send_message(message.chat.id, msg_text, reply_markup=types.ReplyKeyboardRemove())
+  # await bot.register_next_step_handler(sent,add_advert_handler)
 
-def add_advert_handler(message):
+async def add_advert_handler(message):
     """
     Команда для запсии в бд информацию о том, что юзер включает рекламную компанию
     TO wOrKeD:
@@ -263,7 +281,7 @@ def add_advert_handler(message):
         message_args = re.sub('/add_advert ', '', message.text).split(sep=' ', maxsplit=4)
         if len(message_args) != 4:
             msg_text = 'Для использования команды используйте формат: /add_advert <campaign_id> <max_budget> <place> <status>'
-            bot.send_message(message.chat.id, msg_text, reply_markup=universal_reply_markup())
+            await bot.send_message(message.chat.id, msg_text, reply_markup=universal_reply_markup())
             return
 
         campaign_id = re.sub('/add_advert ', '', message_args[0])
@@ -279,59 +297,55 @@ def add_advert_handler(message):
         elif add_result == 'ADDED':
             res_msg = 'Ваша рекламная компания успешно добавлена\!'
 
-        bot.send_message(message.chat.id, res_msg, reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
+        await bot.send_message(message.chat.id, res_msg, reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
     except Exception as e:
-        bot.send_message(message.chat.id, 'Что-то пошло не так', reply_markup=universal_reply_markup())
+        await bot.send_message(message.chat.id, 'Что-то пошло не так', reply_markup=universal_reply_markup())
         logger.error(e)
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Ветка "Показать логи человека" -----------------------------------------------------------------------------------------------------------------
 @bot.message_handler(regexp='Показать логи человека')
-def cb_adverts(message):
-    try:
-        sent = bot.send_message(message.chat.id, 'Введите id user\'а\nи через пробел дату, пример формата 2023-03-02 14:30', reply_markup=types.ReplyKeyboardRemove())
-        bot.register_next_step_handler(sent, search_logs_next_step_handler)
-    except Exception as e:
-        bot.send_message(message.chat.id, e)
+async def cb_adverts(message):
+  pass # TODO refactor
+  # sent = await bot.send_message(message.chat.id, 'Введите id user\'а\nи через пробел дату, пример формата 2023-03-02 14:30', reply_markup=types.ReplyKeyboardRemove())
+  # await bot.register_next_step_handler(sent, search_logs_next_step_handler)
         
         
-def search_logs_next_step_handler(message):
+async def search_logs_next_step_handler(message):
   try:
     search_logs = re.sub('/search_id ', '', message.text)
     search_user_id = search_logs.split()[0]
     timestamp = search_logs.split()[1] + " " + search_logs.split()[2]
-    bot.send_message(message.chat.id, f"user_id: {search_user_id}\ntimestamp: {timestamp}\nВыберите какой тип логов Вас интерисует", reply_markup=logs_types_reply_markup(user_id=search_user_id, timestamp=timestamp))
+    await bot.send_message(message.chat.id, f"user_id: {search_user_id}\ntimestamp: {timestamp}\nВыберите какой тип логов Вас интерисует", reply_markup=logs_types_reply_markup(user_id=search_user_id, timestamp=timestamp))
     
     
   except Exception as e:
     traceback.print_exc()
-    bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup())
+    await bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup())
 
         
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 # Дополнительные опции ---------------------------------------------------------------------------------------------------------------------------
 
-@bot.message_handler(regexp='Дополнительные опции')
-def cb_adverts(message):
+async def menu_additional_options(message):
     try:
-        bot.send_message(message.chat.id, "Вы перешли в раздел *Дополнительные опции*", parse_mode='MarkdownV2', reply_markup=universal_reply_markup_additionally())
+        await bot.send_message(message.chat.id, "Вы перешли в раздел *Дополнительные опции*", parse_mode='MarkdownV2', reply_markup=universal_reply_markup_additionally())
     except Exception as e:
-        bot.send_message(message.chat.id, e)
+        await bot.send_message(message.chat.id, e)
         
 
-@bot.message_handler(regexp='Назад')
-def cb_adverts(message):
+async def menu_back(message):
     try:
-        back = bot.send_message(message.chat.id, "Добро пожаловать *Назад* 🤓", parse_mode='MarkdownV2', reply_markup=universal_reply_markup())
+        back = await bot.send_message(message.chat.id, "Добро пожаловать *Назад* 🤓", parse_mode='MarkdownV2', reply_markup=universal_reply_markup())
 
     except Exception as e:
-        bot.send_message(message.chat.id, e)
+        await bot.send_message(message.chat.id, e)
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # История действий -------------------------------------------------------------------------------------------------------------------------------
-@bot.message_handler(regexp='История действий')
-def show_action_history(message):
+
+async def show_action_history(message):
   try:
     page_number = 1
     page_action = 5
@@ -341,7 +355,7 @@ def show_action_history(message):
     result_message = f'Список Ваших последних действий в боте, страница: {page_number}\n\n'
     i = 1
     if total_count_action == 0:
-      return bot.send_message(message.chat.id, 'Нет истории действий', reply_markup=universal_reply_markup())
+      return await bot.send_message(message.chat.id, 'Нет истории действий', reply_markup=universal_reply_markup())
     else:
       if page_number == 1:
         action_history = action_history[page_number-1:page_action]
@@ -352,17 +366,17 @@ def show_action_history(message):
       
     action = "action"
     inline_keyboard = paginate_buttons(action, page_number, total_count_action, page_action, message.from_user.id)
-    bot.send_message(message.chat.id, result_message, reply_markup=inline_keyboard)
+    await bot.send_message(message.chat.id, result_message, reply_markup=inline_keyboard)
     
     
   except Exception as e:
-      bot.send_message(message.chat.id, e)
+      await bot.send_message(message.chat.id, e)
         
 
 @bot.callback_query_handler(func=lambda x: re.match('action', x.data))
-def action_page(data):
+async def action_page(data):
     try:
-      bot.edit_message_text('Информация загружается 🔄', data.message.chat.id, data.message.id)
+      await bot.edit_message_text('Информация загружается 🔄', data.message.chat.id, data.message.id)
       type_of_callback, page_number, user_id = data.data.split(':') # parameters = [type_of_callback, page_number, user_id]
       page_number = int(page_number)
       page_action = 5
@@ -384,10 +398,39 @@ def action_page(data):
       action = "action"
       inline_keyboard = paginate_buttons(action, page_number, total_count_action, page_action, user_id)      
     
-      bot.edit_message_text(result_message, data.message.chat.id, data.message.id)
-      bot.edit_message_reply_markup(data.message.chat.id, data.message.id , reply_markup=inline_keyboard)
-      bot.answer_callback_query(data.id)
+      await bot.edit_message_text(result_message, data.message.chat.id, data.message.id)
+      await bot.edit_message_reply_markup(data.message.chat.id, data.message.id , reply_markup=inline_keyboard)
+      await bot.answer_callback_query(data.id)
     except Exception as e:
-      bot.send_message(data.message.chat.id, f'{e} ,')
+      await bot.send_message(data.message.chat.id, f'{e} ,')
       traceback.print_exc()
 # ------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+def set_user_session_step(message, step_name):
+  user_id = message.from_user.id
+  message.user_session['step'] = step_name
+  message.user_session_step_set = True
+  cache_worker.set_user_session(user_id, message.user_session)
+
+
+step_map = {
+  'База': {
+    'Помощь': help,
+    'Поиск': search_adverts,
+    'Список рекламных компаний': list_adverts,
+    'Выбрать город': choose_city,
+    'Выбор:': choose_city_handler,
+    'Установить токен': set_token_cmp,
+    'История действий': show_action_history,
+    'Дополнительные опции': menu_additional_options,
+    'Назад': menu_back,
+    'default': help
+  },
+  'Search_adverts': {
+    'default': search_next_step_handler
+  },
+  'Set_token_cmp': {
+    'default': set_token_cmp_handler
+  }
+}
