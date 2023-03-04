@@ -1,6 +1,7 @@
 import re
 from ui_backend.common import msg_handler, universal_reply_markup, reply_markup_trial, reply_markup_payment, status_parser
 from db.queries import db_queries
+from cache_worker.cache_worker import cache_worker
 from wb_common.wb_queries import wb_queries
 from ui_backend.app import bot
 from telebot.types import LabeledPrice
@@ -26,15 +27,16 @@ def start(message):
     get_user = db_queries.get_user_by_telegram_user_id(telegram_user_id=message.from_user.id)
     if not get_user:
         db_queries.create_user(telegram_user_id=message.from_user.id, telegram_chat_id=message.chat.id, telegram_username=message.from_user.username)
-        markup_inline = universal_reply_markup()
+        markup_inline = universal_reply_markup(user_id=message.from_user.id)
         bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}, вы зарегистрировались в *{bot.get_me().username}*', parse_mode='Markdown', reply_markup=markup_inline)
         bot.send_message(message.chat.id, f'Так как вы только зарегистрировались, предлагаем Вам *Trial* подписку на нашего бота', parse_mode='Markdown', reply_markup=reply_markup_trial(trial=False))
     else:
         bot.send_message(message.chat.id, f'Вы уже зарегистрированы')
+        
         markup_inline = universal_reply_markup()
         bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}', reply_markup=markup_inline)
 
-        
+
 
 @bot.callback_query_handler(func=lambda call:True)
 def callback_query(call):
@@ -97,8 +99,17 @@ def callback_query(call):
             bot.send_message(call.message.chat.id, confirmation_url)
         except Exception as e:
             bot.send_message(call.message.chat.id, e)
-
+            
+            
+    # Показать логи человека -----------------------------------
+    if "logs:" in call.data:
+        if "wb_queries" in call.data:
+            search_user_id = call.data.split()[3]
+            timestamp = call.data.split()[5] + " " + call.data.split()[6]
+            bot.send_message(call.message.chat.id, f'Идет поиск по: {search_user_id}\nВремя: {timestamp}')
         
+
+
 @bot.message_handler(commands=['trial'])
 def trial(message):
     user = db_queries.get_user_by_telegram_user_id(message.chat.id)
@@ -114,7 +125,7 @@ def trial(message):
             bot.send_message(message.chat.id, f'У вас сейчас не пробная подписка', parse_mode='Markdown')
         elif sub.title == 'Trial':
             bot.send_message(message.chat.id, f'Нажмите на `Информация` чтобы узнать, что дает пробная подписка', reply_markup=reply_markup_trial(trial=True), parse_mode='Markdown')
-    
+
 
 
 @msg_handler(commands=['set_token_cmp'])
@@ -196,7 +207,32 @@ def add_advert(message):
         return 'Ваша рекламная компания успешно добавлена\!'
 
     return 'Произошла ошибка\!'
-    
+
+@bot.message_handler(regexp='/add_adv')
+def get_max_budget(message):
+    user_text = message.text
+    adv_id = re.sub('/add_adv_', '', user_text)
+    info_dict = {
+        "adv_id": adv_id
+    }
+    cache_worker.set_user_session(message.from_user.id, 'add_adv', info_dict)
+    msg = bot.send_message(message.chat.id, f'Укажите максимальный бюджет для РК с ID={adv_id} в рублях')
+    bot.register_next_step_handler(msg, add_advert_with_define_id)
+
+def add_advert_with_define_id(message):
+    user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+    adv_id = cache_worker.get_user_session(message.from_user.id, 'add_adv')
+    db_queries.add_user_advert(user, adv_id["adv_id"], message.text, status='ON')
+    bot.send_message(message.chat.id, f'компания с id {adv_id["adv_id"]} отслеживается с максимальным бюджетом {message.text}')
+    cache_worker.delete_user_session(message.from_user.id, 'add_adv')
+
+# @bot.message_handler(regexp='/delete_adv')
+# def delete_user_advert(message):
+#   bot_message_text = message.text
+#   adv_id = re.sub('/delete_adv_', '', bot_message_text)
+#   user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+#   db_queries.delete_user_advert(user, adv_id)
+#   bot.send_message(message.chat.id, f'компания с id {adv_id} перестала отслеживаться')
 
 
 @msg_handler(commands=['delete_advert'])
@@ -214,7 +250,7 @@ def delete_advert(message):
 
     return f'Компания {campaign_id} удалена\!'
 
-  
+
 @msg_handler(commands=['my_auto_adverts'])
 def my_auto_adverts(message):
 
@@ -254,23 +290,23 @@ def buy_subscription(message):
                 bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
     except Exception as e:
         bot.send_message(message.chat.id, e)
-        
-            
+
+
 
 @bot.pre_checkout_query_handler(func=lambda query: True)
 def checkout(pre_checkout_query):
     bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True,
                                   error_message="Aliens tried to steal your card's CVV, but we successfully protected your credentials,"
                                                 " try to pay again in a few minutes, we need a small rest.")
-    
-    
+
+
 @bot.message_handler(content_types=['successful_payment'])
 def got_payment(message):
     total = message.successful_payment.total_amount / 100
     bot.send_message(message.chat.id,
                      'Была подключена подписка: {}\nЕсли хотите узнать подробнее - введите /show_active_sub'.format(message.successful_payment.invoice_payload))
 
-    
+
     db_queries.update_sub(user_id=message.chat.id, sub_name=message.successful_payment.invoice_payload, total=total)
 
 
@@ -282,3 +318,23 @@ def show_active_sub(message):
         bot.send_message(message.chat.id, 'Подключен: `{}`\nСрок действия с `{}` по `{}`'.format(sub.title, user.sub_start_date.strftime('%d/%m/%Y'), user.sub_end_date.strftime('%d/%m/%Y')))
     else:
         bot.send_message(message.chat.id, 'У вас не подключено никаких платных подписок')
+        
+        
+        
+@bot.message_handler(commands=['enable_dev_mode'])
+def enabled_dev_mode(message):
+    try:
+        cache_worker.set_user_dev_mode(user_id=message.from_user.id)
+        bot.send_message(message.chat.id, 'Здравствуйте, Вы включили режим разработчика', reply_markup=universal_reply_markup(user_id=message.from_user.id))
+    except Exception as e:
+        bot.send_message(message.chat.id, e)
+
+@bot.message_handler(commands=['disable_dev_mode'])
+def disabled_dev_mode(message):
+    try:
+        if cache_worker.delete_user_dev_mode(user_id=message.from_user.id):
+            bot.send_message(message.chat.id, 'Вы успешно выключили режим разработчика', reply_markup=universal_reply_markup(user_id=message.from_user.id))
+        else:
+            bot.send_message(message.chat.id, 'Произошла ошибка при отключении режима разработчика', reply_markup=universal_reply_markup(user_id=message.from_user.id))
+    except Exception as e:
+        bot.send_message(message.chat.id, e)

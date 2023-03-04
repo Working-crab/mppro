@@ -25,7 +25,7 @@ class wb_queries:
     return user_wb_tokens
 
   
-  def wb_query(method, url, cookies=None, headers=None, data=None):
+  def wb_query(method, url, cookies=None, headers=None, data=None, user_id=None):
     result = {}
     try:
       response = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data)
@@ -33,7 +33,7 @@ class wb_queries:
     except Exception as e:
       logger.error(e)
 
-    logger.debug(f' url: {url} \t headers: {str(headers)} \t result: {str(result)}')
+    logger.debug(f'user_id: {user_id} url: {url} \t headers: {str(headers)} \t result: {str(result)}')
 
     return result
 
@@ -92,8 +92,8 @@ class wb_queries:
     return user_wb_tokens
 
 
-  def search_adverts_by_keyword(keyword):
-    res = wb_queries.wb_query(method="get", url=f'https://catalog-ads.wildberries.ru/api/v5/search?keyword={keyword}')
+  def search_adverts_by_keyword(keyword, user_id):
+    res = wb_queries.wb_query(method="get", url=f'https://catalog-ads.wildberries.ru/api/v5/search?keyword={keyword}', user_id=user_id)
     res = res['adverts'][0:CONSTS['slice_count']] if res.get('adverts') is not None else []
     result = []
     position = 0
@@ -252,7 +252,7 @@ class wb_queries:
     return category
   
 
-  def get_products_info_by_wb_ids(wb_ids, city):
+  def get_products_info_by_wb_ids(wb_ids, city, user_id):
 
     # default_query = f'https://search.wb.ru/exactmatch/ru/common/v4/search?appType=1&couponsGeo=12,3,18,15,21&curr=rub&dest=-1257786&emp=0&lang=ru&locale=ru&pricemarginCoeff=1.0&query={keyword}&reg=0&regions=80,64,38,4,83,33,68,70,69,30,86,75,40,1,22,66,31,48,110,71&resultset=catalog&sort=popular&spp=0&suppressSpellcheck=false'
     nm_parameter = ';'.join(wb_ids)
@@ -269,7 +269,7 @@ class wb_queries:
     if "Санкт" in city:
       query = f'https://card.wb.ru/cards/list?spp=0&regions=80,64,38,4,83,33,68,70,69,30,86,40,1,22,66,31,48&pricemarginCoeff=1.0&reg=0&appType=1&emp=0&locale=ru&lang=ru&curr=rub&couponsGeo=12,7,3,6,5,18,21&dest=-1181032&nm={nm_parameter}'
       
-    res = wb_queries.wb_query(method="get", url=query)
+    res = wb_queries.wb_query(method="get", url=query, user_id=user_id)
 
     if not res.get('data') or not res['data'].get('products') or not len(res['data']['products']):
       return {}

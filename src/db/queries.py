@@ -2,8 +2,9 @@
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import select
+from sqlalchemy import desc
 
-from .models import User, Advert, Subscription, Transaction
+from .models import User, Advert, Subscription, Transaction, Action_history
 from .engine import engine
 
 
@@ -65,7 +66,7 @@ class db_queries:
 
 
 
-    def add_user_advert(user, status, campaign_id, max_budget, place):
+    def add_user_advert(user,  campaign_id,  max_budget, status='undefined', place='undefined'):
         try:
             with Session(engine) as session:
 
@@ -94,6 +95,17 @@ class db_queries:
             print(err_msg)
             raise ValueError(err_msg)
 
+
+
+    def get_adverts(adverts):
+        try:
+            with Session(engine) as session:
+                adverts_from_db = session.query(Advert).filter(Advert.id in adverts).all()
+                return adverts_from_db
+        except Exception as e:
+            err_msg = f'Запрос не выполнен по причине: TypeError: {type(e).__name__}: {e}.'
+            print(err_msg)
+            raise ValueError(err_msg)
 
 
     def delete_user_advert(user, campaign_id):
@@ -266,3 +278,37 @@ class db_queries:
             print(f'Запрос не выполнени по причине: TypeError: {type(e).__name__}: {e}.')
 
         return 'JOPA'
+    
+    
+    def add_action_history(user_id, action):
+        try:
+            with Session(engine) as session:
+                user = session.query(User).filter(User.telegram_user_id == user_id).first()
+                
+                if user:
+                    action = Action_history(
+                        user_id = user.id,
+                        action = action,
+                    )
+                    session.add(action)
+                    session.commit()
+                    return True
+                else:
+                    return False
+        except Exception as e:
+            print(f'Запрос не выполнени по причине: TypeError: {type(e).__name__}: {e}.')
+            
+            
+    def show_action_history(user_id, page_action):
+        try:
+            with Session(engine) as session:
+                user = session.query(User).filter(User.telegram_user_id == user_id).first()
+                return session.query(Action_history).filter(Action_history.user_id == user.id).order_by(desc(Action_history.date_time))
+                
+                # if page_number == 1:
+                #     # return session.query(Action_history).filter(Action_history.user_id == user.id).order_by(Action_history.date_time.desc())
+                #     return session.query(Action_history).filter(Action_history.user_id == user.id).order_by(Action_history.date_time.desc())[page_number-1:page_action]
+                # else:
+                #     return session.query(Action_history).filter(Action_history.user_id == user.id).order_by(Action_history.date_time.desc())[(5*(page_number-1)):page_action*page_number]
+        except Exception as e:
+            print(f'Запрос не выполнени по причине: TypeError: {type(e).__name__}: {e}.')

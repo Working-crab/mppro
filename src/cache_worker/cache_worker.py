@@ -15,6 +15,9 @@ WB_CONSTANTS = {
 def make_wb_key(user_id, wb_token_name):
     return f'{WB_CONSTANTS["prefix"]}_{user_id}_{WB_CONSTANTS[wb_token_name]}'
 
+def make_general_key(user_id, key_name):
+    return f'general_{user_id}_{key_name}'
+
 class cache_worker:
 
   def get_user_wb_tokens(user_id):
@@ -77,3 +80,40 @@ class cache_worker:
       return message
     else:
       return None
+
+  def set_user_session(user_id, key, session_data):
+    key = make_general_key(user_id, key)
+    redis_client.set(key, json.dumps(session_data))
+
+  def get_user_session(user_id, key):
+    key = make_general_key(user_id, key)
+    message = json.loads(redis_client.get(key))
+    return message
+  
+  def delete_user_session(user_id, key):
+    key = make_general_key(user_id, key)
+    if redis_client.get(key):
+      redis_client.delete(key)
+      return True
+    else:
+      return False
+
+  
+  def set_user_dev_mode(user_id):
+    redis_client.set(f'dev-{user_id}', user_id)
+    
+  def get_user_dev_mode(user_id):
+    if redis_client.get(f'dev-{user_id}'):
+      dev_mode = redis_client.get(f"dev-{user_id}")
+      return dev_mode
+    else:
+      return None
+      
+  def delete_user_dev_mode(user_id):
+    successful = False
+    if redis_client.get(f'dev-{user_id}'):
+      redis_client.delete(f"dev-{user_id}")
+      successful = True
+      return successful
+    else:
+      return successful

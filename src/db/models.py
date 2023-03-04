@@ -24,6 +24,7 @@ class User(Base):
     subscriptions = relationship("Subscription", back_populates="user")
     transactions = relationship("Transaction", back_populates="user")
     user_budget_analitics_logs = relationship("User_budget_analitics_logs", back_populates="user")
+    action_history = relationship("Action_history", back_populates="user")
        
     sub_start_date = Column(DateTime(timezone=True))
     sub_end_date = Column(DateTime(timezone=True))
@@ -103,3 +104,17 @@ class User_budget_analitics_logs(Base):
 
     def __repr__(self):
         return f"User_budget_analitics_logs(id={self.id!r}, user_id={self.user_id!r}, campaign_id={self.campaign_id!r})"
+    
+    
+class Action_history(Base):
+    __tablename__ = "action_history"
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    action = Column(String, nullable=False)
+    date_time = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship('User', back_populates='action_history')
+
+    def __repr__(self):
+        return f"Action_history(id={self.id!r}, user_id={self.user_id!r}, action={self.action!r})"
