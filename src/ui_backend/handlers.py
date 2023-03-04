@@ -5,9 +5,10 @@ from ui_backend.common import universal_reply_markup, paginate_buttons, city_rep
 from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
-from datetime import timedelta
+from datetime import datetime, timedelta
 from cache_worker.cache_worker import cache_worker
 from ui_backend.message_queue import queue_message_async
+import copy
 
 import traceback
 from common.appLogger import appLogger
@@ -30,6 +31,7 @@ async def message_handler(message):
 
     user_session = cache_worker.get_user_session(telegram_user_id)
     message.user_session = user_session
+    message.user_session_old = copy.deepcopy(user_session)
     message.user_session_step_set = False
 
     user_step = user_session.get('step')
@@ -55,6 +57,9 @@ async def message_handler(message):
 
     if not message.user_session_step_set:
       set_user_session_step(message, 'База')
+    else:
+      update_user_session(message)
+
 
   except Exception as e:
     logger.error(e)
@@ -72,14 +77,18 @@ async def search_adverts(message):
   await bot.send_message(message.chat.id, 'Введите ключевое слово', reply_markup=types.ReplyKeyboardRemove())
   set_user_session_step(message, 'Search_adverts')
         
-async def search_next_step_handler(message, city=None, keyword=None, choose=False):
+async def search_next_step_handler(message, after_choose=False):
   user_id = message.from_user.id
-  if keyword == None:
-    keyword = re.sub('/search ', '', message.text)
+  keyword = None
+
+  if after_choose:
+    keyword = message.user_session.get('search_last')
+  else:
+    keyword = message.text
     
   db_queries.add_action_history(user_id=message.chat.id, action=f"Поиск по запросу: '{keyword}'")
   
-  city = cache_worker.get_city(user_id)
+  city = message.user_session.get('search_city')
   if city == None:
     city = "Москва"
   
@@ -136,39 +145,22 @@ async def search_next_step_handler(message, city=None, keyword=None, choose=Fals
   if result_message:
     await bot.delete_message(message_to_update.chat.id, message_to_update.message_id)
     await bot.send_message(message.chat.id, result_message, reply_markup=universal_reply_markup(search=True), parse_mode='MarkdownV2')
-    if not choose: 
-      cache_worker.set_search(user_id=message.chat.id, message=message)
+    message.user_session['search_last'] = keyword
 
 
 
 async def choose_city(message):
-    try:
-      city = cache_worker.get_city(message.chat.id)
-      if city == None:
-        city = "Москва"
-      
-      await bot.send_message(message.chat.id, f'Выберите город из предоставленных на панели\nУ вас стоит: *{city}*', reply_markup=city_reply_markup(), parse_mode='MarkdownV2')
-    except Exception as e:
-        traceback.print_exc()
-        logger.error(e)
-        await bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup())
+  city = message.user_session.get('search_city')
+  if city == None:
+    city = "Москва"
+  
+  await bot.send_message(message.chat.id, f'Выберите город из предоставленных на панели\nУ вас стоит: *{city}*', reply_markup=city_reply_markup(), parse_mode='MarkdownV2')
         
         
 async def choose_city_handler(message):
-    try:
-      city = message.text.split()[1]
-      
-      try_message = cache_worker.get_search(user_id=message.chat.id)
-      if try_message != None:
-        keyword = try_message['text']
-      
-      cache_worker.set_city(message.chat.id, city)
-      
-      search_next_step_handler(message, city, keyword=keyword, choose=True)
-    except Exception as e:
-        traceback.print_exc()
-        logger.error(e)
-        await bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup())
+  city = message.text.split()[1]
+  message.user_session['search_city'] = city
+  await search_next_step_handler(message, after_choose=True)
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -411,7 +403,16 @@ def set_user_session_step(message, step_name):
   user_id = message.from_user.id
   message.user_session['step'] = step_name
   message.user_session_step_set = True
+  message.user_session['updated_at'] = str(datetime.now())
   cache_worker.set_user_session(user_id, message.user_session)
+
+
+def update_user_session(message):
+  if message.user_session == message.user_session_old:
+    return
+  
+  message.user_session['updated_at'] = str(datetime.now())
+  cache_worker.set_user_session(message.from_user.id, message.user_session)
 
 
 step_map = {

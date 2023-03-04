@@ -59,27 +59,6 @@ class cache_worker:
 
   def get_wb_categories():
     return json.loads(redis_client.get(make_wb_key('routine', 'categories')))
-  
-  
-  def set_search(user_id, message):
-    redis_client.set(f'Выбор-{user_id}', json.dumps(message.json))
-    
-  def set_city(user_id, city):
-    redis_client.set(f'Город-{user_id}', city)
-    
-  def get_city(user_id):
-    if redis_client.get(f'Город-{user_id}'):
-      city = redis_client.get(f'Город-{user_id}')
-      return city
-    else:
-      return None
-  
-  def get_search(user_id):
-    if redis_client.get(f"Выбор-{user_id}"):
-      message = json.loads(redis_client.get(f"Выбор-{user_id}"))
-      return message
-    else:
-      return None
 
   def set_user_session(user_id, session_data):
     key = make_general_key(user_id, 'user_session_key')
