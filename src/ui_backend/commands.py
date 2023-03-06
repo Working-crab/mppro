@@ -44,9 +44,9 @@ async def start(message):
         await bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}', reply_markup=markup_inline)
 
 
-
-@bot.callback_query_handler(func=lambda call:True)
-async def callback_query(call):
+# Обработка Trial подписки ----------------------------------------------------------------------------------------------------
+@bot.callback_query_handler(func=lambda x: re.match('Trial', x.data))
+async def trial(call):
     if call.data == "Trial_Yes":
         await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text="Активируем Вам подписку, а пока можете посмотреть что она предоставляет: Информация\nИли /trial - Информация", reply_markup=reply_markup_trial(trial=True))
         db_queries.set_trial(user_id=call.message.chat.id, sub_name='Trial')
@@ -54,12 +54,15 @@ async def callback_query(call):
         await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text=f'Хорошо, но если вы всё же захотите активировать подписку, введите команду /trial', parse_mode='Markdown')
     if call.data == "Trial_info":
         await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text='`Trial` подписка предоставляет: "Функционал"', parse_mode='Markdown')
-    
-    
+
+
+# Обработка Оплаты ----------------------------------------------------------------------------------------------------
+@bot.callback_query_handler(func=lambda x: re.match('Оплата', x.data))
+async def payment_func(call):
     #Обработка кнопок покупки подписки
     if "Telegram" in call.data:
         try:    
-            sub_name = call.data.replace('Telegram ', '')
+            sub_name = call.data.replace('Оплата Telegram ', '')
             sub = db_queries.get_sub_name(sub_name=sub_name)
             product_price = [LabeledPrice(label=sub.title, amount=sub.price * 100)]
             await bot.send_invoice(call.message.chat.id,
@@ -77,7 +80,7 @@ async def callback_query(call):
     
     if "Сайт" in call.data:
         try:
-            sub_name = call.data.replace('Сайт ', '')
+            sub_name = call.data.replace('Оплата Сайт ', '')
             sub = db_queries.get_sub_name(sub_name=sub_name)
             # product_price = [LabeledPrice(label=sub.title, amount=sub.price * 100)]
             # user = db_queries.get_user_by_telegram_user_id(message.chat.id)
@@ -108,12 +111,13 @@ async def callback_query(call):
             await bot.send_message(call.message.chat.id, e)
             
             
-    # Показать логи человека -----------------------------------
-    if "logs:" in call.data:
-        if "wb_queries" in call.data:
-            search_user_id = call.data.split()[3]
-            timestamp = call.data.split()[5] + " " + call.data.split()[6]
-            await bot.send_message(call.message.chat.id, f'Идет поиск по: {search_user_id}\nВремя: {timestamp}')
+# Показать логи человека -------------------------------------------------------------------------------------
+@bot.callback_query_handler(func=lambda x: re.match('logs:', x.data))
+async def payment_func(call):
+    if "wb_queries" in call.data:
+        search_user_id = call.data.split()[3]
+        timestamp = call.data.split()[5] + " " + call.data.split()[6]
+        await bot.send_message(call.message.chat.id, f'Идет поиск по: {search_user_id}\nВремя: {timestamp}')
         
 
 
@@ -159,32 +163,6 @@ async def search(message):
 
 
 
-@msg_handler(commands=['list_atrevds'])
-async def list_atrevds(message):
-    user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-    user_wb_tokens = wb_queries.get_base_tokens(user)
-    req_params = wb_queries.get_base_request_params(user_wb_tokens)
-
-    view = wb_queries.get_user_atrevds(req_params)
-    result_msg = ''
-
-    for product in view:
-        date_str = product['startDate']
-        
-        stat = status_parser(product['statusId'])
-        if date_str != None:
-            date_str = date_str[:10]
-            date_str = re.sub('-', '\-', date_str)
-        
-        result_msg += f"*Имя компании: {product['campaignName']}*\n"
-        result_msg += f"\t ID Рекламной компании: {product['id']}\n"
-        result_msg += f"\t Имя категории: {product['categoryName']}\n"
-        result_msg += f"\t Дата начала: {date_str}\n"
-        result_msg += f"\t Текущий статус: {stat}\n\n"
-
-    return result_msg
-
-
 @msg_handler(commands=['add_advert'])
 async def add_advert(message):
     """
@@ -215,31 +193,17 @@ async def add_advert(message):
 
     return 'Произошла ошибка\!'
 
-@bot.message_handler(regexp='/add_adv')
-async def get_max_budget(message):
-    user_text = message.text
-    adv_id = re.sub('/add_adv_', '', user_text)
-    info_dict = {
-        "adv_id": adv_id
-    }
-    cache_worker.set_user_session(message.from_user.id, 'add_adv', info_dict)
-    msg = await bot.send_message(message.chat.id, f'Укажите максимальный бюджет для РК с ID={adv_id} в рублях')
-    await bot.register_next_step_handler(msg, add_advert_with_define_id)
 
-async def add_advert_with_define_id(message):
-    user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-    adv_id = cache_worker.get_user_session(message.from_user.id, 'add_adv')
-    db_queries.add_user_advert(user, adv_id["adv_id"], message.text, status='ON')
-    await bot.send_message(message.chat.id, f'компания с id {adv_id["adv_id"]} отслеживается с максимальным бюджетом {message.text}')
-    cache_worker.delete_user_session(message.from_user.id, 'add_adv')
+@bot.message_handler(regexp='/delete_adv')
+async def delete_user_advert(message):
+  bot_message_text = message.text
+  adv_id = re.sub('/delete_adv_', '', bot_message_text)
+  user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  db_queries.delete_user_advert(user, adv_id)
 
-# @bot.message_handler(regexp='/delete_adv')
-# def delete_user_advert(message):
-#   bot_message_text = message.text
-#   adv_id = re.sub('/delete_adv_', '', bot_message_text)
-#   user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-#   db_queries.delete_user_advert(user, adv_id)
-#   bot.send_message(message.chat.id, f'компания с id {adv_id} перестала отслеживаться')
+  deletion_message = f'Компания с id {adv_id} перестала отслеживаться'
+  db_queries.add_action_history(user_id=user.id, action=deletion_message)
+  await bot.send_message(message.chat.id, deletion_message)
 
 
 @msg_handler(commands=['delete_advert'])

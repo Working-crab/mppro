@@ -5,7 +5,7 @@ from http.client import HTTPConnection
 class appLogger:
   def getLogger(name):
 
-    formatter = logging.Formatter("%(asctime)s;%(levelname)s;%(module)s;%(message)s")
+    formatter = logging.Formatter("%(asctime)s;%(levelname)s;%(module)s;%(lineno)d;%(message)s")
 
     handler = logging.FileHandler(f'/data/logs/{name}.log')        
     handler.setFormatter(formatter)

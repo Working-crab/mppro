@@ -48,10 +48,12 @@ class campaign_automation:
         approximate_place = bid['position']
         break
 
-    logger.info(f'check_campaign id: {campaign.id} \t new_bid: {new_bid} \t old_bid: {campaign_info["campaign_bid"]}')
+    old_bid = campaign_info["campaign_bid"]
 
-    if new_bid != campaign_info['campaign_bid'] and bid_p_id != campaign.campaign_id:
-      wb_queries.set_campaign_bid(campaign_user, campaign, campaign_info, new_bid, approximate_place)
+    logger.info(f'check_campaign id: {campaign.id} \t new_bid: {new_bid} \t old_bid: {old_bid}')
+
+    if new_bid != old_bid and bid_p_id != campaign.campaign_id:
+      wb_queries.set_campaign_bid(campaign_user, campaign, campaign_info, new_bid, old_bid, approximate_place)
 
 
     pass

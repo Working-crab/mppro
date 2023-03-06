@@ -51,6 +51,8 @@ def universal_reply_markup(search=False):
 
   btn_search = types.KeyboardButton(text='🔎 Поиск 🔎')
   btn_list_adverts = types.KeyboardButton(text='📑 Список рекламных компаний 📑')
+  btn_my_sub = types.KeyboardButton(text='💻 Моя подписка 💻')
+  btn_list_sub = types.KeyboardButton(text='💵 Купить подписку 💵')
   btn_additionally = types.KeyboardButton(text='⚙️ Дополнительные опции ⚙️')
 
   markup_inline.add(btn_search, btn_list_adverts)
@@ -74,11 +76,11 @@ def universal_reply_markup_additionally(user_id=None):
   btn_help = types.KeyboardButton(text='👨‍💻 Помощь 👨‍💻')
   btn_set_token_cmp = types.KeyboardButton(text='🔑 Установить токен 🔑')
   btn_get_logs = types.KeyboardButton(text='📋 История действий 📋')
-  btn_add_adverts = types.KeyboardButton(text='📄 Добавить рекламную компанию 📄')
+  # btn_add_adverts = types.KeyboardButton(text='📄 Добавить рекламную компанию 📄')
   btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
 
 
-  markup_inline.add(btn_help, btn_set_token_cmp, btn_add_adverts, btn_get_logs)
+  markup_inline.add(btn_help, btn_set_token_cmp, btn_get_logs)
   markup_inline.add(btn_back)
     
   return markup_inline
@@ -118,8 +120,8 @@ def reply_markup_trial(trial):
 def reply_markup_payment(user_data):
     markup = types.InlineKeyboardMarkup()
     markup.add(
-        types.InlineKeyboardButton(text='Оплата через telegram', callback_data=f"Telegram {user_data}"),
-        types.InlineKeyboardButton(text='Оплата через сайт', callback_data=f"Сайт {user_data}"),
+        types.InlineKeyboardButton(text='Оплата через telegram', callback_data=f"Оплата Telegram {user_data}"),
+        types.InlineKeyboardButton(text='Оплата через сайт', callback_data=f"Оплата Сайт {user_data}"),
     )
     return markup
 
@@ -171,48 +173,6 @@ def paginate_buttons(action, page_number, total_count_adverts, page_size, user_i
   return inline_keyboard
 
 
-# def action_paginate_buttons(page_number, total_count_action, page_action, user_id):
-#   start_index = 0
-#   end_index = 0
-#   page_count = math.ceil(total_count_action/page_action)
-
-#   if page_count >= 6:
-#     if(page_number <= 3):
-#       start_index = 1
-#       end_index = 6
-#     elif(page_number >= page_count-2):
-#       start_index = page_count-4
-#       end_index = page_count+1
-#     else:
-#       start_index = page_number - 2
-#       end_index = page_number + 3
-#   else:
-#     if(page_number <= 3):
-#       start_index = 1
-#       end_index = page_count + 1
-
-#   buttons_array = []
-#   inline_keyboard = types.InlineKeyboardMarkup()
-#   for i in range(start_index, end_index):
-#     buttons_array.append(types.InlineKeyboardButton(f'{i}', callback_data=f'action:{i}:{user_id}'))
-
-#   inline_keyboard.row(*buttons_array)
-#   return inline_keyboard
-
-# def paginate_buttons(user_id, content, items_per_page, page_num):
-#   num_pages = len(content) // items_per_page
-#   if len(content) % items_per_page != 0:
-#       num_pages += 1
-
-#   buttons = []
-#   start_index = (page_num - 1) * items_per_page
-#   end_index = start_index + items_per_page
-#   for i in range(start_index, end_index):
-#       if i < len(content):
-#           buttons.append(types.InlineKeyboardButton(content[i], callback_data=f'page_history:{i}:{user_id}'))
-#   return buttons
-
-
 def get_bids_table(user_id, campaign_id):
   campaign = Campaign(campaign_id)
   campaign_user = db_queries.get_user_by_telegram_user_id(user_id)
@@ -243,15 +203,19 @@ def logs_types_reply_markup(user_id, timestamp):
 
     return markup_inline
 
-def advert_info_message_maker(adverts, page_number, **header):
+def advert_info_message_maker(adverts, page_number, user): # **header
   result_msg = f'Список ваших рекламных компаний с cmp\.wildberries\.ru, страница: {page_number}\n\n'
-  if header:
-    result_msg = header
+  # if header:
+  #   result_msg = header
 
   # /delete_adv
   lst_adverts_ids = [i['id'] for i in adverts]
-  lst_adverts = db_queries.get_adverts(lst_adverts_ids)
-  lst_adverts_ids = [i['id'] for i in lst_adverts]
+  lst_adverts = db_queries.get_user_adverts_by_wb_ids(user.id, lst_adverts_ids)
+
+  logger.info('lst_adverts')
+  logger.info(lst_adverts)
+
+  lst_adverts_ids = [i.campaign_id for i in lst_adverts]
 
   for advert in adverts:
     date_str = advert['startDate']
@@ -260,11 +224,23 @@ def advert_info_message_maker(adverts, page_number, **header):
     if date_str != None:
       date_str = date_str[:10]
       date_str = re.sub('-', '\-', date_str)
+
+    add_delete_str = ''
+    bot_status = ''
+    if advert['id'] in lst_adverts_ids:
+      bot_status     += f"\t Отслеживается\!" # TODO Максимальная ставка
+      add_delete_str += f"\t Перестать отслеживать РК: /delete\_adv\_{advert['id']}\n"
+    else:
+      bot_status     += f"\t Не отслеживается\!"
+      add_delete_str += f"\t Отслеживать РК: /add\_adv\_{advert['id']}\n"
+
+    campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{advert['id']}"
     
     result_msg += f"*Имя компании: {advert['campaignName']}*\n"
-    result_msg += f"\t ID Рекламной компании: {advert['id']}\n"
-    result_msg += f"\t Имя категории: {advert['categoryName']}\n"
-    result_msg += f"\t Отслеживать РК: /add\_adv\_{advert['id']}\n"
-    result_msg += f"\t Перестать отслеживать РК: /delete_adv\_adv\_{advert['id']}\n" if advert['id'] in lst_adverts_ids else ''
-    result_msg += f"\t Текущий статус: {stat}\n\n"
+    result_msg += f"\t ID: [{advert['id']}]({campaign_link}) Статус: {stat}\n"
+    result_msg += bot_status
+    # TODO Текущая ставка
+    result_msg += add_delete_str
+    # TODO Текущие ставки на 1-2 месте по рекламному слову
+    result_msg += f"\n"
   return result_msg

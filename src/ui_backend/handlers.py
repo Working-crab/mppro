@@ -30,13 +30,15 @@ async def message_handler(message):
     telegram_user_id = message.from_user.id
 
     user_session = cache_worker.get_user_session(telegram_user_id)
+
+    logger.debug('user_session')
+    logger.debug(user_session)
+
     message.user_session = user_session
     message.user_session_old = copy.deepcopy(user_session)
     message.user_session_step_set = False
 
-    user_step = user_session.get('step')
-    if not user_step:
-      user_step = 'База'
+    user_step = user_session.get('step', 'База')
 
     possible_actions = step_map.get(user_step, {})
 
@@ -46,24 +48,34 @@ async def message_handler(message):
         user_action = possible_actions[key]
         break
 
-    logger.info('user_action')
-    logger.info(user_action)
+    logger.debug('user_action')
+    logger.debug(user_action)
 
     user_action_default = possible_actions.get('default')
     if user_action:
       await user_action(message)
     elif user_action_default:
       await user_action_default(message)
+      
 
     if not message.user_session_step_set:
       set_user_session_step(message, 'База')
-    else:
-      update_user_session(message)
+
+    update_user_session(message)
 
 
   except Exception as e:
-    logger.error(e)
     traceback.print_exc()
+    logger.error(e)
+
+    if str(e) == 'Неверный токен!':
+      await queue_message_async(
+        destination_id = message.chat.id,
+        message = 'Произошла ошибка валидации токена! Возможно срок его действия истек, попробуйте перезагрузить токен!'
+      )
+      return
+
+
     await queue_message_async(
       destination_id = message.chat.id,
       message = 'На стороне сервера произошла ошибка, обратитесь к разработчику или попробуйте позже'
@@ -77,16 +89,16 @@ async def search_adverts(message):
   await bot.send_message(message.chat.id, 'Введите ключевое слово', reply_markup=types.ReplyKeyboardRemove())
   set_user_session_step(message, 'Search_adverts')
         
-async def search_next_step_handler(message, after_choose=False):
-  user_id = message.from_user.id
+async def search_next_step_handler(message, after_city_choose=False):
+  telegram_user_id = message.from_user.id
   keyword = None
 
-  if after_choose:
+  if after_city_choose:
     keyword = message.user_session.get('search_last')
   else:
     keyword = message.text
     
-  db_queries.add_action_history(user_id=message.chat.id, action=f"Поиск по запросу: '{keyword}'")
+  db_queries.add_action_history(telegram_user_id=telegram_user_id, action=f"Поиск по запросу: '{keyword}'")
   
   city = message.user_session.get('search_city')
   if city == None:
@@ -94,7 +106,7 @@ async def search_next_step_handler(message, after_choose=False):
   
   
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
-  item_dicts = wb_queries.search_adverts_by_keyword(keyword, user_id)
+  item_dicts = wb_queries.search_adverts_by_keyword(keyword, telegram_user_id)
   result_message = ''
   position_ids = []
   
@@ -118,7 +130,7 @@ async def search_next_step_handler(message, after_choose=False):
 
 
   result_message = f'Текущие рекламные ставки по запросу: *{keyword}*\nГород доставки: *{city}*\n\n'
-  adverts_info = wb_queries.get_products_info_by_wb_ids(position_ids, city, user_id)
+  adverts_info = wb_queries.get_products_info_by_wb_ids(position_ids, city, telegram_user_id)
 
   logger.info('adverts_info')
   logger.info(adverts_info)
@@ -160,7 +172,7 @@ async def choose_city(message):
 async def choose_city_handler(message):
   city = message.text.split()[1]
   message.user_session['search_city'] = city
-  await search_next_step_handler(message, after_choose=True)
+  await search_next_step_handler(message, after_city_choose=True)
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -171,7 +183,12 @@ async def help(message):
     destination_id = message.chat.id,
     message = 'По вопросам работы бота обращайтесь: \n (https://t.me/tNeymik) \n (https://t.me/plazmenni_rezak)'
   )
-  pass
+
+async def misSpell(message):
+  await queue_message_async(
+    destination_id = message.chat.id,
+    message = 'Для работы с ботом используйте меню'
+  )
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Ветка "Установить токен" -----------------------------------------------------------------------------------------------------------------------
@@ -181,21 +198,23 @@ async def set_token_cmp(message):
   set_user_session_step(message, 'Set_token_cmp')
 
 async def set_token_cmp_handler(message):
-    try:
-        clear_token = message.text.replace('/set_token_cmp ', '').strip()
-        db_queries.set_user_wb_cmp_token(telegram_user_id=message.from_user.id, wb_cmp_token=clear_token)
-        user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-        wb_queries.reset_base_tokens(user)
+  clear_token = message.text.replace('/set_token_cmp ', '').strip()
+  user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
 
-        await bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
-        db_queries.add_action_history(user_id=message.chat.id, action=f"Был установлен токен: '{clear_token}'")
 
-    except Exception as e:
+  try:
+    wb_queries.reset_base_tokens(user, token=clear_token)
+  except Exception as e:
+    if str(e) == 'Неверный токен!':
+      await bot.send_message(message.chat.id, 'Неверный токен!', reply_markup=universal_reply_markup())
+      return
+    raise e
 
-        # TODO check Exception for "Неверный токен!" Exception
-        await bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup())
-        db_queries.add_action_history(user_id=message.chat.id, action=f"Произошла ошибка при установке токена")
-        logger.error(e)
+
+  db_queries.set_user_wb_cmp_token(telegram_user_id=message.from_user.id, wb_cmp_token=clear_token)
+  await bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
+  db_queries.add_action_history(user_id=user.id, action=f"Был установлен токен: '{clear_token}'")
+
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Ветка "Список рекламных компаний" --------------------------------------------------------------------------------------------------------------
@@ -212,7 +231,7 @@ async def list_adverts_handler(message):
   page_number = 1
   user_atrevds_data = wb_queries.get_user_atrevds(req_params, page_number)
 
-  result_msg = advert_info_message_maker(user_atrevds_data['adverts'], page_number=page_number)
+  result_msg = advert_info_message_maker(user_atrevds_data['adverts'], page_number=page_number, user=user)
 
   page_size = 6
   total_count_adverts = user_atrevds_data['total_count']
@@ -225,30 +244,27 @@ async def list_adverts_handler(message):
 
 @bot.callback_query_handler(func=lambda x: re.match('page', x.data))
 async def kek(data):
-    try:
-      await bot.edit_message_text('Вайлдберис старается 🔄', data.message.chat.id, data.message.id, parse_mode='MarkdownV2')
-      type_of_callback, page_number, user_id = data.data.split(':') # parameters = [type_of_callback, page_number, user_id]
-      page_number = int(page_number)
-      user = db_queries.get_user_by_telegram_user_id(user_id)
-      user_wb_tokens = wb_queries.get_base_tokens(user)
-      req_params = wb_queries.get_base_request_params(user_wb_tokens)
-      user_atrevds_data = wb_queries.get_user_atrevds(req_params, page_number)
+  await bot.edit_message_text('Вайлдберис старается 🔄', data.message.chat.id, data.message.id, parse_mode='MarkdownV2')
+  type_of_callback, page_number, user_id = data.data.split(':') # parameters = [type_of_callback, page_number, user_id]
+  page_number = int(page_number)
+  user = db_queries.get_user_by_telegram_user_id(user_id)
+  user_wb_tokens = wb_queries.get_base_tokens(user)
+  req_params = wb_queries.get_base_request_params(user_wb_tokens)
+  user_atrevds_data = wb_queries.get_user_atrevds(req_params, page_number)
 
-      
-      # kek1 = get_bids_table(user_id, 3833716) TODO
-      result_msg = advert_info_message_maker(user_atrevds_data['adverts'], page_number=page_number)
+  
+  # kek1 = get_bids_table(user_id, 3833716) TODO
+  result_msg = advert_info_message_maker(user_atrevds_data['adverts'], page_number=page_number, user=user)
 
-      total_count = user_atrevds_data['total_count']
-      page_size = 6
-      action = "page"
-      inline_keyboard = paginate_buttons(action, page_number, total_count, page_size, user_id)
+  total_count = user_atrevds_data['total_count']
+  page_size = 6
+  action = "page"
+  inline_keyboard = paginate_buttons(action, page_number, total_count, page_size, user_id)
 
-      await bot.edit_message_text(result_msg, data.message.chat.id, data.message.id, parse_mode='MarkdownV2')
-      await bot.edit_message_reply_markup(data.message.chat.id, data.message.id , reply_markup=inline_keyboard)
-      await bot.answer_callback_query(data.id)
-    except Exception as e:
-        bot.send_message(data.message.chat.id, f'{e} ,')
-        traceback.print_exc()
+  await bot.edit_message_text(result_msg, data.message.chat.id, data.message.id, parse_mode='MarkdownV2')
+  await bot.edit_message_reply_markup(data.message.chat.id, data.message.id , reply_markup=inline_keyboard)
+  await bot.answer_callback_query(data.id)
+
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Ветка "Добавить рекламную компанию" ------------------------------------------------------------------------------------------------------------
@@ -260,39 +276,36 @@ async def cb_adverts(message):
   # await bot.register_next_step_handler(sent,add_advert_handler)
 
 async def add_advert_handler(message):
-    """
-    Команда для запсии в бд информацию о том, что юзер включает рекламную компанию
-    TO wOrKeD:
-    (индентификатор, бюджет, место которое хочет занять)
-    записать это в бд
-    """
-    try:
-        user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  """
+  Команда для запсии в бд информацию о том, что юзер включает рекламную компанию
+  TO wOrKeD:
+  (индентификатор, бюджет, место которое хочет занять)
+  записать это в бд
+  """
+  user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
 
-        #(индентификатор, бюджет, место которое хочет занять)args*
-        message_args = re.sub('/add_advert ', '', message.text).split(sep=' ', maxsplit=4)
-        if len(message_args) != 4:
-            msg_text = 'Для использования команды используйте формат: /add_advert <campaign_id> <max_budget> <place> <status>'
-            await bot.send_message(message.chat.id, msg_text, reply_markup=universal_reply_markup())
-            return
+  #(индентификатор, бюджет, место которое хочет занять)args*
+  message_args = re.sub('/add_advert ', '', message.text).split(sep=' ', maxsplit=4)
+  if len(message_args) != 4:
+      msg_text = 'Для использования команды используйте формат: /add_advert <campaign_id> <max_budget> <place> <status>'
+      await bot.send_message(message.chat.id, msg_text, reply_markup=universal_reply_markup())
+      return
 
-        campaign_id = re.sub('/add_advert ', '', message_args[0])
-        max_budget = re.sub('/add_advert ', '', message_args[1])
-        place = re.sub('/add_advert ', '', message_args[2])
-        status = re.sub('/add_advert ', '', message_args[3])
+  campaign_id = re.sub('/add_advert ', '', message_args[0])
+  max_budget = re.sub('/add_advert ', '', message_args[1])
+  place = re.sub('/add_advert ', '', message_args[2])
+  status = re.sub('/add_advert ', '', message_args[3])
 
-        add_result = db_queries.add_user_advert(user, status, campaign_id, max_budget, place)
-        
-        res_msg = ''
-        if add_result == 'UPDATED':
-            res_msg = 'Ваша рекламная компания успешно обновлена\!'
-        elif add_result == 'ADDED':
-            res_msg = 'Ваша рекламная компания успешно добавлена\!'
+  add_result = db_queries.add_user_advert(user, status, campaign_id, max_budget, place)
+  
+  res_msg = ''
+  if add_result == 'UPDATED':
+      res_msg = 'Ваша рекламная компания успешно обновлена\!'
+  elif add_result == 'ADDED':
+      res_msg = 'Ваша рекламная компания успешно добавлена\!'
 
-        await bot.send_message(message.chat.id, res_msg, reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
-    except Exception as e:
-        await bot.send_message(message.chat.id, 'Что-то пошло не так', reply_markup=universal_reply_markup())
-        logger.error(e)
+  await bot.send_message(message.chat.id, res_msg, reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
+
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Ветка "Показать логи человека" -----------------------------------------------------------------------------------------------------------------
@@ -304,108 +317,105 @@ async def cb_adverts(message):
         
         
 async def search_logs_next_step_handler(message):
-  try:
-    search_logs = re.sub('/search_id ', '', message.text)
-    search_user_id = search_logs.split()[0]
-    timestamp = search_logs.split()[1] + " " + search_logs.split()[2]
-    await bot.send_message(message.chat.id, f"user_id: {search_user_id}\ntimestamp: {timestamp}\nВыберите какой тип логов Вас интерисует", reply_markup=logs_types_reply_markup(user_id=search_user_id, timestamp=timestamp))
-    
-    
-  except Exception as e:
-    traceback.print_exc()
-    await bot.send_message(message.chat.id, e, reply_markup=universal_reply_markup())
+  search_logs = re.sub('/search_id ', '', message.text)
+  search_user_id = search_logs.split()[0]
+  timestamp = search_logs.split()[1] + " " + search_logs.split()[2]
+  await bot.send_message(message.chat.id, f"user_id: {search_user_id}\ntimestamp: {timestamp}\nВыберите какой тип логов Вас интерисует", reply_markup=logs_types_reply_markup(user_id=search_user_id, timestamp=timestamp))
 
         
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 # Дополнительные опции ---------------------------------------------------------------------------------------------------------------------------
 
 async def menu_additional_options(message):
-    try:
-        await bot.send_message(message.chat.id, "Вы перешли в раздел *Дополнительные опции*", parse_mode='MarkdownV2', reply_markup=universal_reply_markup_additionally())
-    except Exception as e:
-        await bot.send_message(message.chat.id, e)
+  await bot.send_message(message.chat.id, "Вы перешли в раздел *Дополнительные опции*", parse_mode='MarkdownV2', reply_markup=universal_reply_markup_additionally())
         
 
 async def menu_back(message):
-    try:
-        back = await bot.send_message(message.chat.id, "Добро пожаловать *Назад* 🤓", parse_mode='MarkdownV2', reply_markup=universal_reply_markup())
+  await bot.send_message(message.chat.id, "Добро пожаловать *Назад* 🤓", parse_mode='MarkdownV2', reply_markup=universal_reply_markup())
 
-    except Exception as e:
-        await bot.send_message(message.chat.id, e)
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # История действий -------------------------------------------------------------------------------------------------------------------------------
-
 async def show_action_history(message):
-  try:
-    page_number = 1
-    page_action = 5
-    action_history = db_queries.show_action_history(message.chat.id, page_action)
-    total_count_action = action_history.count()
+  page_number = 1
+  page_action = 5
+  action_history = db_queries.show_action_history(message.chat.id, page_action)
+  total_count_action = action_history.count()
+  
+  result_message = f'Список Ваших последних действий в боте, страница: {page_number}\n\n'
+  i = 1
+  if total_count_action == 0:
+    return await bot.send_message(message.chat.id, 'Нет истории действий', reply_markup=universal_reply_markup())
+  else:
+    if page_number == 1:
+      action_history = action_history[page_number-1:page_action]
+  
+  for action in action_history:
+    result_message += f'[{i}]-----------------------------\nДата: {(action.date_time + timedelta(hours=3)).strftime("%m/%d/%Y, %H:%M:%S")}\n\nДействие: {action.action}\n-----------------------------\n\n'
+    i+=1
     
-    result_message = f'Список Ваших последних действий в боте, страница: {page_number}\n\n'
-    i = 1
-    if total_count_action == 0:
-      return await bot.send_message(message.chat.id, 'Нет истории действий', reply_markup=universal_reply_markup())
-    else:
-      if page_number == 1:
-        action_history = action_history[page_number-1:page_action]
-    
-    for action in action_history:
-      result_message += f'[{i}]-----------------------------\nДата: {(action.date_time + timedelta(hours=3)).strftime("%m/%d/%Y, %H:%M:%S")}\n\nДействие: {action.action}\n-----------------------------\n\n'
-      i+=1
-      
-    action = "action"
-    inline_keyboard = paginate_buttons(action, page_number, total_count_action, page_action, message.from_user.id)
-    await bot.send_message(message.chat.id, result_message, reply_markup=inline_keyboard)
-    
-    
-  except Exception as e:
-      await bot.send_message(message.chat.id, e)
+  action = "action"
+  inline_keyboard = paginate_buttons(action, page_number, total_count_action, page_action, message.from_user.id)
+  await bot.send_message(message.chat.id, result_message, reply_markup=inline_keyboard)
         
 
 @bot.callback_query_handler(func=lambda x: re.match('action', x.data))
 async def action_page(data):
-    try:
-      await bot.edit_message_text('Информация загружается 🔄', data.message.chat.id, data.message.id)
-      type_of_callback, page_number, user_id = data.data.split(':') # parameters = [type_of_callback, page_number, user_id]
-      page_number = int(page_number)
-      page_action = 5
-      action_history = db_queries.show_action_history(data.message.chat.id, page_action)
-      total_count_action = action_history.count()
-      
-      result_message = f'Список Ваших последних действий в боте, страница: {page_number}\n\n'
-      
-      if page_number != 1:
-        action_history = action_history[(5*(page_number-1)):page_action*page_number]
-        i = (5 * page_number)-4
-      else:
-        action_history = action_history[page_number-1:page_action]
-        i = (5 * page_number)-4
-        
-      for action in action_history:
-        result_message += f'[{i}]-----------------------------\nДата: {(action.date_time + timedelta(hours=3)).strftime("%m/%d/%Y, %H:%M:%S")}\n\nДействие: {action.action}\n-----------------------------\n\n'
-        i+=1
-      action = "action"
-      inline_keyboard = paginate_buttons(action, page_number, total_count_action, page_action, user_id)      
+  await bot.edit_message_text('Информация загружается 🔄', data.message.chat.id, data.message.id)
+  type_of_callback, page_number, user_id = data.data.split(':') # parameters = [type_of_callback, page_number, user_id]
+  
+  page_number = int(page_number)
+  page_action = 5
+  action_history = db_queries.show_action_history(data.message.chat.id, page_action)
+  total_count_action = action_history.count()
+  
+  result_message = f'Список Ваших последних действий в боте, страница: {page_number}\n\n'
+  
+  if page_number != 1:
+    action_history = action_history[(5*(page_number-1)):page_action*page_number]
+    i = (5 * page_number)-4
+  else:
+    action_history = action_history[page_number-1:page_action]
+    i = (5 * page_number)-4
     
-      await bot.edit_message_text(result_message, data.message.chat.id, data.message.id)
-      await bot.edit_message_reply_markup(data.message.chat.id, data.message.id , reply_markup=inline_keyboard)
-      await bot.answer_callback_query(data.id)
-    except Exception as e:
-      await bot.send_message(data.message.chat.id, f'{e} ,')
-      traceback.print_exc()
+  for action in action_history:
+    result_message += f'[{i}]-----------------------------\nДата: {(action.date_time + timedelta(hours=3)).strftime("%m/%d/%Y, %H:%M:%S")}\n\nДействие: {action.action}\n-----------------------------\n\n'
+    i+=1
+  action = "action"
+  inline_keyboard = paginate_buttons(action, page_number, total_count_action, page_action, user_id)      
+
+  await bot.answer_callback_query(data.id)
+  await bot.edit_message_text(result_message, data.message.chat.id, data.message.id)
+  await bot.edit_message_reply_markup(data.message.chat.id, data.message.id , reply_markup=inline_keyboard)
+  
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 
+# --- добавление компании --------------------------------------------------------------------------------------------
+
+async def add_advert(message):
+    user_text = message.text
+    adv_id = re.sub('/add_adv_', '', user_text)
+    message.user_session['add_adv_id'] = adv_id
+    await bot.send_message(message.chat.id, f'Укажите максимальный бюджет для РК с id {adv_id} в рублях')
+    set_user_session_step(message, 'Add_advert')
+
+
+async def add_advert_with_define_id(message):
+    user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+    adv_id = message.user_session.get('add_adv_id')
+    user_number_value = re.sub(r'[^0-9]', '', message.text)
+    db_queries.add_user_advert(user, adv_id, user_number_value, status='ON')
+    await bot.send_message(message.chat.id, f'РК с id {adv_id} отслеживается с максимальным бюджетом {user_number_value}')
+
+
+
+# --- работа с сессией --------------------------------------------------------------------------------------------
+
 def set_user_session_step(message, step_name):
-  user_id = message.from_user.id
   message.user_session['step'] = step_name
   message.user_session_step_set = True
-  message.user_session['updated_at'] = str(datetime.now())
-  cache_worker.set_user_session(user_id, message.user_session)
-
 
 def update_user_session(message):
   if message.user_session == message.user_session_old:
@@ -414,6 +424,9 @@ def update_user_session(message):
   message.user_session['updated_at'] = str(datetime.now())
   cache_worker.set_user_session(message.from_user.id, message.user_session)
 
+
+
+# --- маппинг степов --------------------------------------------------------------------------------------------
 
 step_map = {
   'База': {
@@ -426,12 +439,16 @@ step_map = {
     'История действий': show_action_history,
     'Дополнительные опции': menu_additional_options,
     'Назад': menu_back,
-    'default': help
+    'add_adv_': add_advert,
+    'default': misSpell
   },
   'Search_adverts': {
     'default': search_next_step_handler
   },
   'Set_token_cmp': {
     'default': set_token_cmp_handler
+  },
+  'Add_advert': {
+    'default': add_advert_with_define_id
   }
 }

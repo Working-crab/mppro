@@ -66,7 +66,7 @@ class db_queries:
 
 
 
-    def add_user_advert(user,  campaign_id,  max_budget, status='undefined', place='undefined'):
+    def add_user_advert(user,  campaign_id,  max_budget, status='ON', place=1):
         try:
             with Session(engine) as session:
 
@@ -97,10 +97,10 @@ class db_queries:
 
 
 
-    def get_adverts(adverts):
+    def get_user_adverts_by_wb_ids(user_id, wb_ids):
         try:
             with Session(engine) as session:
-                adverts_from_db = session.query(Advert).filter(Advert.id.in_(adverts)).all()
+                adverts_from_db = session.query(Advert).filter(Advert.user_id == user_id, Advert.campaign_id.in_(wb_ids)).all()
                 return adverts_from_db
         except Exception as e:
             err_msg = f'Запрос не выполнен по причине: TypeError: {type(e).__name__}: {e}.'
@@ -280,21 +280,33 @@ class db_queries:
         return 'JOPA'
     
     
-    def add_action_history(user_id, action):
+    def add_action_history(action, telegram_user_id=None, user_id=None):
         try:
             with Session(engine) as session:
-                user = session.query(User).filter(User.telegram_user_id == user_id).first()
-                
-                if user:
-                    action = Action_history(
-                        user_id = user.id,
-                        action = action,
-                    )
-                    session.add(action)
-                    session.commit()
-                    return True
-                else:
+
+                if not user_id and not telegram_user_id:
                     return False
+
+                query_user_id = None
+
+                if telegram_user_id != None:
+                    user = session.query(User).filter(User.telegram_user_id == telegram_user_id).first()
+                    if user:
+                        query_user_id = user.id
+                else:
+                    query_user_id = user_id
+
+                if not query_user_id:
+                    return False
+                
+                action = Action_history(
+                    user_id = query_user_id,
+                    action = action,
+                )
+                session.add(action)
+                session.commit()
+                return True
+            
         except Exception as e:
             print(f'Запрос не выполнени по причине: TypeError: {type(e).__name__}: {e}.')
             
@@ -303,7 +315,7 @@ class db_queries:
         try:
             with Session(engine) as session:
                 user = session.query(User).filter(User.telegram_user_id == user_id).first()
-                return session.query(Action_history).filter(Action_history.user_id == user.id).order_by(desc(Action_history.date_time))
+                return session.query(Action_history).filter(Action_history.user_id == user.id).order_by(desc(Action_history.date_time)).limit(20)
                 
                 # if page_number == 1:
                 #     # return session.query(Action_history).filter(Action_history.user_id == user.id).order_by(Action_history.date_time.desc())

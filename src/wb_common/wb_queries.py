@@ -19,8 +19,11 @@ CONSTS = {
 class wb_queries:
   def get_base_tokens(user):
     user_wb_tokens = cache_worker.get_user_wb_tokens(user.id)
-    if not user_wb_tokens['wb_cmp_token'] or not user_wb_tokens['wb_user_id'] or not user_wb_tokens['wb_supplier_id']:
-      user_wb_tokens = wb_queries.reset_base_tokens(user)
+    user_wb_tokens['wb_cmp_token'] = user.wb_cmp_token
+    # if not user_wb_tokens['wb_user_id'] or not user_wb_tokens['wb_supplier_id']:
+      # user_wb_tokens = wb_queries.reset_base_tokens(user)
+
+    user_wb_tokens = wb_queries.reset_base_tokens(user)
 
     return user_wb_tokens
 
@@ -38,13 +41,14 @@ class wb_queries:
     return result
 
 
-  def reset_base_tokens(user):
+  def reset_base_tokens(user, token=None):
 
-    user_wb_tokens = cache_worker.get_user_wb_tokens(user.id)
-    logger_token.info('cache token', user_wb_tokens['wb_cmp_token'])
-    if not user_wb_tokens['wb_cmp_token']:
-      user_wb_tokens['wb_cmp_token'] = user.wb_cmp_token
-      logger_token.info('bd token', user_wb_tokens['wb_cmp_token'])
+    user_wb_tokens = {}
+
+    user_wb_tokens['wb_cmp_token'] = user.wb_cmp_token
+
+    if token:
+      user_wb_tokens['wb_cmp_token'] = token
 
     if not user_wb_tokens['wb_cmp_token']:
       raise Exception('Не найден токен! wb_cmp_token')
@@ -67,7 +71,6 @@ class wb_queries:
     logger_token.info('introspect_result', introspect_result)
 
     if not introspect_result or not 'sessionID' in introspect_result or not 'userID' in introspect_result:
-      cache_worker.delete_user_wb_tokens(user.id)
       print(f'{datetime.now()} \t reset_base_tokens \t introspect error! \t {introspect_result}')
       raise Exception('Неверный токен!')
 
@@ -92,7 +95,7 @@ class wb_queries:
     return user_wb_tokens
 
 
-  def search_adverts_by_keyword(keyword, user_id):
+  def search_adverts_by_keyword(keyword, user_id=None):
     res = wb_queries.wb_query(method="get", url=f'https://catalog-ads.wildberries.ru/api/v5/search?keyword={keyword}', user_id=user_id)
     res = res['adverts'][0:CONSTS['slice_count']] if res.get('adverts') is not None else []
     result = []
@@ -124,7 +127,7 @@ class wb_queries:
     if 'place' in r and len(r['place']) > 0:
       campaign_key_word = r['place'][0]['keyWord']
     else:
-      campaign_key_word = r['place'][0]['keyWord']
+      raise Exception('Вайлдберриес не отправил get_campaign_info')
 
     res = {
       'campaign_id': campaign.campaign_id,
@@ -165,7 +168,7 @@ class wb_queries:
     return res
 
 
-  def set_campaign_bid(user, campaign, campaign_info, new_bid, approximate_place):
+  def set_campaign_bid(user, campaign, campaign_info, new_bid, old_bid, approximate_place):
     user_wb_tokens = wb_queries.get_base_tokens(user)
     custom_referer = f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}'
     req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
@@ -187,7 +190,9 @@ class wb_queries:
       data=json.dumps(request_body)
     )
 
-    print(f'{datetime.now()} \t check_campaign \t Campaign {campaign.campaign_id} updated! \t New bid: {new_bid} \t Approximate place: {approximate_place}')
+    log_string = f'{datetime.now()} \t check_campaign \t Campaign {campaign.campaign_id} updated! \t New bid: {new_bid} \t Old bid: {old_bid} \t Approximate place: {approximate_place}'
+    print(log_string)
+    db_queries.add_action_history(user_id=user.id, action=log_string)
 
 
     return r
