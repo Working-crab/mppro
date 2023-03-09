@@ -275,7 +275,7 @@ async def checkout(pre_checkout_query):
 async def got_payment(message):
     total = message.successful_payment.total_amount / 100
     await bot.send_message(message.chat.id,
-                     'Была подключена подписка: {}\nЕсли хотите узнать подробнее - введите /show_active_sub'.format(message.successful_payment.invoice_payload))
+                     'Была подключена подписка: {}\nЕсли хотите узнать подробнее, нажмите - Моя подписка'.format(message.successful_payment.invoice_payload))
 
 
     db_queries.update_sub(user_id=message.chat.id, sub_name=message.successful_payment.invoice_payload, total=total)

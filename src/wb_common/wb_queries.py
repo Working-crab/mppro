@@ -211,8 +211,10 @@ class wb_queries:
       }
     }
     
-  def get_user_atrevds(req_params, page_number=1, pagesize=6):
-    url = f'https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate&pageNumber={page_number}&pageSize={pagesize}'
+# def get_user_atrevds(req_params, page_number=1, pagesize=100):
+#     url = f'https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate&pageNumber={page_number}&pageSize={pagesize}'
+  def get_user_atrevds(req_params, pagesize=100):
+    url = f'https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate&pageNumber=1&pageSize={pagesize}'
     
     user_atrevds = wb_queries.wb_query(method="get",
                                        url=url,

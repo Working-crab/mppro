@@ -52,10 +52,10 @@ def universal_reply_markup(search=False):
   btn_search = types.KeyboardButton(text='🔎 Поиск 🔎')
   btn_list_adverts = types.KeyboardButton(text='📑 Список рекламных компаний 📑')
   btn_my_sub = types.KeyboardButton(text='💻 Моя подписка 💻')
-  btn_list_sub = types.KeyboardButton(text='💵 Купить подписку 💵')
   btn_additionally = types.KeyboardButton(text='⚙️ Дополнительные опции ⚙️')
+  
 
-  markup_inline.add(btn_search, btn_list_adverts)
+  markup_inline.add(btn_search, btn_list_adverts, btn_my_sub)
   markup_inline.add(btn_additionally)
   
   if search:
@@ -66,6 +66,18 @@ def universal_reply_markup(search=False):
   # if cache_worker.get_user_dev_mode(user_id=user_id) != None:
   #   btn_get_logs = types.KeyboardButton(text='Показать логи человека')
   #   markup_inline.add(btn_get_logs)
+    
+  return markup_inline
+
+
+def adv_settings_reply_markup():
+  markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
+
+  btn_add_budget = types.KeyboardButton(text='Добавить максимальный бюджет')
+  btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
+
+  markup_inline.add(btn_add_budget)
+  markup_inline.add(btn_back)
     
   return markup_inline
 
@@ -85,7 +97,6 @@ def universal_reply_markup_additionally(user_id=None):
     
   return markup_inline
 
-  
   
 def city_reply_markup():
 
@@ -120,19 +131,31 @@ def reply_markup_trial(trial):
 def reply_markup_payment(user_data):
     markup = types.InlineKeyboardMarkup()
     markup.add(
-        types.InlineKeyboardButton(text='Оплата через telegram', callback_data=f"Оплата Telegram {user_data}"),
+        # types.InlineKeyboardButton(text='Оплата через telegram', callback_data=f"Оплата Telegram {user_data}"),
         types.InlineKeyboardButton(text='Оплата через сайт', callback_data=f"Оплата Сайт {user_data}"),
     )
     return markup
 
 def status_parser(status_id):
-    status_dict = {
-      4: 'Готова к запуску',
-      9: 'Активна',
-      8: 'Отказана',
-      11: 'Приостановлено',
-    }
-    return status_dict.get(status_id, 'Статус не известен')
+  status_dict = {
+    4: 'Готова к запуску',
+    9: 'Активна',
+    8: 'Отказана',
+    7: 'Показы завершены',
+    11: 'Приостановлено',
+  }
+  return status_dict.get(status_id, 'Не найден')
+  
+
+def status_parser_priority_map(status_id):
+  status_dict = {
+    4: 5,
+    9: 1,
+    8: 4,
+    7: 3,
+    11: 2,
+  }
+  return status_dict.get(status_id, 99)
     
 
 def get_reply_markup(markup_name):
@@ -166,18 +189,21 @@ def paginate_buttons(action, page_number, total_count_adverts, page_size, user_i
   for i in range(start_index, end_index):
     button_label = i
     if i == page_number:
-      button_label = f':{button_label}:'
+      button_label = f'-{button_label}-'
     buttons_array.append(types.InlineKeyboardButton(f'{button_label}', callback_data=f'{action}:{i}:{user_id}'))
 
   inline_keyboard.row(*buttons_array)
   return inline_keyboard
 
 
-def get_bids_table(user_id, campaign_id):
-  campaign = Campaign(campaign_id)
+def get_bids_table(user_id, campaign):
   campaign_user = db_queries.get_user_by_telegram_user_id(user_id)
+  logger.info('1')
   campaign_info = wb_queries.get_campaign_info(campaign_user, campaign)
+  logger.info('2')
   campaign_pluse_words = wb_queries.get_stat_words(campaign_user, campaign)
+
+  logger.info('3')
 
   check_word = campaign_info['campaign_key_word']
   if campaign_pluse_words['main_pluse_word']:
@@ -185,7 +211,7 @@ def get_bids_table(user_id, campaign_id):
 
   current_bids_table = wb_queries.search_adverts_by_keyword(check_word)
   logger.info(current_bids_table)
-  return current_bids_table[0]['price']
+  return current_bids_table[0]['price'] + 1
 
 
 def escape_telegram_specials(string):
@@ -203,41 +229,50 @@ def logs_types_reply_markup(user_id, timestamp):
 
     return markup_inline
 
-def advert_info_message_maker(adverts, page_number, user): # **header
+def advert_info_message_maker(adverts, page_number, page_size, user):
+  adverts = sorted(adverts, key=lambda x: status_parser_priority_map(x['statusId']))
+  
+  if page_number != 1:
+    adverts = adverts[(page_size*(page_number-1)):page_size*page_number]
+  else:
+    adverts = adverts[page_number-1:page_size]
+  
   result_msg = f'Список ваших рекламных компаний с cmp\.wildberries\.ru, страница: {page_number}\n\n'
-  # if header:
-  #   result_msg = header
 
-  # /delete_adv
+
   lst_adverts_ids = [i['id'] for i in adverts]
   lst_adverts = db_queries.get_user_adverts_by_wb_ids(user.id, lst_adverts_ids)
-
-  logger.info('lst_adverts')
-  logger.info(lst_adverts)
-
+  
   lst_adverts_ids = [i.campaign_id for i in lst_adverts]
+  
+  # logger.info('lst_adverts_ids')
+  # logger.info(lst_adverts_ids)
 
+  
   for advert in adverts:
-    date_str = advert['startDate']
     stat = status_parser(advert['statusId'])
 
-    if date_str != None:
-      date_str = date_str[:10]
-      date_str = re.sub('-', '\-', date_str)
-
+    # logger.info('get_bids_table')
+    # logger.info(get_bids_table(user.id, {'campaign_id': advert['id']})) 
     add_delete_str = ''
     bot_status = ''
     if advert['id'] in lst_adverts_ids:
-      bot_status     += f"\t Отслеживается\!" # TODO Максимальная ставка
-      add_delete_str += f"\t Перестать отслеживать РК: /delete\_adv\_{advert['id']}\n"
+      for lst in lst_adverts:
+        if advert['id'] == lst.campaign_id:
+          bot_status     += f"\t Отслеживается\!" # TODO Максимальная ставка
+          add_delete_str += f"\t Перестать отслеживать РК: /delete\_adv\_{advert['id']}\n"
+          add_delete_str += f"\t Максимальный бюджет: {lst.max_budget}\n"
+          add_delete_str += f"\t Управлять РК: /adv\_settings\_{advert['id']}\n"
     else:
       bot_status     += f"\t Не отслеживается\!"
       add_delete_str += f"\t Отслеживать РК: /add\_adv\_{advert['id']}\n"
+      add_delete_str += f"\t Управлять РК: /adv\_settings\_{advert['id']}\n"
 
     campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{advert['id']}"
     
     result_msg += f"*Имя компании: {advert['campaignName']}*\n"
     result_msg += f"\t ID: [{advert['id']}]({campaign_link}) Статус: {stat}\n"
+    #result_msg += f"Стоимость первого места {get_bids_table(user.id, advert['id'])}"
     result_msg += bot_status
     # TODO Текущая ставка
     result_msg += add_delete_str

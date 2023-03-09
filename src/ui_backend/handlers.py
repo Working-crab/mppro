@@ -1,7 +1,7 @@
 
 import re
 from ui_backend.app import bot
-from ui_backend.common import universal_reply_markup, paginate_buttons, city_reply_markup, escape_telegram_specials, logs_types_reply_markup, universal_reply_markup_additionally, advert_info_message_maker
+from ui_backend.common import universal_reply_markup, paginate_buttons, city_reply_markup, escape_telegram_specials, logs_types_reply_markup, universal_reply_markup_additionally, advert_info_message_maker, reply_markup_payment, adv_settings_reply_markup
 from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
@@ -9,6 +9,9 @@ from datetime import datetime, timedelta
 from cache_worker.cache_worker import cache_worker
 from ui_backend.message_queue import queue_message_async
 import copy
+
+from ui_backend.bot import *
+from yookassa import Payment
 
 import traceback
 from common.appLogger import appLogger
@@ -187,8 +190,9 @@ async def help(message):
 async def misSpell(message):
   await queue_message_async(
     destination_id = message.chat.id,
-    message = 'Для работы с ботом используйте меню'
+    message = 'Для работы с ботом используйте меню',
   )
+
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Ветка "Установить токен" -----------------------------------------------------------------------------------------------------------------------
@@ -229,11 +233,14 @@ async def list_adverts_handler(message):
   req_params = wb_queries.get_base_request_params(user_wb_tokens)
   
   page_number = 1
-  user_atrevds_data = wb_queries.get_user_atrevds(req_params, page_number)
-
-  result_msg = advert_info_message_maker(user_atrevds_data['adverts'], page_number=page_number, user=user)
-
+  
+  # user_atrevds_data = wb_queries.get_user_atrevds(req_params, page_number)
+  user_atrevds_data = wb_queries.get_user_atrevds(req_params)
+  
   page_size = 6
+  logger.info(len(user_atrevds_data['adverts']))
+  result_msg = advert_info_message_maker(user_atrevds_data['adverts'], page_number=page_number, page_size=page_size, user=user)
+
   total_count_adverts = user_atrevds_data['total_count']
   action = "page"
   inline_keyboard = paginate_buttons(action, page_number, total_count_adverts, page_size, message.from_user.id)
@@ -250,14 +257,14 @@ async def kek(data):
   user = db_queries.get_user_by_telegram_user_id(user_id)
   user_wb_tokens = wb_queries.get_base_tokens(user)
   req_params = wb_queries.get_base_request_params(user_wb_tokens)
-  user_atrevds_data = wb_queries.get_user_atrevds(req_params, page_number)
-
   
-  # kek1 = get_bids_table(user_id, 3833716) TODO
-  result_msg = advert_info_message_maker(user_atrevds_data['adverts'], page_number=page_number, user=user)
+  # user_atrevds_data = wb_queries.get_user_atrevds(req_params, page_number=1)
+  user_atrevds_data = wb_queries.get_user_atrevds(req_params)
+
+  page_size = 6
+  result_msg = advert_info_message_maker(user_atrevds_data['adverts'], page_number=page_number, page_size=page_size, user=user)
 
   total_count = user_atrevds_data['total_count']
-  page_size = 6
   action = "page"
   inline_keyboard = paginate_buttons(action, page_number, total_count, page_size, user_id)
 
@@ -373,7 +380,7 @@ async def action_page(data):
   result_message = f'Список Ваших последних действий в боте, страница: {page_number}\n\n'
   
   if page_number != 1:
-    action_history = action_history[(5*(page_number-1)):page_action*page_number]
+    action_history = action_history[(page_action*(page_number-1)):page_action*page_number]
     i = (5 * page_number)-4
   else:
     action_history = action_history[page_number-1:page_action]
@@ -395,19 +402,65 @@ async def action_page(data):
 # --- добавление компании --------------------------------------------------------------------------------------------
 
 async def add_advert(message):
-    user_text = message.text
-    adv_id = re.sub('/add_adv_', '', user_text)
-    message.user_session['add_adv_id'] = adv_id
-    await bot.send_message(message.chat.id, f'Укажите максимальный бюджет для РК с id {adv_id} в рублях')
-    set_user_session_step(message, 'Add_advert')
+  user_text = message.text
+  adv_id = re.sub('/add_adv_', '', user_text)
+  message.user_session['add_adv_id'] = adv_id
+  await bot.send_message(message.chat.id, f'Укажите максимальный бюджет для РК с id {adv_id} в рублях')
+  set_user_session_step(message, 'Add_advert')
+    
 
 
 async def add_advert_with_define_id(message):
-    user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-    adv_id = message.user_session.get('add_adv_id')
-    user_number_value = re.sub(r'[^0-9]', '', message.text)
-    db_queries.add_user_advert(user, adv_id, user_number_value, status='ON')
-    await bot.send_message(message.chat.id, f'РК с id {adv_id} отслеживается с максимальным бюджетом {user_number_value}')
+  user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  adv_id = message.user_session.get('add_adv_id')
+  if adv_id == None:
+    adv_id = message.user_session.get('adv_settings_id')
+  user_number_value = re.sub(r'[^0-9]', '', message.text)
+  db_queries.add_user_advert(user, adv_id, user_number_value, status='ON')
+  await bot.send_message(message.chat.id, f'РК с id {adv_id} отслеживается с максимальным бюджетом {user_number_value}')
+  message.user_session['add_adv_id'] = None
+    
+
+# --- Настройки компании --------------------------------------------------------------------------------------------
+
+async def adv_settings(message):
+  user_text = message.text
+  adv_id = re.sub('/adv_settings_', '', user_text)
+  message.user_session['adv_settings_id'] = adv_id
+  await bot.send_message(message.chat.id, f'Ниже представлена панель, для возможных действий с компанией {adv_id}', reply_markup=adv_settings_reply_markup())
+
+
+async def adv_settings_budget(message):
+  adv_id = message.user_session.get('adv_settings_id')
+  await bot.send_message(message.chat.id, f'Укажите максимальный бюджет для РК с id {adv_id} в рублях')
+  set_user_session_step(message, 'Add_advert')
+    
+
+# Подписка -----------------------------------------------------------------------------------------------------------------------
+
+async def show_my_sub(message):
+  user = db_queries.get_user_by_telegram_user_id(message.chat.id)
+  my_sub = db_queries.get_sub(sub_id=user.subscriptions_id)
+  if user.subscriptions_id:
+    await bot.send_message(message.chat.id, 'Подключен: `{}`\nСрок действия с `{}` по `{}`'.format(my_sub.title, user.sub_start_date.strftime('%d/%m/%Y'), user.sub_end_date.strftime('%d/%m/%Y')), reply_markup=universal_reply_markup())
+    if not "Advanced" in my_sub.title:
+      await bot.send_message(message.chat.id, 'Вы можете обновиться на более крутую подписку', reply_markup=universal_reply_markup())
+      sub_list = db_queries.get_all_sub()
+      # if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
+      if PAYMENT_TOKEN.split(':')[1] == 'TEST':
+        for sub in sub_list:
+          if sub.title == my_sub.title:
+            continue
+          await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
+  else:
+    await bot.send_message(message.chat.id, 'У вас не подключено никаких платных подписок\nНиже предоставлены варианты для покупки: ')
+    sub_list = db_queries.get_all_sub()
+    # if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
+    if PAYMENT_TOKEN.split(':')[1] == 'TEST':
+      for sub in sub_list:
+        await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
+
+# --------------------------------------------------------------------------------------------------------------------------------
 
 
 
@@ -432,6 +485,7 @@ step_map = {
   'База': {
     'Помощь': help,
     'Поиск': search_adverts,
+    'Моя подписка': show_my_sub,
     'Список рекламных компаний': list_adverts,
     'Выбрать город': choose_city,
     'Выбор:': choose_city_handler,
@@ -440,6 +494,8 @@ step_map = {
     'Дополнительные опции': menu_additional_options,
     'Назад': menu_back,
     'add_adv_': add_advert,
+    'adv_settings_': adv_settings,
+    'Добавить максимальный бюджет': adv_settings_budget,
     'default': misSpell
   },
   'Search_adverts': {

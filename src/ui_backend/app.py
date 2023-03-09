@@ -41,7 +41,7 @@ async def webhook(data: dict):
     if data['object']['status'] == "succeeded":
         total = data['object']['amount']['value']
         db_queries.update_sub(user_id=data['object']['metadata']['telegram_user_id'], sub_name=data['object']['metadata']['subscription_name'], total=int(float(total)))
-        await bot.send_message(data['object']['metadata']['telegram_user_id'], f"Была подключена подписка: {data['object']['metadata']['subscription_name']}\nЕсли хотите узнать подробнее - введите /show_active_sub")
+        await bot.send_message(data['object']['metadata']['telegram_user_id'], f"Была подключена подписка: {data['object']['metadata']['subscription_name']}\nЕсли хотите узнать подробнее, нажмите - Моя подписка")
     return 'ok'
 
   
