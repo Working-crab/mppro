@@ -63,6 +63,18 @@ class cache_worker:
   def set_user_session(user_id, session_data):
     key = make_general_key(user_id, 'user_session_key')
     redis_client.set(key, json.dumps(session_data))
+    
+  def set_action_history_filter(user_id, filter):
+    key = make_general_key(user_id, 'action_history_filter')
+    redis_client.set(key, json.dumps(filter))
+  
+  def get_action_history_filter(user_id):
+    key = make_general_key(user_id, 'action_history_filter')
+    data = redis_client.get(key)
+    message = {}
+    if data:
+      message = json.loads(data)
+    return message
 
   def get_user_session(user_id):
     key = make_general_key(user_id, 'user_session_key')

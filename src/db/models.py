@@ -112,9 +112,10 @@ class Action_history(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     action = Column(String, nullable=False)
+    description = Column(String, nullable=False)
     date_time = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship('User', back_populates='action_history')
 
     def __repr__(self):
-        return f"Action_history(id={self.id!r}, user_id={self.user_id!r}, action={self.action!r})"
+        return f"Action_history(id={self.id!r}, user_id={self.user_id!r}, action={self.action!r}, description={self.description!r})"

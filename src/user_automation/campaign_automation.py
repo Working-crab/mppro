@@ -29,6 +29,10 @@ class campaign_automation:
 
     campaign_user = db_queries.get_user_by_id(campaign.user_id)
     campaign_info = wb_queries.get_campaign_info(campaign_user, campaign)
+
+    if campaign_info['status'] != 9: # check only active campaigns
+      return False
+
     campaign_pluse_words = wb_queries.get_stat_words(campaign_user, campaign)
 
     check_word = campaign_info['campaign_key_word']

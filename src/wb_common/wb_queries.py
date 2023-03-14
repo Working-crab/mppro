@@ -133,7 +133,8 @@ class wb_queries:
       'campaign_id': campaign.campaign_id,
       'campaign_bid': r['place'][0]['price'],
       'campaign_key_word': campaign_key_word,
-      'search_elements': r['place'][0]['searchElements']
+      'search_elements': r['place'][0]['searchElements'],
+      'status': r['status']
     }
 
     return res
@@ -152,16 +153,21 @@ class wb_queries:
     )
 
     pluses = []
+    minuses = []
     main_pluse_word = ''
 
     if 'words' in r and 'pluses' in r['words']:
       pluses = r['words']['pluses']
+
+    if 'words' in r and 'excluded' in r['words']:
+      minuses = r['words']['excluded']
 
     if len(pluses) > 0:
       main_pluse_word = pluses[0]
 
     res = {
       'pluses': pluses,
+      'minuses': minuses,
       'main_pluse_word': main_pluse_word
     }
 
@@ -192,7 +198,7 @@ class wb_queries:
 
     log_string = f'{datetime.now()} \t check_campaign \t Campaign {campaign.campaign_id} updated! \t New bid: {new_bid} \t Old bid: {old_bid} \t Approximate place: {approximate_place}'
     print(log_string)
-    db_queries.add_action_history(user_id=user.id, action=log_string)
+    db_queries.add_action_history(user_id=user.id, action="set_campaign_bid", action_description=log_string)
 
 
     return r
@@ -213,7 +219,7 @@ class wb_queries:
     
 # def get_user_atrevds(req_params, page_number=1, pagesize=100):
 #     url = f'https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate&pageNumber={page_number}&pageSize={pagesize}'
-  def get_user_atrevds(req_params, pagesize=100):
+  def get_user_atrevds(req_params, pagesize=50):
     url = f'https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate&pageNumber=1&pageSize={pagesize}'
     
     user_atrevds = wb_queries.wb_query(method="get",
@@ -240,7 +246,7 @@ class wb_queries:
       total_budget = int(r['total'])
 
     res = {
-      'Бюджет компании ': total_budget,
+      'Бюджет компании': total_budget,
     }
 
     return res

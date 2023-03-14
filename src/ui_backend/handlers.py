@@ -1,7 +1,7 @@
 
 import re
 from ui_backend.app import bot
-from ui_backend.common import universal_reply_markup, paginate_buttons, city_reply_markup, escape_telegram_specials, logs_types_reply_markup, universal_reply_markup_additionally, advert_info_message_maker, reply_markup_payment, adv_settings_reply_markup
+from ui_backend.common import universal_reply_markup, paginate_buttons, city_reply_markup, escape_telegram_specials, logs_types_reply_markup, universal_reply_markup_additionally, advert_info_message_maker, reply_markup_payment, adv_settings_reply_markup, action_history_reply_markup, action_history_filter_reply_markup
 from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 from cache_worker.cache_worker import cache_worker
 from ui_backend.message_queue import queue_message_async
 import copy
+
+import io
 
 from ui_backend.bot import *
 from yookassa import Payment
@@ -101,7 +103,7 @@ async def search_next_step_handler(message, after_city_choose=False):
   else:
     keyword = message.text
     
-  db_queries.add_action_history(telegram_user_id=telegram_user_id, action=f"Поиск по запросу: '{keyword}'")
+  db_queries.add_action_history(telegram_user_id=telegram_user_id, action="Поиск", action_description=f"Поиск по запросу: '{keyword}'")
   
   city = message.user_session.get('search_city')
   if city == None:
@@ -184,7 +186,7 @@ async def choose_city_handler(message):
 async def help(message):
   await queue_message_async(
     destination_id = message.chat.id,
-    message = 'По вопросам работы бота обращайтесь: \n (https://t.me/tNeymik) \n (https://t.me/plazmenni_rezak)'
+    message = 'По вопросам работы бота обращайтесь: \n (https://t.me/Ropejamp) \n (https://t.me/plazmenni_rezak)'
   )
 
 async def misSpell(message):
@@ -217,7 +219,7 @@ async def set_token_cmp_handler(message):
 
   db_queries.set_user_wb_cmp_token(telegram_user_id=message.from_user.id, wb_cmp_token=clear_token)
   await bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
-  db_queries.add_action_history(user_id=user.id, action=f"Был установлен токен: '{clear_token}'")
+  db_queries.add_action_history(user_id=user.id, action="Токен", action_description=f"Был установлен токен: '{clear_token}'")
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -347,10 +349,11 @@ async def menu_back(message):
 async def show_action_history(message):
   page_number = 1
   page_action = 5
-  action_history = db_queries.show_action_history(message.chat.id, page_action)
+  action_history = db_queries.show_action_history(message.chat.id)
   total_count_action = action_history.count()
   
-  result_message = f'Список Ваших последних действий в боте, страница: {page_number}\n\n'
+  action = "Нет"
+  result_message = f'Список Ваших последних действий в боте\nФильтр: {action}\nCтраница: {page_number}\n\n'
   i = 1
   if total_count_action == 0:
     return await bot.send_message(message.chat.id, 'Нет истории действий', reply_markup=universal_reply_markup())
@@ -359,25 +362,30 @@ async def show_action_history(message):
       action_history = action_history[page_number-1:page_action]
   
   for action in action_history:
-    result_message += f'[{i}]-----------------------------\nДата: {(action.date_time + timedelta(hours=3)).strftime("%m/%d/%Y, %H:%M:%S")}\n\nДействие: {action.action}\n-----------------------------\n\n'
+    result_message += f'[{i}]-----------------------------\nДата: {(action.date_time + timedelta(hours=3)).strftime("%m/%d/%Y, %H:%M:%S")}\n\nДействие: {action.description}\n-----------------------------\n\n'
     i+=1
-    
+
   action = "action"
   inline_keyboard = paginate_buttons(action, page_number, total_count_action, page_action, message.from_user.id)
   await bot.send_message(message.chat.id, result_message, reply_markup=inline_keyboard)
-        
+  await bot.send_message(message.chat.id, 'На панеле снизу Вы можете выбрать фильтрацию для истории действий или загрузить свою историю', reply_markup=action_history_reply_markup())
+
 
 @bot.callback_query_handler(func=lambda x: re.match('action', x.data))
 async def action_page(data):
   await bot.edit_message_text('Информация загружается 🔄', data.message.chat.id, data.message.id)
   type_of_callback, page_number, user_id = data.data.split(':') # parameters = [type_of_callback, page_number, user_id]
-  
+    
   page_number = int(page_number)
   page_action = 5
-  action_history = db_queries.show_action_history(data.message.chat.id, page_action)
+  action = "Нет"
+  if type_of_callback == "action_filter":
+    action = cache_worker.get_action_history_filter(data.message.chat.id)
+    action_history = db_queries.show_action_history(data.message.chat.id, action=action)
+  else:
+    action_history = db_queries.show_action_history(data.message.chat.id)
+  result_message = f'Список Ваших последних действий в боте\nФильтр: {action}\nCтраница: {page_number}\n\n'
   total_count_action = action_history.count()
-  
-  result_message = f'Список Ваших последних действий в боте, страница: {page_number}\n\n'
   
   if page_number != 1:
     action_history = action_history[(page_action*(page_number-1)):page_action*page_number]
@@ -387,15 +395,92 @@ async def action_page(data):
     i = (5 * page_number)-4
     
   for action in action_history:
-    result_message += f'[{i}]-----------------------------\nДата: {(action.date_time + timedelta(hours=3)).strftime("%m/%d/%Y, %H:%M:%S")}\n\nДействие: {action.action}\n-----------------------------\n\n'
+    result_message += f'[{i}]-----------------------------\nДата: {(action.date_time + timedelta(hours=3)).strftime("%m/%d/%Y, %H:%M:%S")}\n\nДействие: {action.description}\n-----------------------------\n\n'
     i+=1
-  action = "action"
+  
+  if type_of_callback == "action_filter":
+    action = "action_filter"
+  else:
+    action = "action"
   inline_keyboard = paginate_buttons(action, page_number, total_count_action, page_action, user_id)      
 
   await bot.answer_callback_query(data.id)
   await bot.edit_message_text(result_message, data.message.chat.id, data.message.id)
   await bot.edit_message_reply_markup(data.message.chat.id, data.message.id , reply_markup=inline_keyboard)
   
+# ------------------------------------------------------------------------------------------------------------------------------------------------
+
+# ---- История действий // КНОПКИ -------------------------------------------------------------------------------------------------------------------
+
+async def action_history_filter(message):
+  await bot.send_message(message.chat.id, 'Выберите фильтрацию', reply_markup=action_history_filter_reply_markup(action="filter:action"))
+  
+  
+@bot.callback_query_handler(func=lambda x: re.match('filter:action:', x.data))
+async def action_page(data):
+  action = data.data.split(':')[2] # parameters = [type_of_callback, page_number, user_id]
+  # await bot.edit_message_text(action, data.message.chat.id, data.message.id)
+  
+  cache_worker.set_action_history_filter(user_id=data.message.chat.id, filter=action)
+  
+  page_number = 1
+  page_action = 5
+  action_history = db_queries.show_action_history(data.message.chat.id, action=action)
+  total_count_action = action_history.count()
+  
+  
+  result_message = f'Список Ваших последних действий в боте\nФильтр: {action}\nCтраница: {page_number}\n\n'
+  i = 1
+  if total_count_action == 0:
+    return await bot.send_message(data.message.chat.id, 'Нет истории действий', reply_markup=universal_reply_markup())
+  else:
+    if page_number == 1:
+      action_history = action_history[page_number-1:page_action]
+  
+  for action in action_history:
+    result_message += f'[{i}]-----------------------------\nДата: {(action.date_time + timedelta(hours=3)).strftime("%m/%d/%Y, %H:%M:%S")}\n\nДействие: {action.description}\n-----------------------------\n\n'
+    i+=1
+
+  action = "action_filter"
+  
+  inline_keyboard = paginate_buttons(action, page_number, total_count_action, page_action, data.message.from_user.id)
+  await bot.edit_message_text(result_message, data.message.chat.id, data.message.id, reply_markup=inline_keyboard)
+  
+  
+async def action_history_download(message):
+  await bot.send_message(message.chat.id, 'Выберите фильтр', reply_markup=action_history_filter_reply_markup(action="download:action"))
+
+
+@bot.callback_query_handler(func=lambda x: re.match('download:action:', x.data))
+async def action_page(data):
+  await bot.edit_message_text("Подготовка файла к установке", data.message.chat.id, data.message.id)
+  action = data.data.split(':')[2] # parameters = [type_of_callback, page_number, user_id]
+  action_history = db_queries.show_action_history(data.message.chat.id, action=action, download=True)
+  
+  result_message = ""
+  i = 1
+  for action in action_history:
+    result_message += f'[{i}]-----------------------------\nДата: {(action.date_time + timedelta(hours=3)).strftime("%m/%d/%Y, %H:%M:%S")}\n\nДействие: {action.description}\n-----------------------------\n\n'
+    i+=1
+    
+  file = io.BytesIO(result_message.encode('utf-8'))
+  file.name = "action_history.txt"
+  await bot.delete_message(data.message.chat.id, data.message.id)
+  
+  await bot.send_document(chat_id=data.message.chat.id, document=file, caption="Файл готов")
+  
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------
+
+# --- правка ставки компании --------------------------------------------------------------------------------------------
+
+async def send_message_for_advert_bid(message, adv_id):
+  campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{adv_id}"
+  result_msg = f'Укажите максимальную ставку для РК с id [{adv_id}]({campaign_link}) в рублях' #f"\t ID: [{advert['id']}]({campaign_link}) Статус: {stat}\n"
+  await bot.send_message(message.chat.id, result_msg, parse_mode = 'MarkdownV2') 
+  set_user_session_step(message, 'Add_advert')
+  
+
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -405,8 +490,9 @@ async def add_advert(message):
   user_text = message.text
   adv_id = re.sub('/add_adv_', '', user_text)
   message.user_session['add_adv_id'] = adv_id
-  await bot.send_message(message.chat.id, f'Укажите максимальный бюджет для РК с id {adv_id} в рублях')
-  set_user_session_step(message, 'Add_advert')
+  await send_message_for_advert_bid(message, adv_id)
+  # await bot.send_message(message.chat.id, f'Укажите максимальную ставку для РК с id {adv_id} в рублях')
+  # set_user_session_step(message, 'Add_advert')
     
 
 
@@ -417,7 +503,7 @@ async def add_advert_with_define_id(message):
     adv_id = message.user_session.get('adv_settings_id')
   user_number_value = re.sub(r'[^0-9]', '', message.text)
   db_queries.add_user_advert(user, adv_id, user_number_value, status='ON')
-  await bot.send_message(message.chat.id, f'РК с id {adv_id} отслеживается с максимальным бюджетом {user_number_value}')
+  await bot.send_message(message.chat.id, f'РК с id {adv_id} отслеживается с максимальной ставкой {user_number_value}')
   message.user_session['add_adv_id'] = None
     
 
@@ -432,8 +518,9 @@ async def adv_settings(message):
 
 async def adv_settings_budget(message):
   adv_id = message.user_session.get('adv_settings_id')
-  await bot.send_message(message.chat.id, f'Укажите максимальный бюджет для РК с id {adv_id} в рублях')
-  set_user_session_step(message, 'Add_advert')
+  await send_message_for_advert_bid(message, adv_id)
+  # await bot.send_message(message.chat.id, f'Укажите максимальную ставку для РК с id {adv_id} в рублях')
+  # set_user_session_step(message, 'Add_advert')
     
 
 # Подписка -----------------------------------------------------------------------------------------------------------------------
@@ -492,10 +579,12 @@ step_map = {
     'Установить токен': set_token_cmp,
     'История действий': show_action_history,
     'Дополнительные опции': menu_additional_options,
+    'Выбрать фильтрацию': action_history_filter,
+    'Загрузить историю действий': action_history_download,
     'Назад': menu_back,
     'add_adv_': add_advert,
     'adv_settings_': adv_settings,
-    'Добавить максимальный бюджет': adv_settings_budget,
+    'Изменить максимальную ставку': adv_settings_budget,
     'default': misSpell
   },
   'Search_adverts': {

@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from sqlalchemy import desc
+import traceback
 
 from .models import User, Advert, Subscription, Transaction, Action_history
 from .engine import engine
@@ -91,6 +92,7 @@ class db_queries:
                     return 'UPDATED'
                 
         except Exception as e:
+            traceback.print_exc()
             err_msg = f'Запрос не выполнен по причине: TypeError: {type(e).__name__}: {e}.'
             print(err_msg)
             raise ValueError(err_msg)
@@ -280,7 +282,7 @@ class db_queries:
         return 'JOPA'
     
     
-    def add_action_history(action, telegram_user_id=None, user_id=None):
+    def add_action_history(action, action_description, telegram_user_id=None, user_id=None):
         try:
             with Session(engine) as session:
 
@@ -301,6 +303,7 @@ class db_queries:
                 
                 action = Action_history(
                     user_id = query_user_id,
+                    description = action_description,
                     action = action,
                 )
                 session.add(action)
@@ -311,16 +314,27 @@ class db_queries:
             print(f'Запрос не выполнени по причине: TypeError: {type(e).__name__}: {e}.')
             
             
-    def show_action_history(user_id, page_action):
+    def show_action_history(user_id, action='date_time', download=False):
         try:
             with Session(engine) as session:
                 user = session.query(User).filter(User.telegram_user_id == user_id).first()
-                return session.query(Action_history).filter(Action_history.user_id == user.id).order_by(desc(Action_history.date_time)).limit(20)
-                
-                # if page_number == 1:
-                #     # return session.query(Action_history).filter(Action_history.user_id == user.id).order_by(Action_history.date_time.desc())
-                #     return session.query(Action_history).filter(Action_history.user_id == user.id).order_by(Action_history.date_time.desc())[page_number-1:page_action]
-                # else:
-                #     return session.query(Action_history).filter(Action_history.user_id == user.id).order_by(Action_history.date_time.desc())[(5*(page_number-1)):page_action*page_number]
+                if action == 'date_time':
+                    if download:
+                        return session.query(Action_history).filter(Action_history.user_id == user.id).order_by(desc(Action_history.date_time))
+                    else:
+                        return session.query(Action_history).filter(Action_history.user_id == user.id).order_by(desc(Action_history.date_time)).limit(20)
+                else:
+                    if download:
+                        return session.query(Action_history).filter(Action_history.user_id == user.id).filter(Action_history.action == action).order_by(desc(Action_history.date_time))
+                    else:
+                        return session.query(Action_history).filter(Action_history.user_id == user.id).filter(Action_history.action == action).order_by(desc(Action_history.date_time)).limit(20)
+        except Exception as e:
+            print(f'Запрос не выполнени по причине: TypeError: {type(e).__name__}: {e}.')
+            
+            
+    def get_filter_action_history():
+        try:
+            with Session(engine) as session:
+                return session.query(Action_history.action.distinct())
         except Exception as e:
             print(f'Запрос не выполнени по причине: TypeError: {type(e).__name__}: {e}.')

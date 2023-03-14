@@ -202,7 +202,8 @@ async def delete_user_advert(message):
   db_queries.delete_user_advert(user, adv_id)
 
   deletion_message = f'Компания с id {adv_id} перестала отслеживаться'
-  db_queries.add_action_history(user_id=user.id, action=deletion_message)
+  action_message = f'Отслеживание компании'
+  db_queries.add_action_history(user_id=user.id, action_description=deletion_message, action=action_message)
   await bot.send_message(message.chat.id, deletion_message)
 
 
