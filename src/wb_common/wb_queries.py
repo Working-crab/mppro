@@ -156,8 +156,8 @@ class wb_queries:
     minuses = []
     main_pluse_word = ''
 
-    if 'words' in r and 'pluses' in r['words']:
-      pluses = r['words']['pluses']
+    if 'words' in r and 'pluse' in r['words']:
+      pluses = r['words']['pluse']
 
     if 'words' in r and 'excluded' in r['words']:
       minuses = r['words']['excluded']

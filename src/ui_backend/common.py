@@ -267,11 +267,8 @@ def advert_info_message_maker(adverts, page_number, page_size, user):
 
   lst_adverts_ids = [i['id'] for i in adverts]
   db_adverts = db_queries.get_user_adverts_by_wb_ids(user.id, lst_adverts_ids)
-  id_to_db_adverts = {x.id: x for x in db_adverts}
+  id_to_db_adverts = {x.campaign_id: x for x in db_adverts}
   lst_adverts_ids = [i.campaign_id for i in db_adverts]
-
-  logger.info('id_to_db_adverts')
-  logger.info(id_to_db_adverts)
 
   result_msg = f'Список ваших рекламных компаний с cmp\.wildberries\.ru, страница: {page_number}\n\n'
   for advert in adverts:
@@ -279,54 +276,39 @@ def advert_info_message_maker(adverts, page_number, page_size, user):
 
     campaign = mock.Mock()
     campaign.campaign_id = advert['id']
+
     try:
       first_place_price = get_bids_table(user.telegram_user_id, campaign)
       budget = wb_queries.get_budget(user, campaign)
-      
       budget = budget.get("Бюджет компании")
-      # logger.info('first_place_price')
-      # logger.info(first_place_price)
     except Exception as e:
       logger.info(e)
 
-
     add_delete_str = ''
     bot_status = ''
-    # logger.info('lst_adverts_ids')
-    # logger.info(lst_adverts_ids)
-
-    # logger.info('advert[id] in lst_adverts_ids')
-    # logger.info(advert['id'] in lst_adverts_ids)
-
-    # logger.info('advert[id]')
-    # logger.info(advert['id'])
-    
     if advert['id'] in lst_adverts_ids:
-      
-      db_advert = id_to_db_adverts.get(advert['id'], None)
-      logger.info('db_advert')
-      logger.info(db_advert)
+      db_advert = id_to_db_adverts.get(advert['id'])
       if (db_advert):
-          logger.info('db_advert_3') 
-          logger.info(db_advert)
-          bot_status     += f"\t Отслеживается\!" # TODO Максимальная ставка
+          bot_status     += f"\t Отслеживается\!"
           add_delete_str += f"\t Перестать отслеживать РК: /delete\_adv\_{advert['id']}\n"
           add_delete_str += f"\t Максимальная ставка: {db_advert.max_budget}\n"
-          add_delete_str += f"\t Настроить РК: /adv\_settings\_{advert['id']}\n"
     else:
       bot_status     += f"\t Не отслеживается\!"
       add_delete_str += f"\t Отслеживать РК: /add\_adv\_{advert['id']}\n"
-      add_delete_str += f"\t Настроить РК: /adv\_settings\_{advert['id']}\n"
+
+    add_delete_str += f"\t Настроить РК: /adv\_settings\_{advert['id']}\n"
 
     campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{advert['id']}"
     
     result_msg += f"*Имя компании: {advert['campaignName']}*\n"
     result_msg += f"\t ID: [{advert['id']}]({campaign_link}) Статус: {stat}\n"
+
     try:
       result_msg += f"\t Стоимость первого места {first_place_price}\n"
       result_msg += f"\t Бюджет компании {budget}\n"
     except Exception as e:
         logger.info(e)
+
     result_msg += bot_status
     # TODO Текущая ставка
     result_msg += add_delete_str

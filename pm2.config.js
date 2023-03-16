@@ -21,9 +21,17 @@ module.exports = {
     {
       ...defaults,
       autorestart: true,
-      name: 'mp_pro_ui_telega',
+      name: 'mp_pro_ui_telega_1',
       script: '/data/venv/bin/python -m uvicorn ui_backend.main:app --reload',
-      log_file: '/data/logs/pm2/mp_pro_ui_telega.log',
+      log_file: '/data/logs/pm2/mp_pro_ui_telega_1.log',
+      interpreter: undefined,
+    },
+    {
+      ...defaults,
+      autorestart: true,
+      name: 'mp_pro_ui_telega_2',
+      script: '/data/venv/bin/python -m uvicorn ui_backend.main:app --reload',
+      log_file: '/data/logs/pm2/mp_pro_ui_telega_2.log',
       interpreter: undefined,
     },
     {

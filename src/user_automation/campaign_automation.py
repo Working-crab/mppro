@@ -36,8 +36,10 @@ class campaign_automation:
     campaign_pluse_words = wb_queries.get_stat_words(campaign_user, campaign)
 
     check_word = campaign_info['campaign_key_word']
-    if campaign_pluse_words['main_pluse_word']:
-      check_word = campaign_pluse_words['main_pluse_word']
+
+    # TODO adjust pluse logics
+    # if campaign_pluse_words['main_pluse_word']:
+    #   check_word = campaign_pluse_words['main_pluse_word']
 
     current_bids_table = wb_queries.search_adverts_by_keyword(check_word)
 
