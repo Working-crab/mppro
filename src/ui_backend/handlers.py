@@ -1,7 +1,8 @@
 
 import re
+from unittest import mock
 from ui_backend.app import bot
-from ui_backend.common import universal_reply_markup, paginate_buttons, city_reply_markup, escape_telegram_specials, logs_types_reply_markup, universal_reply_markup_additionally, advert_info_message_maker, reply_markup_payment, adv_settings_reply_markup, action_history_reply_markup, action_history_filter_reply_markup
+from ui_backend.common import status_parser, switch_status_reply_markup, universal_reply_markup, paginate_buttons, city_reply_markup, escape_telegram_specials, logs_types_reply_markup, universal_reply_markup_additionally, advert_info_message_maker, reply_markup_payment, adv_settings_reply_markup, action_history_reply_markup, action_history_filter_reply_markup, adv_settings_words_reply_markup
 from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
@@ -137,11 +138,6 @@ async def search_next_step_handler(message, after_city_choose=False):
   result_message = f'Текущие рекламные ставки по запросу: *{keyword}*\nГород доставки: *{city}*\n\n'
   adverts_info = wb_queries.get_products_info_by_wb_ids(position_ids, city, telegram_user_id)
 
-  logger.info('adverts_info')
-  logger.info(adverts_info)
-
-  logger.info('range(len(item_dicts))')
-  logger.info(range(len(item_dicts)))
   for item_idex in range(len(item_dicts)):
 
     product_id = item_dicts[item_idex]['p_id']
@@ -230,6 +226,8 @@ async def list_adverts(message):
 async def list_adverts_handler(message):
   """Функия которая формирует и отправляет рекламные компании пользователя"""
 
+  proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
+
   user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
   user_wb_tokens = wb_queries.get_base_tokens(user)
   req_params = wb_queries.get_base_request_params(user_wb_tokens)
@@ -246,6 +244,10 @@ async def list_adverts_handler(message):
   total_count_adverts = user_atrevds_data['total_count']
   action = "page"
   inline_keyboard = paginate_buttons(action, page_number, total_count_adverts, page_size, message.from_user.id)
+
+  chat_id_proccessing = proccesing.chat.id
+  message_id_proccessing = proccesing.message_id
+  await bot.delete_message(chat_id_proccessing, message_id_proccessing)
 
   await bot.send_message(message.chat.id, result_msg, reply_markup=inline_keyboard, parse_mode='MarkdownV2')
 
@@ -337,11 +339,16 @@ async def search_logs_next_step_handler(message):
 
 async def menu_additional_options(message):
   await bot.send_message(message.chat.id, "Вы перешли в раздел *Дополнительные опции*", parse_mode='MarkdownV2', reply_markup=universal_reply_markup_additionally())
-        
+
 
 async def menu_back(message):
   await bot.send_message(message.chat.id, "Добро пожаловать *Назад* 🤓", parse_mode='MarkdownV2', reply_markup=universal_reply_markup())
+    
 
+async def menu_back_word(message):
+  await bot.send_message(message.chat.id, "Добро пожаловать *Назад* 🤓", parse_mode='MarkdownV2', reply_markup=adv_settings_reply_markup(message.from_user.id))
+  
+    
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -513,15 +520,191 @@ async def adv_settings(message):
   user_text = message.text
   adv_id = re.sub('/adv_settings_', '', user_text)
   message.user_session['adv_settings_id'] = adv_id
-  await bot.send_message(message.chat.id, f'Ниже представлена панель, для возможных действий с компанией {adv_id}', reply_markup=adv_settings_reply_markup())
+  
+  campaign = mock.Mock()
+  campaign.campaign_id = adv_id
+  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  
+  fixed = wb_queries.get_fixed(campaign_user, campaign)
+  
+  message.user_session['adv_fixed'] = fixed['fixed']
+  
+  await bot.send_message(message.chat.id, f'Ниже представлена панель, для возможных действий с компанией {adv_id}', reply_markup=adv_settings_reply_markup(message.from_user.id))
 
 
-async def adv_settings_budget(message):
+async def adv_settings_bid(message):
   adv_id = message.user_session.get('adv_settings_id')
   await send_message_for_advert_bid(message, adv_id)
   # await bot.send_message(message.chat.id, f'Укажите максимальную ставку для РК с id {adv_id} в рублях')
   # set_user_session_step(message, 'Add_advert')
+  
+
+async def adv_settings_get_plus_word(message):
+  
+  campaign = mock.Mock()
+  adv_id = message.user_session.get('adv_settings_id')
+  campaign.campaign_id = adv_id
+  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  
+  result_message = f'*Плюс слова*\n\n'
+  for plus_word in words['pluses'][:30]:
+    result_message += plus_word + "\n"  
+  
+  message.user_session['step'] = "get_word"
+  set_user_session_step(message, "get_word")
+  
     
+  await bot.send_message(message.chat.id, result_message, parse_mode="MarkdownV2", reply_markup=adv_settings_words_reply_markup(which_word="Плюс"))
+
+
+async def adv_settings_get_minus_word(message):
+  campaign = mock.Mock()
+  adv_id = message.user_session.get('adv_settings_id')
+  campaign.campaign_id = adv_id
+  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  
+  logger.info(words)
+  
+  result_message = f'*Минус слова*\n\n'
+  for plus_word in words['minuses'][:30]:
+    result_message += plus_word + "\n"
+    
+  if result_message == f'*Минус слова*\n\n':
+    result_message = "Нет минус слов"
+    
+  message.user_session['step'] = "get_word"
+  set_user_session_step(message, "get_word")
+    
+  await bot.send_message(message.chat.id, result_message, parse_mode="MarkdownV2", reply_markup=adv_settings_words_reply_markup(which_word="Минус"))
+  
+
+async def adv_settings_add_plus_word(message):
+  await bot.send_message(message.chat.id, "Введите плюс слово")
+  set_user_session_step(message, 'add_plus_word')
+  
+  
+async def add_plus_word_next_step_handler(message):
+  keyword = message.text
+
+  campaign = mock.Mock()
+  adv_id = message.user_session.get('adv_settings_id')
+  campaign.campaign_id = adv_id
+  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  
+  pluse_word = [word for word in words['pluses']]
+  pluse_word.append(keyword)
+  
+  try:
+    wb_queries.add_word(campaign_user, campaign, plus_word=pluse_word)
+    await bot.send_message(message.chat.id, f"Слово {keyword} было добавлено")
+  except:
+    await bot.send_message(message.chat.id, f"Слово {keyword} не было добавлено")
+    
+  set_user_session_step(message, "get_word")
+  
+  
+  
+async def adv_settings_add_minus_word(message):
+  await bot.send_message(message.chat.id, "Введите минус слово")
+  await bot.send_message(message.chat.id, "При добавлении Минус Фраз, нужно выключить \'*Фиксированные фразы*\'", parse_mode="MarkdownV2")
+  set_user_session_step(message, 'add_minus_word')
+  
+async def add_minus_word_next_step_handler(message):
+  # await bot.send_message(message.chat.id, "При добавлении Минус Фраз, будут выключены \'*Плюс слова*\'\nЕсли хотите отменить действие, введите: Отмена", parse_mode="MarkdownV2")
+  
+  keyword = message.text
+  
+  if keyword == "Отмена":
+    return await bot.send_message(message.chat.id, "Вы вписали Отмена", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
+  
+  campaign = mock.Mock()
+  adv_id = message.user_session.get('adv_settings_id')
+  campaign.campaign_id = adv_id
+  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  
+  minus_word = [word for word in words['minuses']]
+  minus_word.append(keyword)
+  
+  try:
+    wb_queries.add_word(campaign_user, campaign, excluded_word=minus_word)
+    await bot.send_message(message.chat.id, f"Слово {keyword} было добавлено")
+  except:
+    await bot.send_message(message.chat.id, f"Слово {keyword} не было добавлено")
+    
+  set_user_session_step(message, "get_word")
+  
+  
+async def adv_settings_switch_on_word(message):
+  message.user_session['adv_fixed'] = True
+  update_user_session(message)
+  campaign = mock.Mock()
+  adv_id = message.user_session.get('adv_settings_id')
+  campaign.campaign_id = adv_id
+  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  switch = wb_queries.switch_word(user=campaign_user, campaign=campaign, switch="true")
+  
+  await bot.send_message(message.chat.id, f"Фиксированные фразы были *включены*", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
+  
+async def adv_settings_switch_off_word(message):
+  message.user_session['adv_fixed'] = False
+  update_user_session(message)
+  campaign = mock.Mock()
+  adv_id = message.user_session.get('adv_settings_id')
+  campaign.campaign_id = adv_id
+  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  switch = wb_queries.switch_word(user=campaign_user, campaign=campaign, switch="false")
+  
+  await bot.send_message(message.chat.id, f"Фиксированные фразы были *выключены*", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
+  
+  
+async def adv_settings_switch_status(message):
+  proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
+  
+  campaign = mock.Mock()
+  adv_id = message.user_session.get('adv_settings_id')
+  campaign.campaign_id = adv_id
+  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  
+  status = wb_queries.get_campaign_info(campaign_user, campaign)
+  budget = wb_queries.get_budget(campaign_user, campaign)
+  status_parse = status_parser(status['status'])
+  
+  chat_id_proccessing = proccesing.chat.id
+  message_id_proccessing = proccesing.message_id
+  await bot.delete_message(chat_id_proccessing, message_id_proccessing)
+  
+  if status_parse == "Приостановлено":
+    if budget['Бюджет компании'] == 0:
+      await bot.send_message(message.chat.id, f"На данный момент статус компании: *{status_parse}*\nЧтобы изменить статус пополните бюджет", parse_mode="MarkdownV2")
+    else:
+      await bot.send_message(message.chat.id, f"На данный момент статус компании: *{status_parse}*\nВы можете изменить статус на *Активно*, кнопкой ниже", parse_mode="MarkdownV2", reply_markup=switch_status_reply_markup(status=status['status'], campaing_id=adv_id))
+  elif status_parse == "Активна":
+    await bot.send_message(message.chat.id, f"На данный момент статус компании: *{status_parse}*\nВы можете изменить статус на *Приостановлено*, кнопкой ниже", parse_mode="MarkdownV2", reply_markup=switch_status_reply_markup(status=status['status'], campaing_id=adv_id))
+  
+
+@bot.callback_query_handler(func=lambda x: re.match('status:change:', x.data))
+async def change_status(data):
+  await bot.edit_message_text("Изменение статуса...", data.message.chat.id, data.message.id)
+  change_to = data.data.split(':')[2]
+  campaign = mock.Mock()
+  adv_id = data.data.split(':')[3]
+  campaign.campaign_id = adv_id
+  user_id = data.message.chat.id
+  campaign_user = db_queries.get_user_by_telegram_user_id(user_id)
+  
+  wb_queries.switch_status(campaign_user, campaign, status=change_to)
+  
+  if change_to == "pause":
+    await bot.edit_message_text("Статус был успешно изменён на *Приостановлено*", data.message.chat.id, data.message.id, parse_mode="MarkdownV2")
+    
+  elif change_to == "active":
+    await bot.edit_message_text("Статус был успешно изменён на *Активно*", data.message.chat.id, data.message.id, parse_mode="MarkdownV2")
+
+
 
 # Подписка -----------------------------------------------------------------------------------------------------------------------
 
@@ -584,7 +767,12 @@ step_map = {
     'Назад': menu_back,
     'add_adv_': add_advert,
     'adv_settings_': adv_settings,
-    'Изменить максимальную ставку': adv_settings_budget,
+    'Изменить максимальную ставку': adv_settings_bid,
+    'Показать Плюс слова': adv_settings_get_plus_word,
+    'Показать Минус слова': adv_settings_get_minus_word,
+    'Включить Фиксированные фразы': adv_settings_switch_on_word,
+    'Выключить Фиксированные фразы': adv_settings_switch_off_word,
+    'Изменить статус': adv_settings_switch_status,
     'default': misSpell
   },
   'Search_adverts': {
@@ -595,5 +783,18 @@ step_map = {
   },
   'Add_advert': {
     'default': add_advert_with_define_id
-  }
+  },
+  'get_word': {
+    'Назад': menu_back_word,
+    'Добавить Плюс слово': adv_settings_add_plus_word,
+    'Добавить Минус слово': adv_settings_add_minus_word,
+  },
+  'add_plus_word': {
+    'default': add_plus_word_next_step_handler,
+    'Назад': menu_back_word,
+  },
+  'add_minus_word': {
+    'default': add_minus_word_next_step_handler,
+    'Назад': menu_back_word,
+  },
 }

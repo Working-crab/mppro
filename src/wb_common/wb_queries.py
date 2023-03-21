@@ -134,7 +134,8 @@ class wb_queries:
       'campaign_bid': r['place'][0]['price'],
       'campaign_key_word': campaign_key_word,
       'search_elements': r['place'][0]['searchElements'],
-      'status': r['status']
+      'status': r['status'],
+      'full_body': r
     }
 
     return res
@@ -172,6 +173,119 @@ class wb_queries:
     }
 
     return res
+  
+  
+  def get_fixed(user, campaign):
+    user_wb_tokens = wb_queries.get_base_tokens(user)
+    custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
+    req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+    
+
+    r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/stat-words', 
+      cookies=req_params['cookies'],
+      headers=req_params['headers']
+    )
+
+    if 'words' in r and 'fixed' in r['words']:
+      fixed = r['words']['fixed']
+
+    res = {
+      'fixed': fixed
+    }
+
+    return res
+  
+  
+  def add_word(user, campaign, plus_word=None, excluded_word=None):
+    user_wb_tokens = wb_queries.get_base_tokens(user)
+    custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
+    req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+    req_params['headers']['Content-type'] = 'application/json'
+    
+    if excluded_word == None:
+      request_body = {"pluse": plus_word}
+      r = wb_queries.wb_query(method="post", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/set-plus',
+      cookies=req_params['cookies'],
+      headers=req_params['headers'],
+      data=json.dumps(request_body))
+      db_queries.add_action_history(user_id=user.id, action="Добавлено Плюс слово", action_description=f"Было добавлено Плюс слово {plus_word[-1]} в компанию с id {campaign.campaign_id}")
+    else:
+      request_body = {
+        "excluded": excluded_word
+      }
+      r = wb_queries.wb_query(method="post", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/set-excluded',
+      cookies=req_params['cookies'],
+      headers=req_params['headers'],
+      data=json.dumps(request_body))
+      db_queries.add_action_history(user_id=user.id, action="Добавлено Минус слово", action_description=f"Было добавлено Минус слово {excluded_word[-1]} в компанию с id {campaign.campaign_id}")
+
+    
+
+    # log_string = f'{datetime.now()} \t check_campaign \t Campaign {campaign.campaign_id} updated! \t New bid: {new_bid} \t Old bid: {old_bid} \t Approximate place: {approximate_place}'
+    # print(log_string)
+
+    return r
+  
+  def switch_status(user, campaign, status):
+    user_wb_tokens = wb_queries.get_base_tokens(user)
+    custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
+    req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+    
+    
+    # req_params['headers']['Content-type'] = 'application/json'
+    
+    logger.info("PLACE")
+    if status == "pause":
+      r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/pause',
+        cookies=req_params['cookies'],
+        headers=req_params['headers'])
+  
+    elif status == "active":
+      req_params['headers']['Content-type'] = 'application/json'
+      full_body = wb_queries.get_campaign_info(user, campaign)
+      budget = wb_queries.get_budget(user, campaign)
+      
+      full_body = full_body['full_body']
+      
+      full_body["budget"]['total'] = budget['Бюджет компании']
+      # full_body["status"] = 9
+            
+      for places in full_body['place']:
+        places["is_active"] = True
+
+      user_wb_tokens = wb_queries.get_base_tokens(user)
+      custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
+      req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+      
+      
+      r = wb_queries.wb_query(method="put", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/placement',
+        cookies=req_params['cookies'],
+        headers=req_params['headers'],
+        data=json.dumps(full_body))
+      
+
+    return r
+  
+
+  def switch_word(user, campaign, switch):
+    user_wb_tokens = wb_queries.get_base_tokens(user)
+    custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
+    req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+    req_params['headers']['Content-type'] = 'application/json'
+    
+    r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/set-plus?fixed={switch}',
+      cookies=req_params['cookies'],
+      headers=req_params['headers'])
+    
+    status = "Включены" if switch == "true" else "Выключены"
+    db_queries.add_action_history(user_id=user.id, action=f"Были {status} Фиксированные фразы", action_description=f"Были {status} Фиксированные фразы в компании с id {campaign.campaign_id}")
+
+      
+
+      # log_string = f'{datetime.now()} \t check_campaign \t Campaign {campaign.campaign_id} updated! \t New bid: {new_bid} \t Old bid: {old_bid} \t Approximate place: {approximate_place}'
+      # print(log_string)
+
+    return r
 
 
   def set_campaign_bid(user, campaign, campaign_info, new_bid, old_bid, approximate_place):
@@ -240,7 +354,7 @@ class wb_queries:
     headers=req_params['headers']
     )
 
-    total_budget = 0
+    total_budget = None
 
     if 'total' in r:
       total_budget = int(r['total'])

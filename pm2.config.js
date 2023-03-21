@@ -51,8 +51,14 @@ module.exports = {
       ...defaults,
       name: 'mp_pro_user_automation',
       script: '/data/src/user_automation/main.py',
-      log_file: "/data/logs/pm2/user_automation.log",
+      log_file: '/data/logs/pm2/user_automation.log',
       cron_restart: '*/10 * * * *', // once per 10 minutes
+    },
+    {
+      ...defaults,
+      name: 'mq_campaign_info_consumer',
+      script: '/data/src/ui_backend/campaign_info/mq_campaign_info_consumer.py',
+      log_file: '/data/logs/pm2/campaign_info_consumer.log',
     },
 
     // {

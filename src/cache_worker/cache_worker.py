@@ -16,7 +16,7 @@ def make_wb_key(user_id, wb_token_name):
     return f'{WB_CONSTANTS["prefix"]}_{user_id}_{WB_CONSTANTS[wb_token_name]}'
 
 def make_general_key(user_id, key_name):
-    return f'general_{user_id}_{key_name}'
+  return f'general_{user_id}_{key_name}'
 
 class cache_worker:
 

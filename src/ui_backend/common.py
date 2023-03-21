@@ -6,6 +6,8 @@ from wb_common.wb_queries import wb_queries
 from unittest import mock
 from cache_worker.cache_worker import cache_worker
 from collections import namedtuple
+from .bot import bot
+
 Campaign = namedtuple('Campaign', ['campaign_id'])
 import re
 
@@ -15,6 +17,7 @@ from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
 
 from ui_backend.message_queue import queue_message_sync
+from ui_backend import mq_campaign_info
 
 def try_except_decorator(fn):
     
@@ -71,15 +74,61 @@ def universal_reply_markup(search=False):
   return markup_inline
 
 
-def adv_settings_reply_markup():
+def adv_settings_reply_markup(telegram_user_id):
+  user_session = cache_worker.get_user_session(telegram_user_id)
   markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
   btn_add_budget = types.KeyboardButton(text='Изменить максимальную ставку')
+  btn_show_plus_word = types.KeyboardButton(text='Показать Плюс слова')
+  btn_show_minus_word = types.KeyboardButton(text='Показать Минус слова')
+  btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
+  
+  
+  logger.info(user_session)
+  
+  markup_inline.add(btn_add_budget, btn_show_plus_word, btn_show_minus_word)
+  
+  btn_switch_status = types.KeyboardButton(text='Изменить статус')
+  if user_session.get('adv_fixed'):
+    btn_switch_off_word = types.KeyboardButton(text='Выключить Фиксированные фразы')
+    markup_inline.add(btn_switch_off_word, btn_switch_status)
+  else:
+    btn_switch_on_word = types.KeyboardButton(text='Включить Фиксированные фразы')
+    markup_inline.add(btn_switch_on_word, btn_switch_status)
+  
+  
+  markup_inline.add(btn_back)
+  
+    
+  return markup_inline
+
+def adv_settings_words_reply_markup(which_word):
+  markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
+
+  btn_add_word = types.KeyboardButton(text=f'Добавить {which_word} слово')
+  # btn_add_word = types.KeyboardButton(text=f'Удалить {which_word}')
   btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
 
-  markup_inline.add(btn_add_budget)
+  markup_inline.add(btn_add_word)
   markup_inline.add(btn_back)
     
+  return markup_inline
+
+
+def switch_status_reply_markup(status, campaing_id):
+  markup_inline = types.InlineKeyboardMarkup()
+  
+  status_parse = status_parser(status)
+  
+  if status_parse == "Приостановлено":
+    markup_inline.add(
+      types.InlineKeyboardButton(text='Изменить на Активно', callback_data=f'status:change:active:{campaing_id}'),
+      )
+  elif status_parse == "Активна":
+    markup_inline.add(
+      types.InlineKeyboardButton(text='Изменить на Приостановлено', callback_data=f'status:change:pause:{campaing_id}'),
+      )
+  
   return markup_inline
 
 
@@ -225,7 +274,7 @@ def paginate_buttons(action, page_number, total_count_adverts, page_size, user_i
   return inline_keyboard
 
 
-def get_bids_table(user_id, campaign):
+def get_first_place(user_id, campaign):
   campaign_user = db_queries.get_user_by_telegram_user_id(user_id)
   campaign_info = wb_queries.get_campaign_info(campaign_user, campaign)
   campaign_pluse_words = wb_queries.get_stat_words(campaign_user, campaign)
@@ -277,12 +326,18 @@ def advert_info_message_maker(adverts, page_number, page_size, user):
     campaign = mock.Mock()
     campaign.campaign_id = advert['id']
 
+    budget_string = ''
     try:
-      first_place_price = get_bids_table(user.telegram_user_id, campaign)
+      # first_place_price = get_first_place(user.telegram_user_id, campaign)
       budget = wb_queries.get_budget(user, campaign)
       budget = budget.get("Бюджет компании")
     except Exception as e:
       logger.info(e)
+
+    if budget is not None:
+      budget_string = f"\t Бюджет компании {budget}\n"
+    else:
+      budget_string = f"\t ВБ не вернул бюджет компании\!\n"
 
     add_delete_str = ''
     bot_status = ''
@@ -303,11 +358,7 @@ def advert_info_message_maker(adverts, page_number, page_size, user):
     result_msg += f"*Имя компании: {advert['campaignName']}*\n"
     result_msg += f"\t ID: [{advert['id']}]({campaign_link}) Статус: {stat}\n"
 
-    try:
-      result_msg += f"\t Стоимость первого места {first_place_price}\n"
-      result_msg += f"\t Бюджет компании {budget}\n"
-    except Exception as e:
-        logger.info(e)
+    result_msg += budget_string
 
     result_msg += bot_status
     # TODO Текущая ставка
@@ -318,3 +369,54 @@ def advert_info_message_maker(adverts, page_number, page_size, user):
 
 # campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{advert['id']}"
 # result_msg += f"\t ID: [{advert['id']}]({campaign_link}) Статус: {stat}\n"
+
+async def test_adverts_list(adverts, page_number, page_size, chat_id, user):
+  adverts = sorted(adverts, key=lambda x: status_parser_priority_map(x['statusId']))
+  
+  if page_number != 1:
+    adverts = adverts[(page_size*(page_number-1)):page_size*page_number]
+  else:
+    adverts = adverts[page_number-1:page_size]
+
+  msg = bot.send_message(chat_id, 'Вайлдберис старается 🔄', parse_mode='MarkdownV2')
+  
+
+  lst_adverts_ids = [i['id'] for i in adverts]
+  data = campaign_query_info_maker(lst_adverts_ids, user, msg.id)
+  data.set(page_number)
+
+  await mq_campaign_info.queue_message_async(data)
+
+
+
+
+def campaign_query_info_maker(lst_adverts_ids, user, message_id) -> dict:
+  list_with_need_query = []
+  for advert_id in lst_adverts_ids:
+    obj = {
+      "aid": advert_id,
+      "msg_id": message_id,
+      "campaign_budget":{
+        "fn": 'wrapper_get_budget',
+        "kwargs": {"user_id": user.id, "campaign_id": advert_id},
+        "status": "active"
+      },
+      "first_place_price":{
+        "fn": 'get_first_place',
+        "fn_place": 'ui_backend.common',
+        "kwargs": {"user_id": user.id, "campaign_id": advert_id},
+        "status": "active"
+      },
+    }
+    list_with_need_query.append(obj)
+  return list_with_need_query
+
+def wrapper_get_budget(user_id, campaign_id):
+  campaign = mock.Mock()
+  campaign.campaign_id = campaign_id
+  user = db_queries.get_user_by_id(user_id)
+
+  wb_queries.get_budget(user, campaign)
+
+def get_first_place(user_id, campaign_id):
+  get_first_place(user_id, campaign_id)

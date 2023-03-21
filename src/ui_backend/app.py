@@ -10,7 +10,8 @@ import ui_backend.common
 import ui_backend.commands
 import ui_backend.handlers
 
-from ui_backend.message_queue import main, queue_message_async
+from ui_backend.message_queue import main as message_queue
+from ui_backend.mq_campaign_info import main as mq_campaign_info
 
 
 app = FastAPI(openapi_url=None)
@@ -22,7 +23,8 @@ async def on_startup():
     webhook_info = await bot.get_webhook_info()
     if webhook_info.url != WEBHOOK_URL:
         await bot.set_webhook(url=WEBHOOK_URL)
-    asyncio.create_task(main(asyncio.get_event_loop()))
+    asyncio.create_task(message_queue(asyncio.get_event_loop()))
+    asyncio.create_task(mq_campaign_info(asyncio.get_event_loop()))
 
 @app.post('/')
 async def webhook(update: Dict[str, Any]):
