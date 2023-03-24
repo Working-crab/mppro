@@ -22,7 +22,7 @@ class campaign_automation:
         campaign_automation.check_campaign(campaign)
       except Exception as e:
         traceback.print_exc()
-        print(f'Exception: {e}.')
+        logger.error(f'Exception: {e}.')
 
 
   def check_campaign(campaign):
@@ -48,6 +48,8 @@ class campaign_automation:
     bid_p_id = 0
 
     for bid in current_bids_table:
+      if int(bid['position']) < int(campaign.place):
+        continue
       if bid['price'] < campaign.max_budget:
         new_bid = bid['price'] + 1
         bid_p_id = bid['p_id']

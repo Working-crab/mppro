@@ -1,19 +1,10 @@
 
-import functools
-import logging
 import json
-import pika
 from pika.exchange_type import ExchangeType
 
 from common.appLogger import appLogger
 
-LOGGER = appLogger.getLogger('message_publisher')
-
-LOGGER.setLevel(logging.INFO) # ya karpos
-
-# LOG_FORMAT = ('%(levelname) -10s %(asctime)s %(name) -30s %(funcName) '
-#               '-35s %(lineno) -5d: %(message)s')
-# LOGGER = logging.getLogger(__name__)
+LOGGER = appLogger.getLogger('mq_campaign_info')
 
 class ExamplePublisher(object):
     EXCHANGE = 'campaign_info_queue'

@@ -10,7 +10,7 @@ from pika.exchange_type import ExchangeType
 from common.appLogger import appLogger
 
 LOGGER = appLogger.getLogger('message_publisher')
-LOGGER.setLevel(logging.DEBUG)
+LOGGER.setLevel(logging.WARN)
 
 # LOG_FORMAT = ('%(levelname) -10s %(asctime)s %(name) -30s %(funcName) '
 #               '-35s %(lineno) -5d: %(message)s')

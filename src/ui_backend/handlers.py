@@ -81,6 +81,8 @@ async def message_handler(message):
       )
       return
 
+    set_user_session_step(message, 'База')
+    update_user_session(message)
 
     await queue_message_async(
       destination_id = message.chat.id,
@@ -126,10 +128,11 @@ async def search_next_step_handler(message, after_city_choose=False):
 
   for item_idex in range(len(item_dicts)):
     position_ids.append(str(item_dicts[item_idex]['p_id']))
-
+    pos = item_dicts[item_idex].get('wb_search_position')
     price = item_dicts[item_idex]['price']
     p_id = item_dicts[item_idex]['p_id']
-    result_message += f'\\[{item_idex + 1}\\]   *{price}₽*,  [{p_id}](https://www.wildberries.ru/catalog/{p_id}/detail.aspx) 🔄 \n'
+    
+    result_message += f'*{item_idex + 1}*  \\({pos}\\)   *{price}₽*,  [{p_id}](https://www.wildberries.ru/catalog/{p_id}/detail.aspx) 🔄 \n'
   
   await bot.delete_message(chat_id_proccessing, message_id_proccessing)
   message_to_update = await bot.send_message(message.chat.id, result_message, reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
@@ -142,14 +145,16 @@ async def search_next_step_handler(message, after_city_choose=False):
 
     product_id = item_dicts[item_idex]['p_id']
     price = item_dicts[item_idex]['price']
-    message_string = f'\\[{item_idex + 1}\\]   *{price}₽*,  [{product_id}](https://www.wildberries.ru/catalog/{product_id}/detail.aspx)'
+    pos = item_dicts[item_idex].get('wb_search_position')
+    message_string = f'\\[{item_idex + 1}\\]  *{price}₽*,  [{product_id}](https://www.wildberries.ru/catalog/{product_id}/detail.aspx)'
     advert_info = adverts_info.get(product_id)
+    position_index = f'*{item_idex + 1}*'
 
     if advert_info:
       product_name = escape_telegram_specials(advert_info.get('name')[:30]) if advert_info.get('name')[:30] else product_id
       product_time = f'{advert_info.get("time2")}ч' if advert_info.get('time2') else ''
       product_category_name = advert_info.get('category_name') if advert_info.get('category_name') else ''
-      message_string = f'\\[{item_idex + 1}\\] \t *{price}₽*, \t {product_category_name} \t {product_time} \t [{product_name}](https://www.wildberries.ru/catalog/{product_id}/detail.aspx)'
+      message_string = f'{position_index} \t \\({pos}\\) \t *{price}₽*, \t {product_category_name} \t {product_time} \t [{product_name}](https://www.wildberries.ru/catalog/{product_id}/detail.aspx)'
     else:
       message_string += ' возможно нет в наличии'
 
@@ -488,6 +493,18 @@ async def send_message_for_advert_bid(message, adv_id):
   set_user_session_step(message, 'Add_advert')
   
 
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------
+
+# --- правка места компании --------------------------------------------------------------------------------------------
+
+async def send_message_for_advert_place(message, adv_id):
+  campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{adv_id}"
+  result_msg = f'Укажите предпочитаемое место для РК с id [{adv_id}]({campaign_link}) \n Бот будет держать это место в рамках максимальной ставки' #f"\t ID: [{advert['id']}]({campaign_link}) Статус: {stat}\n"
+  await bot.send_message(message.chat.id, result_msg, parse_mode = 'MarkdownV2') 
+  set_user_session_step(message, 'Set_advert_place')
+  
+
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -537,7 +554,23 @@ async def adv_settings_bid(message):
   await send_message_for_advert_bid(message, adv_id)
   # await bot.send_message(message.chat.id, f'Укажите максимальную ставку для РК с id {adv_id} в рублях')
   # set_user_session_step(message, 'Add_advert')
-  
+
+
+async def adv_settings_place(message):
+  adv_id = message.user_session.get('adv_settings_id')
+  await send_message_for_advert_place(message, adv_id)
+  # await bot.send_message(message.chat.id, f'Укажите максимальную ставку для РК с id {adv_id} в рублях')
+  # set_user_session_step(message, 'Add_advert')
+
+
+async def set_advert_place_with_define_id(message):
+  user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  adv_id = message.user_session.get('adv_settings_id')
+  user_number_value = re.sub(r'[^0-9]', '', message.text)
+  db_queries.add_user_advert(user, adv_id, None, status='ON', place=user_number_value)
+  await bot.send_message(message.chat.id, f'РК с id {adv_id} отслеживается на предпочитаемом месте {user_number_value}')
+  message.user_session['add_adv_id'] = None
+    
 
 async def adv_settings_get_plus_word(message):
   
@@ -601,10 +634,9 @@ async def add_plus_word_next_step_handler(message):
     wb_queries.add_word(campaign_user, campaign, plus_word=pluse_word)
     await bot.send_message(message.chat.id, f"Слово {keyword} было добавлено")
   except:
-    await bot.send_message(message.chat.id, f"Слово {keyword} не было добавлено")
+    await bot.send_message(message.chat.id, f"На стороне WB произошла ошибка")
     
   set_user_session_step(message, "get_word")
-  
   
   
 async def adv_settings_add_minus_word(message):
@@ -633,7 +665,77 @@ async def add_minus_word_next_step_handler(message):
     wb_queries.add_word(campaign_user, campaign, excluded_word=minus_word)
     await bot.send_message(message.chat.id, f"Слово {keyword} было добавлено")
   except:
-    await bot.send_message(message.chat.id, f"Слово {keyword} не было добавлено")
+    await bot.send_message(message.chat.id, f"На стороне WB произошла ошибка")
+    
+  set_user_session_step(message, "get_word")
+  
+  
+async def adv_settings_delete_plus_word(message):
+  await bot.send_message(message.chat.id, "Введите Плюс слово/фразу, которое хотите удалить")
+  set_user_session_step(message, 'delete_plus_word')
+
+
+async def delete_plus_word_next_step_handler(message):
+  keyword = message.text
+
+  campaign = mock.Mock()
+  adv_id = message.user_session.get('adv_settings_id')
+  campaign.campaign_id = adv_id
+  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  
+  pluse_word = []
+  check = False
+  for word in words['pluses']:
+    if word == keyword:
+      check = True
+      continue
+    else:
+      pluse_word.append(word)
+  
+  try:
+    if check:
+      wb_queries.add_word(campaign_user, campaign, plus_word=pluse_word)
+      await bot.send_message(message.chat.id, f"Слово/фраза {keyword} было удалено")
+    else:
+      await bot.send_message(message.chat.id, f"Не удалось найти слово/фразу в списке")  
+  except:
+    await bot.send_message(message.chat.id, f"На стороне WB произошла ошибка")
+    
+  set_user_session_step(message, "get_word")
+  
+
+async def adv_settings_delete_minus_word(message):
+  await bot.send_message(message.chat.id, "Введите Минус слово/фразу, которое хотите удалить")
+  set_user_session_step(message, 'delete_minus_word')
+
+
+async def delete_minus_word_next_step_handler(message):
+  keyword = message.text
+
+  campaign = mock.Mock()
+  adv_id = message.user_session.get('adv_settings_id')
+  campaign.campaign_id = adv_id
+  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  
+  minus_word = []
+  check = False
+  for word in words['minuses']:
+    if word == keyword:
+      check = True
+      continue
+    else:
+      minus_word.append(word)
+  
+  try:
+    if check:
+      wb_queries.add_word(campaign_user, campaign, excluded_word=minus_word)
+      await bot.send_message(message.chat.id, f"Слово/фраза {keyword} было удалено")
+    else:
+      await bot.send_message(message.chat.id, f"Не удалось найти слово/фразу в списке")  
+  except:
+    await bot.send_message(message.chat.id, f"На стороне WB произошла ошибка")
     
   set_user_session_step(message, "get_word")
   
@@ -705,6 +807,46 @@ async def change_status(data):
     await bot.edit_message_text("Статус был успешно изменён на *Активно*", data.message.chat.id, data.message.id, parse_mode="MarkdownV2")
 
 
+async def adv_settings_add_budget(message):
+  campaign = mock.Mock()
+  adv_id = message.user_session.get('adv_settings_id')
+  campaign.campaign_id = adv_id
+  
+  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  budget = wb_queries.get_budget(campaign_user, campaign)['Бюджет компании']
+  
+  await bot.send_message(message.chat.id, f'Текущий бюджет: {budget} ₽\nid рекламной компании: [{adv_id}](https://cmp.wildberries.ru/campaigns/list/all/edit/search/{adv_id})\nВведите сумму пополенения бюджета или нажмите "Назад"', parse_mode="MarkdownV2")
+  set_user_session_step(message, 'add_budget')
+  
+  
+async def add_budget_next_step_handler(message):
+  keyword = message.text  
+  
+  amount = int(keyword)
+  
+  campaign = mock.Mock()
+  
+  adv_id = message.user_session.get('adv_settings_id')
+  campaign.campaign_id = adv_id
+  
+  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  budget = wb_queries.get_budget(campaign_user, campaign)['Бюджет компании']
+  
+  if amount <= 99:
+    return await bot.send_message(message.chat.id, f'Невозможно пополнить бюджет компании менее, чем на 100 ₽', parse_mode="MarkdownV2")
+  if amount % 50 != 0:
+    return await bot.send_message(message.chat.id, f'Невозможно пополнить бюджет компании, сумма не кратна 50', parse_mode="MarkdownV2")
+  
+  try:
+    wb_queries.add_budget(campaign_user, campaign, amount)
+    await bot.send_message(message.chat.id, f'Был успешно пополнен бюджет компании на {amount} ₽\nТекущий бюджет: {int(budget) + amount} ₽', parse_mode="MarkdownV2")
+  except:
+    await bot.send_message(message.chat.id, f'Невозможно пополнить бюджет компании, произошла ошибка', parse_mode="MarkdownV2")
+    
+    
+  
+
+
 
 # Подписка -----------------------------------------------------------------------------------------------------------------------
 
@@ -768,10 +910,12 @@ step_map = {
     'add_adv_': add_advert,
     'adv_settings_': adv_settings,
     'Изменить максимальную ставку': adv_settings_bid,
+    'Изменить предпочитаемое место': adv_settings_place,
     'Показать Плюс слова': adv_settings_get_plus_word,
     'Показать Минус слова': adv_settings_get_minus_word,
     'Включить Фиксированные фразы': adv_settings_switch_on_word,
     'Выключить Фиксированные фразы': adv_settings_switch_off_word,
+    'Пополнить бюджет': adv_settings_add_budget,
     'Изменить статус': adv_settings_switch_status,
     'default': misSpell
   },
@@ -784,10 +928,16 @@ step_map = {
   'Add_advert': {
     'default': add_advert_with_define_id
   },
+  'Set_advert_place': {
+    'Назад': menu_back_word,
+    'default': set_advert_place_with_define_id
+  },
   'get_word': {
     'Назад': menu_back_word,
     'Добавить Плюс слово': adv_settings_add_plus_word,
     'Добавить Минус слово': adv_settings_add_minus_word,
+    'Удалить Плюс слово': adv_settings_delete_plus_word,
+    'Удалить Минус слово': adv_settings_delete_minus_word,
   },
   'add_plus_word': {
     'default': add_plus_word_next_step_handler,
@@ -797,4 +947,16 @@ step_map = {
     'default': add_minus_word_next_step_handler,
     'Назад': menu_back_word,
   },
+  'delete_plus_word': {
+    'default': delete_plus_word_next_step_handler,
+    'Назад': menu_back_word,
+  },
+  'delete_minus_word': {
+    'default': delete_minus_word_next_step_handler,
+    'Назад': menu_back_word,
+  },
+  'add_budget': {
+    'default': add_budget_next_step_handler,
+    'Назад': menu_back_word,
+  }
 }

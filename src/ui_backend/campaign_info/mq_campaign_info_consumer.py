@@ -15,8 +15,7 @@ CONSUMER_QUEUE = 'campaign_info_queue'
 
 async def main(loop=None):
 
-  await asyncio.sleep(2)
-
+  loop = asyncio.get_running_loop()
   asyncio.create_task(message_queue(loop))
   asyncio.create_task(mq_campaign_info(loop))
 
@@ -41,11 +40,15 @@ async def main(loop=None):
           logger.info(message.body)
 
           process_campaign(message.body)
-
+  
+  while True:
+    await asyncio.sleep(1)
 
 if __name__ == "__main__":
   print(123)
   logger.info(123)
 
-  loop = asyncio.get_event_loop()
-  asyncio.run(main(loop))
+  asyncio.run(main())
+  # loop = asyncio.get_event_loop()
+  # loop.run_until_complete(main(loop))
+  # loop.close()

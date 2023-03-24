@@ -97,16 +97,24 @@ class wb_queries:
 
   def search_adverts_by_keyword(keyword, user_id=None):
     res = wb_queries.wb_query(method="get", url=f'https://catalog-ads.wildberries.ru/api/v5/search?keyword={keyword}', user_id=user_id)
+
+    wb_search_positions = None
+
+    # kill me please
+    if res and res.get('pages') and res.get('pages')[0] and res.get('pages')[0].get('positions') and len(res.get('pages')[0].get('positions')) > 0:
+      wb_search_positions = res.get('pages')[0].get('positions')[0:CONSTS['slice_count']]
+    
     res = res['adverts'][0:CONSTS['slice_count']] if res.get('adverts') is not None else []
     result = []
     position = 0
     for advert in res:
-      position += 1
       result.append({
-      "price": advert['cpm'],
-      "p_id": advert['id'],
-      "position": position
+        "price": advert['cpm'],
+        "p_id": advert['id'],
+        "position": position,
+        "wb_search_position": wb_search_positions[position]
       })
+      position +=1
     return result
 
 
@@ -220,6 +228,24 @@ class wb_queries:
       db_queries.add_action_history(user_id=user.id, action="Добавлено Минус слово", action_description=f"Было добавлено Минус слово {excluded_word[-1]} в компанию с id {campaign.campaign_id}")
 
     
+
+    # log_string = f'{datetime.now()} \t check_campaign \t Campaign {campaign.campaign_id} updated! \t New bid: {new_bid} \t Old bid: {old_bid} \t Approximate place: {approximate_place}'
+    # print(log_string)
+
+    return r
+  
+  def add_budget(user, campaign, budget):
+    user_wb_tokens = wb_queries.get_base_tokens(user)
+    custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
+    req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+    req_params['headers']['Content-type'] = 'application/json'
+    
+    request_body = {"sum": budget, "type": 1}
+    r = wb_queries.wb_query(method="post", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/budget/deposit',
+    cookies=req_params['cookies'],
+    headers=req_params['headers'],
+    data=json.dumps(request_body))
+    db_queries.add_action_history(user_id=user.id, action="Изменен бюджет", action_description=f"Было добавлено {budget} к бюджету в компании с id {campaign.campaign_id}")
 
     # log_string = f'{datetime.now()} \t check_campaign \t Campaign {campaign.campaign_id} updated! \t New bid: {new_bid} \t Old bid: {old_bid} \t Approximate place: {approximate_place}'
     # print(log_string)

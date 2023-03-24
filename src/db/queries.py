@@ -67,15 +67,23 @@ class db_queries:
 
 
 
-    def add_user_advert(user,  campaign_id,  max_budget, status='ON', place=1):
+    def add_user_advert(user,  campaign_id,  max_budget=None, status='ON', place=None):
         try:
             with Session(engine) as session:
 
                 advert = session.query(Advert).filter(Advert.user_id == user.id, Advert.campaign_id == int(campaign_id)).first()
 
                 if not advert:
+                    advert_budget = max_budget
+                    if advert_budget is None:
+                      advert_budget = 0
+                      status = 'OFF'
+
+                    if place is None:
+                      place = 1
+
                     advert = Advert(
-                        max_budget = max_budget, #(int())
+                        max_budget = advert_budget, #(int())
                         user_id = user.id,
                         place = place, # maybe string
                         campaign_id = int(campaign_id),
@@ -85,8 +93,15 @@ class db_queries:
                     session.commit()
                     return 'ADDED'
                 else:
-                    advert.max_budget = max_budget
-                    advert.place = place
+                    if max_budget is not None:
+                      advert.max_budget = max_budget
+
+                    if not max_budget and not advert.max_budget:
+                      status = 'OFF'
+                    
+                    if place is not None:
+                      advert.place = place
+
                     advert.status = status
                     session.commit()
                     return 'UPDATED'
@@ -144,7 +159,7 @@ class db_queries:
             with Session(engine) as session:
                 date = datetime.now() - timedelta(days=1)
                 print(date)
-                return session.query(Advert).order_by(Advert.time_updated).limit(100).all() # .filter(Advert.time_updated >= date)
+                return session.query(Advert).order_by(Advert.time_updated).filter(Advert.status == 'ON').limit(100).all() # .filter(Advert.time_updated >= date)
         except Exception as e:
             print(f'Запрос не выполнен по причине: TypeError: {type(e).__name__}: {e}.')
             

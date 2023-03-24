@@ -78,23 +78,25 @@ def adv_settings_reply_markup(telegram_user_id):
   user_session = cache_worker.get_user_session(telegram_user_id)
   markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
-  btn_add_budget = types.KeyboardButton(text='Изменить максимальную ставку')
+  btn_add_budget = types.KeyboardButton(text='Пополнить бюджет')
+  btn_add_bid = types.KeyboardButton(text='Изменить максимальную ставку')
+  btn_set_place = types.KeyboardButton(text='Изменить предпочитаемое место')
   btn_show_plus_word = types.KeyboardButton(text='Показать Плюс слова')
   btn_show_minus_word = types.KeyboardButton(text='Показать Минус слова')
   btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
   
-  
-  logger.info(user_session)
-  
-  markup_inline.add(btn_add_budget, btn_show_plus_word, btn_show_minus_word)
+  markup_inline.add(btn_add_budget, btn_add_bid)
+  # markup_inline.add(btn_show_plus_word, btn_show_minus_word)
   
   btn_switch_status = types.KeyboardButton(text='Изменить статус')
   if user_session.get('adv_fixed'):
     btn_switch_off_word = types.KeyboardButton(text='Выключить Фиксированные фразы')
-    markup_inline.add(btn_switch_off_word, btn_switch_status)
+    markup_inline.add(btn_set_place, btn_switch_status)
+    markup_inline.add(btn_show_plus_word, btn_show_minus_word, btn_switch_off_word)
   else:
     btn_switch_on_word = types.KeyboardButton(text='Включить Фиксированные фразы')
-    markup_inline.add(btn_switch_on_word, btn_switch_status)
+    markup_inline.add(btn_set_place, btn_switch_status)
+    markup_inline.add(btn_show_plus_word, btn_show_minus_word, btn_switch_on_word)
   
   
   markup_inline.add(btn_back)
@@ -106,10 +108,10 @@ def adv_settings_words_reply_markup(which_word):
   markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
   btn_add_word = types.KeyboardButton(text=f'Добавить {which_word} слово')
-  # btn_add_word = types.KeyboardButton(text=f'Удалить {which_word}')
+  btn_delete_word = types.KeyboardButton(text=f'Удалить {which_word} слово')
   btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
 
-  markup_inline.add(btn_add_word)
+  markup_inline.add(btn_add_word, btn_delete_word)
   markup_inline.add(btn_back)
     
   return markup_inline
@@ -343,10 +345,14 @@ def advert_info_message_maker(adverts, page_number, page_size, user):
     bot_status = ''
     if advert['id'] in lst_adverts_ids:
       db_advert = id_to_db_adverts.get(advert['id'])
-      if (db_advert):
+      if db_advert:
+        if db_advert.status == 'ON':
           bot_status     += f"\t Отслеживается\!"
           add_delete_str += f"\t Перестать отслеживать РК: /delete\_adv\_{advert['id']}\n"
-          add_delete_str += f"\t Максимальная ставка: {db_advert.max_budget}\n"
+          add_delete_str += f"\t Макс\. ставка: {db_advert.max_budget} макс\. место: {db_advert.place}\n"
+        else:
+          bot_status     += f"\t Не отслеживается\!"
+          add_delete_str += f"\t Отслеживать РК: /add\_adv\_{advert['id']}\n"
     else:
       bot_status     += f"\t Не отслеживается\!"
       add_delete_str += f"\t Отслеживать РК: /add\_adv\_{advert['id']}\n"

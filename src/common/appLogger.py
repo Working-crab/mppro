@@ -11,7 +11,7 @@ class appLogger:
     handler.setFormatter(formatter)
 
     logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.WARN) # WARN DEBUG
     logger.addHandler(handler)
     logger.propagate = True
     
