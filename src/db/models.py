@@ -119,3 +119,19 @@ class Action_history(Base):
 
     def __repr__(self):
         return f"Action_history(id={self.id!r}, user_id={self.user_id!r}, action={self.action!r}, description={self.description!r})"
+    
+    
+class Stat_words(Base):
+    __tablename__ = "stat_words"
+    
+    id = Column(Integer, primary_key=True)
+    status = Column(String, nullable=False)
+    campaing_id = Column(Integer, nullable=False)
+    word = Column(String, nullable=False)
+    type = Column(String, nullable=False)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # adverts = relationship('Advert', back_populates='stat_words')
+
+    def __repr__(self):
+        return f"Stat_words(id={self.id!r}, status={self.status!r}, campaing_id={self.campaing_id!r}, word={self.word!r}, type={self.type!r}, timestamp={self.timestamp!r})"

@@ -105,13 +105,12 @@ async def search_next_step_handler(message, after_city_choose=False):
     keyword = message.user_session.get('search_last')
   else:
     keyword = message.text
-    
+      
   db_queries.add_action_history(telegram_user_id=telegram_user_id, action="Поиск", action_description=f"Поиск по запросу: '{keyword}'")
   
   city = message.user_session.get('search_city')
   if city == None:
     city = "Москва"
-  
   
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
   item_dicts = wb_queries.search_adverts_by_keyword(keyword, telegram_user_id)
@@ -580,37 +579,50 @@ async def adv_settings_get_plus_word(message):
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
   words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
+  if len(words['fixed']) == 0:
+    check_new = True
+  else:
+    check_new = False
+  
   result_message = f'*Плюс слова*\n\n'
   for plus_word in words['pluses'][:30]:
     result_message += plus_word + "\n"  
   
-  message.user_session['step'] = "get_word"
-  set_user_session_step(message, "get_word")
-  
+  if check_new:
+    result_message = f'Список *Плюс слов*, которые на данный момент не активны и будут добавлены после появления \"Ключевых фраз\", автоматически, если компания отслеживается:\n\n'
     
-  await bot.send_message(message.chat.id, result_message, parse_mode="MarkdownV2", reply_markup=adv_settings_words_reply_markup(which_word="Плюс"))
+    db_words = db_queries.get_stat_words(types="plus", status="Created", campaing_id=adv_id)
+    for plus_word in db_words:
+      result_message += plus_word.word + "\n"  
+    
+    message.user_session['step'] = "new_get_word"
+    set_user_session_step(message, "new_get_word")
+  else:
+    message.user_session['step'] = "get_word"
+    set_user_session_step(message, "get_word")
+    
+  if "error" in words:
+    result_message += words['error']
+  
+  await bot.send_message(message.chat.id, result_message, parse_mode="MarkdownV2", reply_markup=adv_settings_words_reply_markup(which_word="Плюс", new=check_new))
+  
 
+async def new_adv_settings_add_plus_word(message):
+  await bot.send_message(message.chat.id, "Для предотвращения проблем с Wildberries, слово будет добавлено, после появления \"Ключевых фраз\", автоматически")
+  await bot.send_message(message.chat.id, "Введите плюс слово")
+  set_user_session_step(message, 'new_add_plus_word')
+  
 
-async def adv_settings_get_minus_word(message):
-  campaign = mock.Mock()
-  adv_id = message.user_session.get('adv_settings_id')
-  campaign.campaign_id = adv_id
-  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+async def new_add_plus_word_next_step_handler(message):
+  keyword = message.text
+
+  adv_id = message.user_session.get('adv_settings_id')  
+  pluse_word = keyword
   
-  logger.info(words)
-  
-  result_message = f'*Минус слова*\n\n'
-  for plus_word in words['minuses'][:30]:
-    result_message += plus_word + "\n"
+  db_queries.add_stat_words(types="plus", campaing_id=adv_id, word=pluse_word)
+  await bot.send_message(message.chat.id, f"Слово {keyword} было добавлено")
     
-  if result_message == f'*Минус слова*\n\n':
-    result_message = "Нет минус слов"
-    
-  message.user_session['step'] = "get_word"
-  set_user_session_step(message, "get_word")
-    
-  await bot.send_message(message.chat.id, result_message, parse_mode="MarkdownV2", reply_markup=adv_settings_words_reply_markup(which_word="Минус"))
+  set_user_session_step(message, "new_get_word")
   
 
 async def adv_settings_add_plus_word(message):
@@ -637,6 +649,87 @@ async def add_plus_word_next_step_handler(message):
     await bot.send_message(message.chat.id, f"На стороне WB произошла ошибка")
     
   set_user_session_step(message, "get_word")
+  
+
+async def new_adv_settings_delete_word(message):
+  await bot.send_message(message.chat.id, "Введите слово/фразу, которое хотите удалить")
+  set_user_session_step(message, 'new_delete_word')
+
+
+async def new_delete_word_next_step_handler(message):
+  keyword = message.text
+  
+  deleted = db_queries.delete_stat_words(word=keyword)
+  
+  if deleted:
+    await bot.send_message(message.chat.id, f"Слово/фраза {keyword} было удалено")
+  else:
+    await bot.send_message(message.chat.id, f"Не удалось найти слово/фразу в списке")
+    
+  set_user_session_step(message, "new_get_word")
+  
+
+async def adv_settings_get_minus_word(message):
+  campaign = mock.Mock()
+  adv_id = message.user_session.get('adv_settings_id')
+  campaign.campaign_id = adv_id
+  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  
+  if len(words['fixed']) == 0:
+    check_new = True
+  else:
+    check_new = False  
+  
+  result_message = f'*Минус слова*\n\n'
+  for minus_word in words['minuses'][:30]:
+    result_message += minus_word + "\n"
+    
+  if result_message == f'*Минус слова*\n\n' and not check_new:
+    result_message = "Нет минус слов"
+    
+  if check_new:
+    db_words = db_queries.get_stat_words(status="Created", campaing_id=adv_id, types="minus")
+    result_message = f'Список *Минус слов*, которые на данный момент не активны и будут добавлены после появления \"Ключевых фраз\", автоматически, если компания отслеживается:\n\n'
+    for minus_word in db_words:
+      result_message += minus_word.word + "\n"  
+    
+    message.user_session['step'] = "new_get_word"
+    set_user_session_step(message, "new_get_word")
+  else:
+    message.user_session['step'] = "get_word"
+    set_user_session_step(message, "get_word")
+    
+  if "error" in words:
+    result_message += words['error']
+    
+  await bot.send_message(message.chat.id, result_message, parse_mode="MarkdownV2", reply_markup=adv_settings_words_reply_markup(which_word="Минус", new=check_new))
+  
+
+async def new_adv_settings_add_minus_word(message):
+  await bot.send_message(message.chat.id, "Для предотвращения проблем с Wildberries, слово будет добавлено, после появления \"Ключевых фраз\", автоматически")
+  await bot.send_message(message.chat.id, "Введите минус слово")
+  await bot.send_message(message.chat.id, "При добавлении Минус Фраз, нужно выключить \'*Фиксированные фразы*\'", parse_mode="MarkdownV2")
+  set_user_session_step(message, 'new_add_minus_word')
+  
+async def new_add_minus_word_next_step_handler(message):
+  # await bot.send_message(message.chat.id, "При добавлении Минус Фраз, будут выключены \'*Плюс слова*\'\nЕсли хотите отменить действие, введите: Отмена", parse_mode="MarkdownV2")
+  
+  keyword = message.text
+  
+  if keyword == "Отмена":
+    return await bot.send_message(message.chat.id, "Вы вписали Отмена", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
+  
+  adv_id = message.user_session.get('adv_settings_id')
+  minus_word = keyword
+  
+  try:
+    db_queries.add_stat_words(types="minus", campaing_id=adv_id, word=minus_word)
+    await bot.send_message(message.chat.id, f"Слово {keyword} было добавлено")
+  except:
+    await bot.send_message(message.chat.id, f"Произошла ошибка")
+    
+  set_user_session_step(message, "new_get_word")
   
   
 async def adv_settings_add_minus_word(message):
@@ -747,9 +840,16 @@ async def adv_settings_switch_on_word(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  switch = wb_queries.switch_word(user=campaign_user, campaign=campaign, switch="true")
+  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
-  await bot.send_message(message.chat.id, f"Фиксированные фразы были *включены*", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
+  
+  if len(words['fixed']) == 0:
+    switch = db_queries.change_status_stat_words(campaing_id=adv_id, types="Change", words="On")
+    await bot.send_message(message.chat.id, f"Фиксированные фразы будут *включены* автоматически, когда появяться \"Ключеваые слова\", автоматически, если компания отслеживается", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
+  else:
+    switch = wb_queries.switch_word(user=campaign_user, campaign=campaign, switch="true")
+    await bot.send_message(message.chat.id, f"Фиксированные фразы были *включены*", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
+  
   
 async def adv_settings_switch_off_word(message):
   message.user_session['adv_fixed'] = False
@@ -758,9 +858,16 @@ async def adv_settings_switch_off_word(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  switch = wb_queries.switch_word(user=campaign_user, campaign=campaign, switch="false")
+  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
-  await bot.send_message(message.chat.id, f"Фиксированные фразы были *выключены*", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
+  if len(words['fixed']) == 0:
+    switch = db_queries.change_status_stat_words(campaing_id=adv_id, types="Change", words="Off")
+    
+    await bot.send_message(message.chat.id, f"Фиксированные фразы будут *выключены* автоматически, когда появяться \"Ключеваые слова\", автоматически, если компания отслеживается", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
+  else:
+    switch = wb_queries.switch_word(user=campaign_user, campaign=campaign, switch="false")
+    await bot.send_message(message.chat.id, f"Фиксированные фразы были *выключены*", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
+  
   
   
 async def adv_settings_switch_status(message):
@@ -771,7 +878,11 @@ async def adv_settings_switch_status(message):
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
   
-  status = wb_queries.get_campaign_info(campaign_user, campaign)
+  try:
+    status = wb_queries.get_campaign_info(campaign_user, campaign)
+  except:
+    return await bot.send_message(message.chat.id, f"Произошла ошибка при получении *Статуса* на стороне WB, попробуйте позже", parse_mode="MarkdownV2")
+  
   budget = wb_queries.get_budget(campaign_user, campaign)
   status_parse = status_parser(status['status'])
   
@@ -838,10 +949,20 @@ async def add_budget_next_step_handler(message):
     return await bot.send_message(message.chat.id, f'Невозможно пополнить бюджет компании, сумма не кратна 50', parse_mode="MarkdownV2")
   
   try:
-    wb_queries.add_budget(campaign_user, campaign, amount)
-    await bot.send_message(message.chat.id, f'Был успешно пополнен бюджет компании на {amount} ₽\nТекущий бюджет: {int(budget) + amount} ₽', parse_mode="MarkdownV2")
+    check = wb_queries.add_budget(campaign_user, campaign, amount)
+    if check.raise_for_status and check.status_code == 429:
+      return await bot.send_message(message.chat.id, f'Не удалось пополнить бюджет рекламной компании, попробуйте еще раз', parse_mode="MarkdownV2")
+    else:  
+      budget2 = wb_queries.get_budget(campaign_user, campaign)['Бюджет компании']
+      if budget2 == None:
+        return await bot.send_message(message.chat.id, f'WB не вернул бюджет, попробуйте посмотреть изменение бюджета, нажав повторно кнопку \"Пополнить бюджет\"', parse_mode="MarkdownV2")
+      else:
+        if budget == budget2:
+          return await bot.send_message(message.chat.id, f'Не удалось пополнить бюджет рекламной компании, попробуйте еще раз', parse_mode="MarkdownV2")
+        else:
+          return await bot.send_message(message.chat.id, f'Был успешно пополнен бюджет компании на {amount} ₽\nТекущий бюджет: {budget2} ₽', parse_mode="MarkdownV2")
   except:
-    await bot.send_message(message.chat.id, f'Невозможно пополнить бюджет компании, произошла ошибка', parse_mode="MarkdownV2")
+    await bot.send_message(message.chat.id, f'На стороне вб произошла ошибка, попробуйте ещё раз чуть позже', parse_mode="MarkdownV2")
     
     
   
@@ -953,6 +1074,26 @@ step_map = {
   },
   'delete_minus_word': {
     'default': delete_minus_word_next_step_handler,
+    'Назад': menu_back_word,
+  },
+  # New - Обозначает то, что РК новая и поэтому добавление новых слов будет с задержкой
+  'new_get_word': {
+    'Назад': menu_back_word,
+    'Добавить Плюс слово Потом': new_adv_settings_add_plus_word,
+    'Добавить Минус слово Потом': new_adv_settings_add_minus_word,
+    'Удалить Плюс слово Потом': new_adv_settings_delete_word,
+    'Удалить Минус слово Потом': new_adv_settings_delete_word,
+  },
+  'new_add_plus_word': {
+    'default': new_add_plus_word_next_step_handler,
+    'Назад': menu_back_word,
+  },
+  'new_add_minus_word': {
+    'default': new_add_minus_word_next_step_handler,
+    'Назад': menu_back_word,
+  },
+  'new_delete_word': {
+    'default': new_delete_word_next_step_handler,
     'Назад': menu_back_word,
   },
   'add_budget': {

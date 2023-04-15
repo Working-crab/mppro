@@ -67,6 +67,21 @@ class cache_worker:
   def set_action_history_filter(user_id, filter):
     key = make_general_key(user_id, 'action_history_filter')
     redis_client.set(key, json.dumps(filter))
+    
+    
+  # def set_adv_status(campaign_id, new):
+  #   key = make_general_key(campaign_id, 'adv_status')
+  #   redis_client.set(key, json.dumps(new))
+  
+  
+  # def get_adv_status(campaign_id):
+  #   key = make_general_key(campaign_id, 'adv_status')
+  #   data = redis_client.get(key)
+  #   message = {}
+  #   if data:
+  #     message = json.loads(data)
+  #   return message
+  
   
   def get_action_history_filter(user_id):
     key = make_general_key(user_id, 'action_history_filter')

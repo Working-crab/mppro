@@ -104,11 +104,17 @@ def adv_settings_reply_markup(telegram_user_id):
     
   return markup_inline
 
-def adv_settings_words_reply_markup(which_word):
+def adv_settings_words_reply_markup(which_word, new):
   markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
-  btn_add_word = types.KeyboardButton(text=f'Добавить {which_word} слово')
-  btn_delete_word = types.KeyboardButton(text=f'Удалить {which_word} слово')
+  if new:
+    btn_add_word = types.KeyboardButton(text=f'Добавить {which_word} слово Потом')
+    btn_delete_word = types.KeyboardButton(text=f'Удалить {which_word} слово Потом')
+  else:
+    btn_add_word = types.KeyboardButton(text=f'Добавить {which_word} слово')
+    btn_delete_word = types.KeyboardButton(text=f'Удалить {which_word} слово')
+    
+  
   btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
 
   markup_inline.add(btn_add_word, btn_delete_word)

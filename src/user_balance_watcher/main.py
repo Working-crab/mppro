@@ -1,3 +1,3 @@
-from user_balance_watcher.user_balance_watcher import user_balance_watcher
+from .user_balance_watcher import start
 
-user_balance_watcher.start()
+start()

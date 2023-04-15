@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 from cache_worker.cache_worker import cache_worker
 import requests
+import time
 
 from db.queries import db_queries
 
@@ -28,15 +29,37 @@ class wb_queries:
     return user_wb_tokens
 
   
-  def wb_query(method, url, cookies=None, headers=None, data=None, user_id=None):
+  def wb_query(method, url, cookies=None, headers=None, data=None, user_id=None, timeout=None):
+    result = None
     result = {}
     try:
-      response = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data)
-      result = response.json()
+      result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
+      attemps = 1
+      if result.raise_for_status:
+        while (result.raise_for_status and result.status_code != 200 and attemps != 3):
+          logger.warn(f"In while {attemps}")
+          attemps += 1
+          result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
+          time.sleep(3)
+          logger.warn(result.status_code)
+          
+      logger.warn(f"result {result}")
+      logger.warn(f"result status code")
+      logger.warn(result.status_code)
+      result = result.json()
     except Exception as e:
-      logger.error(e)
+      logger.debug({
+        'method': method,
+        'url': url,
+        'cookies': cookies,
+        'headers': headers,
+        'data': data
+      })
+      logger.error(result, result.text)
 
     logger.debug(f'user_id: {user_id} url: {url} \t headers: {str(headers)} \t result: {str(result)}')
+    
+    
 
     return result
 
@@ -97,9 +120,8 @@ class wb_queries:
 
   def search_adverts_by_keyword(keyword, user_id=None):
     res = wb_queries.wb_query(method="get", url=f'https://catalog-ads.wildberries.ru/api/v5/search?keyword={keyword}', user_id=user_id)
-
     wb_search_positions = None
-
+    
     # kill me please
     if res and res.get('pages') and res.get('pages')[0] and res.get('pages')[0].get('positions') and len(res.get('pages')[0].get('positions')) > 0:
       wb_search_positions = res.get('pages')[0].get('positions')[0:CONSTS['slice_count']]
@@ -118,24 +140,26 @@ class wb_queries:
     return result
 
 
-  def get_campaign_info(user, campaign):
+  def get_campaign_info(user, campaign, send_exeption=True):
     user_wb_tokens = wb_queries.get_base_tokens(user)
+    logger.warn('after_user_wb_tokens')
     custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
     req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
-
-    print('get_campaign_info', req_params)
+    # print('get_campaign_info', req_params)
 
     r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/placement', 
       cookies=req_params['cookies'],
-      headers=req_params['headers']
+      headers=req_params['headers'],
+      timeout=10
     )
-
     campaign_key_word = ''
 
     if 'place' in r and len(r['place']) > 0:
       campaign_key_word = r['place'][0]['keyWord']
-    else:
+    elif send_exeption:
       raise Exception('Вайлдберриес не отправил get_campaign_info')
+    else:
+      return r
 
     res = {
       'campaign_id': campaign.campaign_id,
@@ -160,14 +184,20 @@ class wb_queries:
       cookies=req_params['cookies'],
       headers=req_params['headers']
     )
-
+    
+    error = "На WB произошла ошибка"
+    
     pluses = []
     minuses = []
+    fixed = [] # Words
     main_pluse_word = ''
 
     if 'words' in r and 'pluse' in r['words']:
       pluses = r['words']['pluse']
-
+    
+    if 'words' in r and 'keywords' in r['words']:
+      fixed = r['words']['keywords']
+    
     if 'words' in r and 'excluded' in r['words']:
       minuses = r['words']['excluded']
 
@@ -177,8 +207,14 @@ class wb_queries:
     res = {
       'pluses': pluses,
       'minuses': minuses,
-      'main_pluse_word': main_pluse_word
+      'main_pluse_word': main_pluse_word,
+      'fixed': fixed
     }
+    try:
+      if r.raise_for_status:
+        res['error'] = error
+    except:
+      pass
 
     return res
   
@@ -193,6 +229,8 @@ class wb_queries:
       cookies=req_params['cookies'],
       headers=req_params['headers']
     )
+
+    fixed = [] # Status
 
     if 'words' in r and 'fixed' in r['words']:
       fixed = r['words']['fixed']
@@ -227,10 +265,6 @@ class wb_queries:
       data=json.dumps(request_body))
       db_queries.add_action_history(user_id=user.id, action="Добавлено Минус слово", action_description=f"Было добавлено Минус слово {excluded_word[-1]} в компанию с id {campaign.campaign_id}")
 
-    
-
-    # log_string = f'{datetime.now()} \t check_campaign \t Campaign {campaign.campaign_id} updated! \t New bid: {new_bid} \t Old bid: {old_bid} \t Approximate place: {approximate_place}'
-    # print(log_string)
 
     return r
   
@@ -245,11 +279,13 @@ class wb_queries:
     cookies=req_params['cookies'],
     headers=req_params['headers'],
     data=json.dumps(request_body))
+        
+    
+    # if not r.raise_for_status:
     db_queries.add_action_history(user_id=user.id, action="Изменен бюджет", action_description=f"Было добавлено {budget} к бюджету в компании с id {campaign.campaign_id}")
 
-    # log_string = f'{datetime.now()} \t check_campaign \t Campaign {campaign.campaign_id} updated! \t New bid: {new_bid} \t Old bid: {old_bid} \t Approximate place: {approximate_place}'
-    # print(log_string)
-
+    # if not tries:
+    #   return error
     return r
   
   def switch_status(user, campaign, status):
@@ -301,15 +337,12 @@ class wb_queries:
     
     r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/set-plus?fixed={switch}',
       cookies=req_params['cookies'],
-      headers=req_params['headers'])
+      headers=req_params['headers']
+    )
     
     status = "Включены" if switch == "true" else "Выключены"
     db_queries.add_action_history(user_id=user.id, action=f"Были {status} Фиксированные фразы", action_description=f"Были {status} Фиксированные фразы в компании с id {campaign.campaign_id}")
 
-      
-
-      # log_string = f'{datetime.now()} \t check_campaign \t Campaign {campaign.campaign_id} updated! \t New bid: {new_bid} \t Old bid: {old_bid} \t Approximate place: {approximate_place}'
-      # print(log_string)
 
     return r
 
@@ -320,15 +353,30 @@ class wb_queries:
     req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
     req_params['headers']['Content-type'] = 'application/json'
 
-    request_body = {
-      "place": [
-        {
-          "keyWord": campaign_info['campaign_key_word'],
-          "price": new_bid,
-          "searchElements": campaign_info['search_elements']
-        }
-      ]
-    }
+    budget = wb_queries.get_budget(user, campaign)
+
+    request_body = campaign_info['full_body']
+    request_body['budget']['total'] = budget['Бюджет компании']
+
+    for place in request_body.get('place'):
+      place['price'] = new_bid
+      place['is_active'] = True
+
+    if not request_body.get('excludedBrands'):
+      request_body['excludedBrands'] = []
+
+    # request_body = {
+    #   "place": [
+    #     {
+    #       "keyWord": campaign_info['campaign_key_word'],
+    #       "price": new_bid,
+    #       "searchElements": campaign_info['search_elements']
+    #     }
+    #   ]
+    # }
+
+    print('request_body')
+    print(request_body)
 
     r = wb_queries.wb_query(method="put", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/save',
       cookies=req_params['cookies'],
@@ -444,3 +492,38 @@ class wb_queries:
 
     return result
   
+
+  def post_get_active(user, campaign):
+    user_wb_tokens = wb_queries.get_base_tokens(user)
+    custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
+    req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+
+    print('post_get_active', req_params)
+
+    res = wb_queries.wb_query(method="post", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/get-active', 
+      cookies=req_params['cookies'],
+      headers=req_params['headers'],
+      data=json.dumps({})
+    )
+
+    return res
+
+  def very_try_get_campaign_info(user, campaign, tries=5, time_sleep=2):
+
+    result = None
+    triesDone = 0
+
+    while (not result or triesDone>=tries):
+      triesDone = triesDone + 1
+      time.sleep(time_sleep)
+      logger.info(f'very_try_get_campaign_info campaign {campaign.campaign_id} user {user.id}')
+      result = wb_queries.get_campaign_info(user, campaign, False)
+
+      if type(result) != type({}) and 'Некорректный поставщик' in str(result.text):
+        print('*OFF_CAMP Некорректный поставщик*')
+        return {'status': 'OFF_CAMP'}
+
+    if not result.get('status'):
+      raise Exception(f'Вайлдберриес не отправил very_try_get_campaign_info {tries} tries') 
+    
+    return result

@@ -1,13 +1,16 @@
 
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy import desc
+from sqlalchemy.sql.expression import bindparam
 import traceback
 
-from .models import User, Advert, Subscription, Transaction, Action_history
+from .models import Stat_words, User, Advert, Subscription, Transaction, Action_history
 from .engine import engine
 
+from common.appLogger import appLogger
+logger = appLogger.getLogger(__name__)
 
 class db_queries:
     
@@ -157,9 +160,28 @@ class db_queries:
     def get_adverts_chunk():
         try:
             with Session(engine) as session:
-                date = datetime.now() - timedelta(days=1)
-                print(date)
-                return session.query(Advert).order_by(Advert.time_updated).filter(Advert.status == 'ON').limit(100).all() # .filter(Advert.time_updated >= date)
+                dateNow = datetime.now()
+                # print(date)
+
+                campaigns = session.query(Advert).order_by(Advert.time_updated).filter(Advert.status == 'ON').limit(100).all() # .filter(Advert.time_updated >= date)
+
+                stmt = update(Advert).\
+                  where(Advert.id == bindparam('_id')).\
+                  values({
+                      'time_updated': bindparam('time_updated')
+                  })
+
+                session.execute(stmt, 
+                  [
+                    {
+                      '_id': campaign.id,
+                      'time_updated': dateNow,
+                    } for campaign in campaigns
+                  ]
+                )
+
+                return campaigns
+
         except Exception as e:
             print(f'Запрос не выполнен по причине: TypeError: {type(e).__name__}: {e}.')
             
@@ -351,5 +373,86 @@ class db_queries:
         try:
             with Session(engine) as session:
                 return session.query(Action_history.action.distinct())
+        except Exception as e:
+            print(f'Запрос не выполнени по причине: TypeError: {type(e).__name__}: {e}.')
+            
+            
+    def get_stat_words(campaing_id=None, status=None, types=None):
+        try:
+            with Session(engine) as session:
+                if types == "Change":
+                    return session.query(Stat_words).filter(Stat_words.type == types).filter(Stat_words.status == status).order_by(desc(Stat_words.timestamp)).first()
+                if types != None:
+                    return session.query(Stat_words).filter(Stat_words.campaing_id == campaing_id).filter(Stat_words.type == types).filter(Stat_words.status == status).order_by(Stat_words.timestamp).all()
+                if campaing_id != None and status == "Created" and types == None:
+                    return session.query(Stat_words).filter(Stat_words.campaing_id == campaing_id).filter(Stat_words.status == "Created").first()
+                # else:    
+                #     return session.query(Stat_words).filter(Stat_words.status == status)
+        except Exception as e:
+            print(f'Запрос не выполнени по причине: TypeError: {type(e).__name__}: {e}.')
+            
+            
+    def change_status_stat_words(campaing_id=None, status=None, types=None, words=None):
+        try:
+            with Session(engine) as session:
+                if types == "Change" and campaing_id != None and status != "Finished":
+                    get_word = session.query(Stat_words).filter(Stat_words.type == types).filter(Stat_words.campaing_id == campaing_id).first()
+                    if get_word:
+                        get_word.word = words
+                        get_word.timestamp = datetime.now()
+                        session.commit()
+                    else:
+                        stat_word = Stat_words(
+                            status = "Created",
+                            campaing_id = campaing_id,
+                            word = words,
+                            type = types,
+                        )
+                        session.add(stat_word)
+                        session.commit()
+                    
+                    return 
+                elif types == "Change" and campaing_id != None and status == "Finished":
+                    get_word = session.query(Stat_words).filter(Stat_words.type == types).filter(Stat_words.campaing_id == campaing_id).first()
+                    if get_word:
+                        get_word.status = status
+                        get_word.timestamp = datetime.now()
+                        session.commit()
+                    return
+                get_word = session.query(Stat_words).filter(Stat_words.campaing_id == campaing_id).filter(Stat_words.word.in_(words)).all()
+                for word in get_word:
+                    logger.warn(word)
+                    word.status = "Finished"
+                session.commit()
+        except Exception as e:
+            print(f'Запрос не выполнени по причине: TypeError: {type(e).__name__}: {e}.')
+            
+            
+    def add_stat_words(types=None, campaing_id=None, word=None):
+        try:
+            with Session(engine) as session:
+                stat_word = Stat_words(
+                    status = "Created",
+                    campaing_id = campaing_id,
+                    word = word,
+                    type = types,
+                )
+                session.add(stat_word)
+                session.commit()
+                return True
+        except Exception as e:
+            print(f'Запрос не выполнени по причине: TypeError: {type(e).__name__}: {e}.')
+
+            
+    def delete_stat_words(word=None):
+        try:
+            with Session(engine) as session:
+                obj = session.query(Stat_words).filter(Stat_words.word == word).first()
+                if obj != None:
+                    session.delete(obj)
+                    session.commit()
+                    return True
+                else:
+                    return False
         except Exception as e:
             print(f'Запрос не выполнени по причине: TypeError: {type(e).__name__}: {e}.')
