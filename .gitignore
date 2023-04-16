@@ -169,3 +169,4 @@ logs/
 
 config_local.py
 docker-compose-local.yml
+pm2_local.config.js
