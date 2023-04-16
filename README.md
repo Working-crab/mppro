@@ -141,6 +141,8 @@ to
 handler = logging.FileHandler(f'logs/{name}.log')*  
 ```
 14. Create config file in src/ui_backend, by template(config_template) and rename to **config_local.py**
+    - WEB_HOOK_URL get from ngrok
+    - TOKEN get from BotFather in telegram
 15. After all of this, start pm2: 
 ```bash
 pm2 start pm2.config.js
