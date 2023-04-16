@@ -7,7 +7,7 @@ npm 9.2.0
 pm2 5.2.2
 
 # admp.pro
-## Settings Up on local machine
+## Setting Up on local machine
 
 1. clone git repository
 2. setting up **docker-compose**
