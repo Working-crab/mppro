@@ -47,7 +47,7 @@ brew install ngrok
 ```bash
 ngrok http 8000
 ```
-12. change pm2.config.js to this a more working version:
+12. create pm2_local.config.js and paste this more working code:
 
 ```js
 'use strict';
@@ -145,6 +145,6 @@ handler = logging.FileHandler(f'logs/{name}.log')*
     - TOKEN get from BotFather in telegram
 15. After all of this, start pm2: 
 ```bash
-pm2 start pm2.config.js
+pm2 start pm2_local.config.js
 ```
 16. you can work :)
