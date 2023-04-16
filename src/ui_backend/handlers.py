@@ -13,7 +13,7 @@ import copy
 
 import io
 
-from ui_backend.bot import *
+from ui_backend.config import *
 from yookassa import Payment
 
 import traceback

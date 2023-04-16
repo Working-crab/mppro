@@ -5,7 +5,7 @@ from cache_worker.cache_worker import cache_worker
 from wb_common.wb_queries import wb_queries
 from ui_backend.app import bot
 from telebot.types import LabeledPrice
-from ui_backend.bot import *
+from ui_backend.config import *
 from yookassa import Payment
 import uuid
 

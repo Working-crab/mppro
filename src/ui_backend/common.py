@@ -1,12 +1,12 @@
 from datetime import datetime
-from .bot import syncBot
+from ui_backend.config import syncBot
 from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
 from unittest import mock
 from cache_worker.cache_worker import cache_worker
 from collections import namedtuple
-from .bot import bot
+from .config import bot
 
 Campaign = namedtuple('Campaign', ['campaign_id'])
 import re

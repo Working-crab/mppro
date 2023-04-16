@@ -4,7 +4,7 @@ from fastapi.responses import RedirectResponse
 
 import asyncio
 from typing import Union, Dict, Any
-from .bot import bot
+from ui_backend.config import bot, WEBHOOK_URL
 from db.queries import db_queries
 import ui_backend.common
 import ui_backend.commands
@@ -15,7 +15,6 @@ from ui_backend.mq_campaign_info import main as mq_campaign_info
 
 
 app = FastAPI(openapi_url=None)
-WEBHOOK_URL = 'https://admp.pro/'# урл домена
 
 
 @app.on_event('startup')
