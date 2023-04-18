@@ -1,5 +1,5 @@
 
-from ui_backend.bot import syncBot
+from ui_backend.config import syncBot
 from ui_backend.common import get_reply_markup
 import pika, sys, os
 import json
