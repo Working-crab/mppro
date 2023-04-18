@@ -47,3 +47,4 @@ wrapt==1.14.1
 yarl==1.8.2
 yookassa==2.3.4
 zipp==3.11.0
+openai==0.27.4

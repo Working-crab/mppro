@@ -8,11 +8,11 @@ const defaults = {
   kill_timeout: 10000,
   instances : 1,
   max_restarts: 0,
-  interpreter : '/data/venv/bin/python',
-  log_file: '/data/logs/pm2/default.log',
-  cwd: '/data/',
+  interpreter : 'venv/bin/python3',
+  log_file: 'logs/pm2/default.log',
+  cwd: '',
   env: {
-    PYTHONPATH: '/data/src/'
+    PYTHONPATH: 'src/'
   }
 }
 
@@ -22,8 +22,8 @@ module.exports = {
       ...defaults,
       autorestart: true,
       name: 'mp_pro_ui_telega_1',
-      script: '/data/venv/bin/python -m uvicorn ui_backend.main:app --reload',
-      log_file: '/data/logs/pm2/mp_pro_ui_telega_1.log',
+      script: 'venv/bin/python3 -m uvicorn ui_backend.main:app --reload',
+      log_file: 'logs/pm2/mp_pro_ui_telega_1.log',
       interpreter: undefined,
     },
     // {
@@ -37,28 +37,28 @@ module.exports = {
     {
       ...defaults,
       name: 'bot_message_sender',
-      script: '/data/src/ui_backend/bot_message_sender/bot_message_sender.py',
-      log_file: '/data/logs/pm2/bot_message_sender.log',
+      script: 'venv/bin/python3 src/ui_backend/bot_message_sender/bot_message_sender.py',
+      log_file: 'logs/pm2/bot_message_sender.log',
     },
     {
       ...defaults,
       name: 'wb_routines', // setups wb categories to caches daily
-      script: '/data/src/wb_routines/main.py',
-      log_file: '/data/logs/pm2/wb_routines.log',
+      script: 'src/wb_routines/main.py',
+      log_file: 'logs/pm2/wb_routines.log',
       cron_restart: '0 0 * * *', // once per day
     },
     {
       ...defaults,
       name: 'mp_pro_user_automation',
-      script: '/data/src/user_automation/main.py',
-      log_file: '/data/logs/pm2/user_automation.log',
+      script: 'src/user_automation/main.py',
+      log_file: 'logs/pm2/user_automation.log',
       cron_restart: '*/10 * * * *', // once per 10 minutes
     },
     {
       ...defaults,
       name: 'mq_campaign_info_consumer',
-      script: '/data/src/ui_backend/campaign_info/mq_campaign_info_consumer.py',
-      log_file: '/data/logs/pm2/campaign_info_consumer.log',
+      script: 'src/ui_backend/mq_campaign_info.py',
+      log_file: 'logs/pm2/campaign_info_consumer.log',
     },
 
     // {

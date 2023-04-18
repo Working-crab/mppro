@@ -7,7 +7,7 @@ class appLogger:
 
     formatter = logging.Formatter("%(asctime)s;%(levelname)s;%(module)s;%(lineno)d;%(message)s")
 
-    handler = logging.FileHandler(f'logs/{name}.log')      
+    handler = logging.FileHandler(f'logs/{name}.log')
     handler.setFormatter(formatter)
 
     logger = logging.getLogger(name)
