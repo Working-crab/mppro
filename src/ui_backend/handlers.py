@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from cache_worker.cache_worker import cache_worker
 from ui_backend.message_queue import queue_message_async
 import copy
+from gpt_common.gpt_queries import gpt_queries
 
 import io
 
@@ -965,9 +966,6 @@ async def add_budget_next_step_handler(message):
     await bot.send_message(message.chat.id, f'На стороне вб произошла ошибка, попробуйте ещё раз чуть позже', parse_mode="MarkdownV2")
     
     
-  
-
-
 
 # Подписка -----------------------------------------------------------------------------------------------------------------------
 
@@ -995,7 +993,22 @@ async def show_my_sub(message):
 
 # --------------------------------------------------------------------------------------------------------------------------------
 
+# --- card product --------------------------------------------------------------------------------------------
 
+async def card_product(message):
+  await bot.send_message(message.chat.id, 'Введите ключевые слова для описание товара', reply_markup=types.ReplyKeyboardRemove())
+  set_user_session_step(message, 'card_product')
+
+async def card_product_next_step_handler(message):
+  keyword = message.text
+  proccesing = await bot.send_message(message.chat.id, "Обработка запроса...", reply_markup=universal_reply_markup())
+  gpt_text = gpt_queries.get_card_description(prompt=keyword)
+  # logger.warn(gpt_text)
+  
+  await bot.delete_message(proccesing.chat.id, proccesing.message_id)
+  await bot.send_message(message.chat.id, gpt_text, reply_markup=universal_reply_markup())
+
+# --------------------------------------------------------------------------------------------------------------------------------
 
 # --- работа с сессией --------------------------------------------------------------------------------------------
 
@@ -1038,6 +1051,7 @@ step_map = {
     'Выключить Фиксированные фразы': adv_settings_switch_off_word,
     'Пополнить бюджет': adv_settings_add_budget,
     'Изменить статус': adv_settings_switch_status,
+    'Карточка товара': card_product,
     'default': misSpell
   },
   'Search_adverts': {
@@ -1052,6 +1066,9 @@ step_map = {
   'Set_advert_place': {
     'Назад': menu_back_word,
     'default': set_advert_place_with_define_id
+  },
+  'card_product': {
+    'default': card_product_next_step_handler,
   },
   'get_word': {
     'Назад': menu_back_word,

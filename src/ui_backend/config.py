@@ -12,6 +12,8 @@ if os.path.isfile('src/ui_backend/config_template.py'):
     Configuration.account_id = config_local.yookassa_account_id
     Configuration.secret_key = config_local.yookassa_secret_key
     WEBHOOK_URL = config_local.WEBHOOK_URL
+    GPT_TOKEN = config_local.GPT_TOKEN
+    GPT_MODEL_NAME = config_local.GPT_MODEL_NAME
 else:
     from ui_backend import config_template
     TOKEN = config_template.TOKEN
@@ -20,6 +22,8 @@ else:
     Configuration.account_id = config_template.yookassa_account_id
     Configuration.secret_key = config_template.yookassa_secret_key
     WEBHOOK_URL = config_template.WEBHOOK_URL
+    GPT_TOKEN = config_template.GPT_TOKEN
+    GPT_MODEL_NAME = config_template.GPT_MODEL_NAME
     
     
 bot = AsyncTeleBot(TOKEN)

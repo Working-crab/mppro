@@ -54,13 +54,13 @@ def universal_reply_markup(search=False):
   markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
   btn_search = types.KeyboardButton(text='🔎 Поиск 🔎')
+  btn_card = types.KeyboardButton(text='Карточка товара')
   btn_list_adverts = types.KeyboardButton(text='📑 Список рекламных компаний 📑')
   btn_my_sub = types.KeyboardButton(text='💻 Моя подписка 💻')
   btn_additionally = types.KeyboardButton(text='⚙️ Дополнительные опции ⚙️')
-  
 
-  markup_inline.add(btn_search, btn_list_adverts, btn_my_sub)
-  markup_inline.add(btn_additionally)
+  markup_inline.add(btn_search, btn_list_adverts, btn_card)
+  markup_inline.add(btn_additionally, btn_my_sub)
   
   if search:
     btn_choose_city = types.KeyboardButton(text='Выбрать город 🏙️')
