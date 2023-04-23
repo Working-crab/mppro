@@ -50,12 +50,12 @@ async def webhook(data: dict):
 
 # public api
 
-@app.post('/api/v1/search_campaign_depth_of_market')
+@app.post('/api/v1/search-campaign-depth-of-market')
 async def search_campaign_depth_of_market(data: dict):
     data = common.get_search_result_message(data.get('keyword'))
     return data
 
-@app.post('/api/v1/gpt_generate_card_description')
+@app.post('/api/v1/gpt-generate-card-description')
 async def gpt_generate_card_description(data: dict):
     data = gpt_queries.get_card_description(data.get('keyword'))
     return data
