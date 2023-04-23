@@ -74,6 +74,22 @@ def universal_reply_markup(search=False):
   return markup_inline
 
 
+def fixed_word_switch(fixed_status):
+  markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
+  btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
+  
+  if fixed_status:
+    btn_switch_off_word = types.KeyboardButton(text='Выключить Фиксированные фразы')
+    markup_inline.add(btn_switch_off_word)
+  else:
+    btn_switch_on_word = types.KeyboardButton(text='Включить Фиксированные фразы')
+    markup_inline.add(btn_switch_on_word)
+  
+  markup_inline.add(btn_back)
+  
+  return markup_inline
+
+
 def adv_settings_reply_markup(telegram_user_id):
   user_session = cache_worker.get_user_session(telegram_user_id)
   markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -89,15 +105,10 @@ def adv_settings_reply_markup(telegram_user_id):
   # markup_inline.add(btn_show_plus_word, btn_show_minus_word)
   
   btn_switch_status = types.KeyboardButton(text='Изменить статус')
-  if user_session.get('adv_fixed'):
-    btn_switch_off_word = types.KeyboardButton(text='Выключить Фиксированные фразы')
-    markup_inline.add(btn_set_place, btn_switch_status)
-    markup_inline.add(btn_show_plus_word, btn_show_minus_word, btn_switch_off_word)
-  else:
-    btn_switch_on_word = types.KeyboardButton(text='Включить Фиксированные фразы')
-    markup_inline.add(btn_set_place, btn_switch_status)
-    markup_inline.add(btn_show_plus_word, btn_show_minus_word, btn_switch_on_word)
   
+  btn_switch_get_word = types.KeyboardButton(text='Посмотреть статус Фиксированных фраз')
+  markup_inline.add(btn_set_place, btn_switch_status)
+  markup_inline.add(btn_show_plus_word, btn_show_minus_word, btn_switch_get_word)
   
   markup_inline.add(btn_back)
   

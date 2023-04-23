@@ -1,11 +1,6 @@
 
-import json
-from datetime import datetime
-from cache_worker.cache_worker import cache_worker
-import requests
-import time
 import openai
-from ui_backend.config_local import GPT_TOKEN, GPT_MODEL_NAME
+from ui_backend.config import GPT_TOKEN, GPT_MODEL_NAME
 
 from db.queries import db_queries
 

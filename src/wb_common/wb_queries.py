@@ -190,6 +190,7 @@ class wb_queries:
     pluses = []
     minuses = []
     fixed = [] # Words
+    fixed_status = ''
     main_pluse_word = ''
 
     if 'words' in r and 'pluse' in r['words']:
@@ -197,6 +198,9 @@ class wb_queries:
     
     if 'words' in r and 'keywords' in r['words']:
       fixed = r['words']['keywords']
+      
+    if 'words' in r and 'fixed' in r['words']:
+      fixed_status = r['words']['fixed']
     
     if 'words' in r and 'excluded' in r['words']:
       minuses = r['words']['excluded']
@@ -208,7 +212,8 @@ class wb_queries:
       'pluses': pluses,
       'minuses': minuses,
       'main_pluse_word': main_pluse_word,
-      'fixed': fixed
+      'fixed': fixed,
+      'fixed_status': fixed_status
     }
     try:
       if r.raise_for_status:
@@ -249,6 +254,7 @@ class wb_queries:
     req_params['headers']['Content-type'] = 'application/json'
     
     if excluded_word == None:
+      # plus_word = [plus.lower() for plus in plus_word]
       request_body = {"pluse": plus_word}
       r = wb_queries.wb_query(method="post", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/set-plus',
       cookies=req_params['cookies'],
@@ -256,6 +262,7 @@ class wb_queries:
       data=json.dumps(request_body))
       db_queries.add_action_history(user_id=user.id, action="Добавлено Плюс слово", action_description=f"Было добавлено Плюс слово {plus_word[-1]} в компанию с id {campaign.campaign_id}")
     else:
+      # excluded_word = [excluded.lower() for excluded in excluded_word]
       request_body = {
         "excluded": excluded_word
       }
