@@ -48,3 +48,4 @@ yarl==1.8.2
 yookassa==2.3.4
 zipp==3.11.0
 openai==0.27.4
+kafka-python==2.0.2

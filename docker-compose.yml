@@ -14,9 +14,21 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     ports:
-      - '127.0.0.1:5432:5432'
+      - 127.0.0.1:5432:5432
     volumes: 
       - postgres:/var/lib/postgresql/data
+    # networks:
+    #     - app_network
+
+  redis:
+    image: redis:6-alpine
+    container_name: 'redis'
+    restart: always
+    ports:
+      - 127.0.0.1:6379:6379
+    command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
+    volumes: 
+      - redis:/data
     # networks:
     #     - app_network
 
@@ -34,15 +46,17 @@ services:
     # networks:
     #     - app_network
 
-  redis:
-    image: redis:6-alpine
-    container_name: 'redis'
+  kafka:
+    image: docker.io/bitnami/kafka:3.4
+    container_name: 'kafka'
     restart: always
     ports:
-      - '127.0.0.1:6379:6379'
-    command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
-    volumes: 
-      - redis:/data
+      - 127.0.0.1:9092:9092
+    volumes:
+      - "kafka:/bitnami"
+    environment:
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
     # networks:
     #     - app_network
     
@@ -50,7 +64,9 @@ services:
 volumes:
   postgres:
     driver: local
+  redis:
+    driver: local
   rabbitmq:
     driver: local
-  redis:
+  kafka:
     driver: local
