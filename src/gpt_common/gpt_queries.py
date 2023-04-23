@@ -17,4 +17,7 @@ class gpt_queries:
             messages=[{"role": "user", "content": f"Создай описание товара и индексируемые теги, на маркетплейс с такими ключевыми параметрами: {prompt}"}])
         
         completion_content = completion.choices[0].message.content
+
+        db_queries.add_action_history(telegram_user_id=0, action="gpt_get_card_description", action_description=f"Генерация карточки по запросу: '{prompt}': '{completion_content}'")
+  
         return completion_content

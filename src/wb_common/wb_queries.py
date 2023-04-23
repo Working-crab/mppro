@@ -460,7 +460,7 @@ class wb_queries:
     return category
   
 
-  def get_products_info_by_wb_ids(wb_ids, city, user_id):
+  def get_products_info_by_wb_ids(wb_ids, city, user_id=None):
 
     # default_query = f'https://search.wb.ru/exactmatch/ru/common/v4/search?appType=1&couponsGeo=12,3,18,15,21&curr=rub&dest=-1257786&emp=0&lang=ru&locale=ru&pricemarginCoeff=1.0&query={keyword}&reg=0&regions=80,64,38,4,83,33,68,70,69,30,86,75,40,1,22,66,31,48,110,71&resultset=catalog&sort=popular&spp=0&suppressSpellcheck=false'
     nm_parameter = ';'.join(wb_ids)

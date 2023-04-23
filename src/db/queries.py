@@ -9,6 +9,7 @@ import traceback
 from .models import Stat_words, User, Advert, Subscription, Transaction, Action_history
 from .engine import engine
 
+
 from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
 

@@ -162,11 +162,19 @@ cython_debug/
 # vscode
 .vscode/
 
+
+
+# developers ignorse
+.python-version
+
+
 # test folders
 help_info/
 logs/
 (test)*
 
+
+# loacal configs
 config_local.py
 docker-compose-local.yml
 pm2_local.config.js
