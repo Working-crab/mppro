@@ -14,7 +14,7 @@ class gpt_queries:
         openai.api_key = GPT_TOKEN
         completion = openai.ChatCompletion.create(
             model=GPT_MODEL_NAME,
-            messages=[{"role": "user", "content": f"Создай описание товара и индексируемые теги, на маркетплейс с такими ключевыми параметрами: {prompt}"}])
+            messages=[{"role": "user", "content": f"Создай описание товара и индексируемые теги на маркетплейсе с такими ключевыми параметрами [{promt}]. Все должно быть СТРОГО по следующему шаблону. Индексируемых тегов должно быть СТРОГО НЕ МЕНЬШЕ 10. Индексируемые теги должны идти СТРОГО через заяпятую БЕЗ ЛИШНИХ СИМВОЛОВ. Шаблон: Название товара; Описание товара; Индексируемые теги"}])
         
         completion_content = completion.choices[0].message.content
 
