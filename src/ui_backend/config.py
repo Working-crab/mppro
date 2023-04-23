@@ -4,7 +4,7 @@ from yookassa import Configuration
 import os
 
 
-if os.path.isfile('src/ui_backend/config_template.py'):
+if os.path.isfile('src/ui_backend/config_local.py'):
     from ui_backend import config_local
     TOKEN = config_local.TOKEN
     BOT_NAME = config_local.BOT_NAME

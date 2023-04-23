@@ -432,3 +432,45 @@ def wrapper_get_budget(user_id, campaign_id):
 
 def get_first_place(user_id, campaign_id):
   get_first_place(user_id, campaign_id)
+
+
+def get_search_result_message(keyword, city=None):
+
+  if city == None:
+    city = "Москва"
+  
+  item_dicts = wb_queries.search_adverts_by_keyword(keyword)
+  result_message = ''
+  position_ids = []
+
+  for item_idex in range(len(item_dicts)):
+    position_ids.append(str(item_dicts[item_idex]['p_id']))
+    pos = item_dicts[item_idex].get('wb_search_position')
+    price = item_dicts[item_idex]['price']
+    p_id = item_dicts[item_idex]['p_id']
+    
+    result_message += f'*{item_idex + 1}*  \\({pos}\\)   *{price}₽*,  [{p_id}](https://www.wildberries.ru/catalog/{p_id}/detail.aspx) 🔄 \n'
+  
+  result_message = f'Текущие рекламные ставки по запросу: *{keyword}*\nГород доставки: *{city}*\n\n'
+  adverts_info = wb_queries.get_products_info_by_wb_ids(position_ids, city)
+
+  for item_idex in range(len(item_dicts)):
+
+    product_id = item_dicts[item_idex]['p_id']
+    price = item_dicts[item_idex]['price']
+    pos = item_dicts[item_idex].get('wb_search_position')
+    message_string = f'\\[{item_idex + 1}\\]  *{price}₽*,  [{product_id}](https://www.wildberries.ru/catalog/{product_id}/detail.aspx)'
+    advert_info = adverts_info.get(product_id)
+    position_index = f'*{item_idex + 1}*'
+
+    if advert_info:
+      product_name = escape_telegram_specials(advert_info.get('name')[:30]) if advert_info.get('name')[:30] else product_id
+      product_time = f'{advert_info.get("time2")}ч' if advert_info.get('time2') else ''
+      product_category_name = advert_info.get('category_name') if advert_info.get('category_name') else ''
+      message_string = f'{position_index} \t \\({pos}\\) \t *{price}₽*, \t {product_category_name} \t {product_time} \t [{product_name}](https://www.wildberries.ru/catalog/{product_id}/detail.aspx)'
+    else:
+      message_string += ' возможно нет в наличии'
+
+    result_message += f'{message_string}\n'
+
+  return result_message

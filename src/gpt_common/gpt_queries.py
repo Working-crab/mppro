@@ -5,7 +5,7 @@ from cache_worker.cache_worker import cache_worker
 import requests
 import time
 import openai
-from ui_backend.config_local import GPT_TOKEN, GPT_MODEL_NAME
+from ui_backend.config import GPT_TOKEN, GPT_MODEL_NAME
 
 from db.queries import db_queries
 
@@ -22,4 +22,7 @@ class gpt_queries:
             messages=[{"role": "user", "content": f"Создай описание товара и индексируемые теги, на маркетплейс с такими ключевыми параметрами: {prompt}"}])
         
         completion_content = completion.choices[0].message.content
+
+        db_queries.add_action_history(telegram_user_id=0, action="gpt_get_card_description", action_description=f"Генерация карточки по запросу: '{prompt}': '{completion_content}'")
+  
         return completion_content
