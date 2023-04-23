@@ -1,8 +1,23 @@
+import asyncio
+from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
+import json
 
-from kafka import KafkaConsumer
 
-consumer = KafkaConsumer('test', bootstrap_servers='127.0.0.1:9092')
+async def consume():
+    consumer = AIOKafkaConsumer(
+        'my_topic',
+        bootstrap_servers='localhost:9092',
+        value_deserializer=lambda m: json.loads(m.decode('ascii'))
+    )
+    await consumer.start()
+    try:
+        async for msg in consumer:
+            print(msg.value)
+    finally:
+        await consumer.stop()
 
-for msg in consumer:
-  print (msg)
-  
+async def main():
+    await asyncio.gather(consume())
+
+if __name__ == '__main__':
+    asyncio.run(main())
