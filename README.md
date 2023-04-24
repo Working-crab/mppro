@@ -118,3 +118,4 @@ pm2 start pm2_local.config.js
 ```
 15. you can work :)
 
+&emsp; You can use debug with VS code(example config in ${workspaceFolder}/ launch_example.json) 
