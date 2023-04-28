@@ -164,6 +164,29 @@ def action_history_reply_markup():
   return markup_inline
 
 
+def management_tokens_reply_markup():
+  markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
+
+  btn_wbtoken = types.KeyboardButton(text='WBToken')
+  btn_wildauthnewV3 = types.KeyboardButton(text='WildAuthNewV3')
+  btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
+
+  markup_inline.add(btn_wbtoken, btn_wildauthnewV3)
+  markup_inline.add(btn_back)
+    
+  return markup_inline
+
+
+def edit_token_reply_markup():
+  markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
+
+  btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
+
+  markup_inline.add(btn_back)
+    
+  return markup_inline
+
+
 def action_history_filter_reply_markup(action):
   markup_inline = types.InlineKeyboardMarkup()
   
@@ -184,7 +207,7 @@ def universal_reply_markup_additionally(user_id=None):
   markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
   btn_help = types.KeyboardButton(text='👨‍💻 Помощь 👨‍💻')
-  btn_set_token_cmp = types.KeyboardButton(text='🔑 Установить токен 🔑')
+  btn_set_token_cmp = types.KeyboardButton(text='🔑 Управление токенами 🔑')
   btn_get_logs = types.KeyboardButton(text='📋 История действий 📋')
   # btn_add_adverts = types.KeyboardButton(text='📄 Добавить рекламную компанию 📄')
   btn_back = types.KeyboardButton(text='⏪ Назад ⏪')

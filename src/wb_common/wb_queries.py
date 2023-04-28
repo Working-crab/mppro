@@ -27,8 +27,8 @@ class wb_queries:
     user_wb_tokens = wb_queries.reset_base_tokens(user)
 
     return user_wb_tokens
-
   
+
   def wb_query(method, url, cookies=None, headers=None, data=None, user_id=None, timeout=None):
     result = None
     result = {}
@@ -36,12 +36,15 @@ class wb_queries:
       result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
       attemps = 1
       if result.raise_for_status:
-        while (result.raise_for_status and result.status_code != 200 and attemps != 3):
-          logger.warn(f"In while {attemps}")
-          attemps += 1
-          result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
-          time.sleep(3)
-          logger.warn(result.status_code)
+        if result.status_code == 401:
+          result = result.json()
+        else:
+          while (result.raise_for_status and result.status_code != 200 and attemps != 3):
+            logger.warn(f"In while {attemps}")
+            attemps += 1
+            result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
+            time.sleep(3)
+            logger.warn(result.status_code)
           
       logger.warn(f"result {result}")
       logger.warn(f"result status code")
