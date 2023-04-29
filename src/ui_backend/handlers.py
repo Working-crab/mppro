@@ -97,6 +97,13 @@ async def message_handler(message):
         message = 'Произошла ошибка валидации токена! Возможно срок его действия истек, попробуйте перезагрузить токен!'
       )
       return
+    
+    if "wb_query error" in str(e):
+      await queue_message_async(
+        destination_id = message.chat.id,
+        message = 'Произошла ошибка при обращению к Wildberries, попробуйте позже'
+      )
+      return
 
     set_user_session_step(message, 'База')
     update_user_session(message)
@@ -216,42 +223,24 @@ async def misSpell(message):
 
 # Ветка "Установить токен" -----------------------------------------------------------------------------------------------------------------------
 
-async def management_token_cmp(message):
+async def management_tokens(message):
   await bot.send_message(message.chat.id, 'Выберите тип токена для просмотра статуса', reply_markup=management_tokens_reply_markup())
   set_user_session_step(message, 'Manage_tokens')
 
 
-async def WBToken_handler(message):
+async def token_cmp_handler(message):
   try:
     user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
     user_wb_tokens = wb_queries.get_base_tokens(user)
-  except:
+  except Exception as e:
+    logger.warn(e)
     await bot.send_message(message.chat.id, f'WBToken *Не найден* либо *Просрочен*\nНапишите новый токен, если хотите добавить/исправить токен', parse_mode="MarkdownV2", reply_markup=edit_token_reply_markup())
-    return set_user_session_step(message, 'WBToken_edit')
+    return set_user_session_step(message, 'Wb_cmp_token_edit')
   
   if user_wb_tokens:  
     await bot.send_message(message.chat.id, f'WBToken: {user_wb_tokens["wb_cmp_token"]}\nНа данный момент он Активен\nНапишите новый токен, если хотите изменить', reply_markup=edit_token_reply_markup())
-  set_user_session_step(message, 'WBToken_edit')
+  set_user_session_step(message, 'Wb_cmp_token_edit')
   
-
-async def WildAuthNew_V3_handler(message):
-  try:
-    user_wild_auth_v3_token = ""
-  except:
-    await bot.send_message(message.chat.id, f'WildAuthNewV3 *Не найден* либо *Просрочен*\nНапишите новый токен, если хотите добавить/исправить токен', parse_mode="MarkdownV2", reply_markup=edit_token_reply_markup())
-    return set_user_session_step(message, 'WildAuthNew_V3_edit')
-  
-  if user_wild_auth_v3_token:
-    await bot.send_message(message.chat.id, f'WildAuthNewV3: {user_wild_auth_v3_token}\nНа данный момент он Активен\nНапишите новый токен, если хотите изменить', reply_markup=edit_token_reply_markup())
-  else:
-    await bot.send_message(message.chat.id, f'WildAuthNewV3 *Не найден* либо *Просрочен*\nНапишите новый токен, если хотите добавить/исправить токен', parse_mode="MarkdownV2", reply_markup=edit_token_reply_markup())
-  set_user_session_step(message, 'WildAuthNew_V3_edit')
-
-
-async def set_token_cmp(message):
-  await bot.send_message(message.chat.id, 'Введите токен', reply_markup=types.ReplyKeyboardRemove())
-  set_user_session_step(message, 'Set_token_cmp')
-
 
 async def set_token_cmp_handler(message):
   clear_token = message.text.replace('/set_token_cmp ', '').strip()
@@ -259,7 +248,7 @@ async def set_token_cmp_handler(message):
 
 
   try:
-    wb_queries.reset_base_tokens(user, token=clear_token)
+    wb_queries.reset_base_tokens(user, token_cmp=clear_token)
   except Exception as e:
     if str(e) == 'Неверный токен!':
       await bot.send_message(message.chat.id, 'Неверный токен!', reply_markup=universal_reply_markup())
@@ -269,7 +258,44 @@ async def set_token_cmp_handler(message):
 
   db_queries.set_user_wb_cmp_token(telegram_user_id=message.from_user.id, wb_cmp_token=clear_token)
   await bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
-  db_queries.add_action_history(user_id=user.id, action="Токен", action_description=f"Был установлен токен: '{clear_token}'")
+  db_queries.add_action_history(user_id=user.id, action="Токен", action_description=f"Был установлен cmp Token: '{clear_token}'")
+  
+
+async def wb_v3_main_token_handler(message):
+  try:
+    user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+    user_wild_auth_v3_token = wb_queries.get_base_tokens(user, wild_auth_v3_token=True)
+  except Exception as e:
+    logger.warn(e)
+    # logger.warn(user_wild_auth_v3_token)
+    await bot.send_message(message.chat.id, f'WildAuthNewV3 *Не найден* либо *Просрочен*\nНапишите новый токен, если хотите добавить/исправить токен', parse_mode="MarkdownV2", reply_markup=edit_token_reply_markup())
+    return set_user_session_step(message, 'Wb_v3_main_token_edit')
+  
+  await bot.send_message(message.chat.id, f'WildAuthNewV3: {user_wild_auth_v3_token["wb_v3_main_token"]}\nНа данный момент он Активен\nНапишите новый токен, если хотите изменить', reply_markup=edit_token_reply_markup())
+  set_user_session_step(message, 'Wb_v3_main_token_edit')
+
+
+async def set_wb_v3_main_token_handler(message):
+  clear_token = message.text.replace('/set_wb_v3_main_token ', '').strip()
+  user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+
+  logger.warn(clear_token)
+  try:
+    wb_queries.reset_base_tokens(user, token_cmp=None, token_main_v3=clear_token)
+  except Exception as e:
+    if str(e) == 'Неверный токен!':
+      await bot.send_message(message.chat.id, 'Неверный токен!', reply_markup=universal_reply_markup())
+      return
+    raise e
+
+
+  db_queries.set_user_wb_v3_main_token(telegram_user_id=message.from_user.id, wb_v3_main_token=clear_token)
+  await bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
+  db_queries.add_action_history(user_id=user.id, action="Токен", action_description=f"Был установлен V3 Main Token: '{clear_token}'")
+
+# async def set_token_cmp(message):
+#   await bot.send_message(message.chat.id, 'Введите токен', reply_markup=types.ReplyKeyboardRemove())
+#   set_user_session_step(message, 'Set_token_cmp')
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -663,7 +689,7 @@ async def adv_settings_get_plus_word(message):
   if "error" in words:
     result_message += words['error']
   
-  await bot.send_message(message.chat.id, result_message, parse_mode="MarkdownV2", reply_markup=adv_settings_words_reply_markup(which_word="Плюс", new=check_new))
+  await bot.send_message(message.chat.id, escape_telegram_specials(result_message), parse_mode="MarkdownV2", reply_markup=adv_settings_words_reply_markup(which_word="Плюс", new=check_new))
   
 
 async def new_adv_settings_add_plus_word(message):
@@ -762,7 +788,7 @@ async def adv_settings_get_minus_word(message):
   if "error" in words:
     result_message += words['error']
     
-  await bot.send_message(message.chat.id, result_message, parse_mode="MarkdownV2", reply_markup=adv_settings_words_reply_markup(which_word="Минус", new=check_new))
+  await bot.send_message(message.chat.id, escape_telegram_specials(result_message), parse_mode="MarkdownV2", reply_markup=adv_settings_words_reply_markup(which_word="Минус", new=check_new))
   
 
 async def new_adv_settings_add_minus_word(message):
@@ -1133,7 +1159,7 @@ step_map = {
     'Список рекламных компаний': list_adverts,
     'Выбрать город': choose_city,
     'Выбор:': choose_city_handler,
-    'Управление токенами': management_token_cmp,
+    'Управление токенами': management_tokens,
     'История действий': show_action_history,
     'Дополнительные опции': menu_additional_options,
     'Выбрать фильтрацию': action_history_filter,
@@ -1160,16 +1186,16 @@ step_map = {
     'default': set_token_cmp_handler
   },
   'Manage_tokens': {
-    'WBToken': WBToken_handler,
-    'WildAuthNewV3': WildAuthNew_V3_handler,
+    'WBToken': token_cmp_handler,
+    'WildAuthNewV3': wb_v3_main_token_handler,
     'Назад' : menu_back_token,
   },
-  'WBToken_edit': {
+  'Wb_cmp_token_edit': {
     'default': set_token_cmp_handler,
     'Назад' : menu_back_selected_token,
   },
-  'WildAuthNew_V3_edit': {
-    'default': set_token_cmp_handler,
+  'Wb_v3_main_token_edit': {
+    'default': set_wb_v3_main_token_handler,
     'Назад' : menu_back_selected_token,
   },
   'Add_advert': {

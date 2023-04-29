@@ -57,6 +57,17 @@ class db_queries:
                 session.commit()
         except Exception as e:
             print(f'Запрос не выполнен по причине: TypeError: {type(e).__name__}: {e}.')
+            
+    
+    def set_user_wb_v3_main_token(telegram_user_id, wb_v3_main_token):
+        try:
+            with Session(engine) as session:
+                user = select(User).where(User.telegram_user_id == telegram_user_id)
+                user = session.scalars(user).one()
+                user.wb_v3_main_token = wb_v3_main_token
+                session.commit()
+        except Exception as e:
+            print(f'Запрос не выполнен по причине: TypeError: {type(e).__name__}: {e}.')
 
 
 
