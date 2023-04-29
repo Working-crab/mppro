@@ -56,11 +56,10 @@ class wb_queries:
         'data': data
       })
       logger.error(result, result.text)
+      raise e # Неверный токен!
 
     logger.debug(f'user_id: {user_id} url: {url} \t headers: {str(headers)} \t result: {str(result)}')
     
-    
-
     return result
 
 
@@ -142,7 +141,6 @@ class wb_queries:
 
   def get_campaign_info(user, campaign, send_exeption=True):
     user_wb_tokens = wb_queries.get_base_tokens(user)
-    logger.warn('after_user_wb_tokens')
     custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
     req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
     # print('get_campaign_info', req_params)
@@ -153,6 +151,7 @@ class wb_queries:
       timeout=10
     )
     campaign_key_word = ''
+    logger.warn("get_campaign_info")
 
     if 'place' in r and len(r['place']) > 0:
       campaign_key_word = r['place'][0]['keyWord']
@@ -420,6 +419,9 @@ class wb_queries:
     user_atrevds = wb_queries.wb_query(method="get",
                                        url=url,
                                        cookies=req_params['cookies'], headers=req_params['headers'])
+    # logger.warn("USER_LIST")
+    # logger.warn(user_atrevds)
+    
     view = {'adverts': user_atrevds['content'], 'total_count': user_atrevds['counts']['totalCount']}
     return view
 

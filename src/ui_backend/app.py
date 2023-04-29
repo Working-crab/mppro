@@ -60,7 +60,10 @@ async def gpt_generate_card_description(data: dict):
     data = gpt_queries.get_card_description(data.get('keyword'))
     return { "data": data }
 
-  
+@app.post('/api/v1/test500', status_code=500)
+async def gpt_generate_card_description(data: dict):
+    return 'Test setver error'
+
 @app.on_event("shutdown")
 def shutdown_event():
   pass

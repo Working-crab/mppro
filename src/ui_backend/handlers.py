@@ -618,6 +618,8 @@ async def adv_settings_get_plus_word(message):
     
   if "error" in words:
     result_message += words['error']
+
+  result_message = escape_telegram_specials(result_message)
   
   await bot.send_message(message.chat.id, result_message, parse_mode="MarkdownV2", reply_markup=adv_settings_words_reply_markup(which_word="Плюс", new=check_new))
   
@@ -718,6 +720,8 @@ async def adv_settings_get_minus_word(message):
   if "error" in words:
     result_message += words['error']
     
+  result_message = escape_telegram_specials(result_message)
+  
   await bot.send_message(message.chat.id, result_message, parse_mode="MarkdownV2", reply_markup=adv_settings_words_reply_markup(which_word="Минус", new=check_new))
   
 
