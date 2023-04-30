@@ -18,7 +18,7 @@ CONSTS = {
 }
 
 class wb_queries:
-  def get_base_tokens(user, wild_auth_v3_token=False):
+  def get_base_tokens(user):
     user_wb_tokens = cache_worker.get_user_wb_tokens(user.id)
 
     user_wb_tokens['wb_cmp_token'] = user.wb_cmp_token

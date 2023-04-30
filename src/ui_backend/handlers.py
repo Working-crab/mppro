@@ -264,7 +264,7 @@ async def set_token_cmp_handler(message):
 async def wb_v3_main_token_handler(message):
   try:
     user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-    user_wild_auth_v3_token = wb_queries.get_base_tokens(user, wild_auth_v3_token=True)
+    user_wild_auth_v3_token = wb_queries.get_base_tokens(user)
   except Exception as e:
     logger.warn(e)
     # logger.warn(user_wild_auth_v3_token)
