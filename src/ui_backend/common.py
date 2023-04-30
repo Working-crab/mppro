@@ -16,38 +16,35 @@ import math
 from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
 
-from ui_backend.message_queue import queue_message_sync
-from ui_backend import mq_campaign_info
-
-def try_except_decorator(fn):
+# def try_except_decorator(fn):
     
-    def the_wrapper(message):
-        try:
-            sucsess_message = fn(message)
-            queue_message_sync(
-              destination_id = message.chat.id,
-              message = sucsess_message,
-              request_message = message.text,
-              parse_mode = 'MarkdownV2'
-            )
-            logger.info(f'{datetime.now()}: {message.from_user.id}: {message.text}: {sucsess_message}')
-        except Exception as e:
-            err_message = f'Произошла ошибка: {type(e).__name__}: {e}'
-            queue_message_sync(
-              destination_id = message.chat.id,
-              request_message = message.text,
-              error = err_message,
-              message = 'На стороне сервера произошла ошибка! Обратитесь к разработчику или попробуйте позже',
-              parse_mode = 'MarkdownV2'
-            )
-            logger.error(f'{datetime.now()}: {message.from_user.id}: {message.text}: {err_message}: {e}')
+#     def the_wrapper(message):
+#         try:
+#             sucsess_message = fn(message)
+#             queue_message_sync(
+#               destination_id = message.chat.id,
+#               message = sucsess_message,
+#               request_message = message.text,
+#               parse_mode = 'MarkdownV2'
+#             )
+#             logger.info(f'{datetime.now()}: {message.from_user.id}: {message.text}: {sucsess_message}')
+#         except Exception as e:
+#             err_message = f'Произошла ошибка: {type(e).__name__}: {e}'
+#             queue_message_sync(
+#               destination_id = message.chat.id,
+#               request_message = message.text,
+#               error = err_message,
+#               message = 'На стороне сервера произошла ошибка! Обратитесь к разработчику или попробуйте позже',
+#               parse_mode = 'MarkdownV2'
+#             )
+#             logger.error(f'{datetime.now()}: {message.from_user.id}: {message.text}: {err_message}: {e}')
 
-    return the_wrapper
+#     return the_wrapper
 
-def msg_handler(*args, **kwargs):
-    def decorator(fn):
-        return syncBot.message_handler(*args, **kwargs)(try_except_decorator(fn))
-    return decorator
+# def msg_handler(*args, **kwargs):
+#     def decorator(fn):
+#         return syncBot.message_handler(*args, **kwargs)(try_except_decorator(fn))
+#     return decorator
 
 
 def universal_reply_markup(search=False):
@@ -397,7 +394,7 @@ async def test_adverts_list(adverts, page_number, page_size, chat_id, user):
   data = campaign_query_info_maker(lst_adverts_ids, user, msg.id)
   data.set(page_number)
 
-  await mq_campaign_info.queue_message_async(data)
+  # await mq_campaign_info.queue_message_async(data)
 
 
 

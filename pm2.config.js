@@ -54,12 +54,12 @@ module.exports = {
       log_file: 'logs/pm2/user_automation.log',
       cron_restart: '*/10 * * * *', // once per 10 minutes
     },
-    {
-      ...defaults,
-      name: 'mq_campaign_info_consumer',
-      script: 'src/ui_backend/mq_campaign_info.py',
-      log_file: 'logs/pm2/campaign_info_consumer.log',
-    },
+    // { TODO: Refactor
+    //   ...defaults,
+    //   name: 'mq_campaign_info_consumer',
+    //   script: 'src/ui_backend/mq_campaign_info.py',
+    //   log_file: 'logs/pm2/campaign_info_consumer.log',
+    // },
 
     // {
     //   name: 'mp_pro_web_test',
