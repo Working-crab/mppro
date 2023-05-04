@@ -25,6 +25,7 @@ from cache_worker.cache_worker import cache_worker
 from kafka_dir.general_publisher import queue_message_async
 import copy
 from gpt_common.gpt_queries import gpt_queries
+import json
 
 import io
 
@@ -105,7 +106,8 @@ async def message_handler(message):
         message = 'Произошла ошибка при обращению к Wildberries, попробуйте позже'
       )
       return
-
+    
+    
     set_user_session_step(message, 'База')
     update_user_session(message)
 
@@ -235,7 +237,7 @@ async def management_tokens(message):
 async def token_cmp_handler(message):
   try:
     user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-    user_wb_tokens = wb_queries.get_base_tokens(user)
+    user_wb_tokens = wb_queries.get_base_tokens(user, check=True)
   except Exception as e:
     logger.warn(e)
     await bot.send_message(message.chat.id, f'WBToken *Не найден* либо *Просрочен*\nНапишите новый токен, если хотите добавить/исправить токен', parse_mode="MarkdownV2", reply_markup=edit_token_reply_markup())
@@ -255,7 +257,7 @@ async def set_token_cmp_handler(message):
     wb_queries.reset_base_tokens(user, token_cmp=clear_token)
   except Exception as e:
     if str(e) == 'Неверный токен!':
-      await bot.send_message(message.chat.id, 'Неверный токен!', reply_markup=universal_reply_markup())
+      await bot.send_message(message.chat.id, 'Неверный токен\!', reply_markup=universal_reply_markup())
       return
     raise e
 
@@ -268,7 +270,7 @@ async def set_token_cmp_handler(message):
 async def wb_v3_main_token_handler(message):
   try:
     user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-    user_wild_auth_v3_token = wb_queries.get_base_tokens(user)
+    user_wild_auth_v3_token = wb_queries.get_base_tokens(user, check=True)
   except Exception as e:
     logger.warn(e)
     # logger.warn(user_wild_auth_v3_token)
@@ -288,11 +290,11 @@ async def set_wb_v3_main_token_handler(message):
     wb_queries.reset_base_tokens(user, token_cmp=None, token_main_v3=clear_token)
   except Exception as e:
     if str(e) == 'Неверный токен!':
-      await bot.send_message(message.chat.id, 'Неверный токен!', reply_markup=universal_reply_markup())
+      await bot.send_message(message.chat.id, 'Неверный токен\!', reply_markup=universal_reply_markup())
       return
     raise e
 
-
+  message.user_session['update_v3_main_token'] = str(datetime.now())
   db_queries.set_user_wb_v3_main_token(telegram_user_id=message.from_user.id, wb_v3_main_token=clear_token)
   await bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
   db_queries.add_action_history(user_id=user.id, action="Токен", action_description=f"Был установлен V3 Main Token: '{clear_token}'")
@@ -318,8 +320,9 @@ async def list_adverts_handler(message):
   
   page_number = 1
   
-  # user_atrevds_data = wb_queries.get_user_atrevds(req_params, page_number)
-  user_atrevds_data = wb_queries.get_user_atrevds(req_params)
+  # user_atrevds_data = wb_queries.get_user_atrevds(req_params, page_number)  try:
+  user_atrevds_data = wb_queries.get_user_atrevds(req_params, user_id=message.from_user.id)
+
   
   page_size = 6
   logger.info(len(user_atrevds_data['adverts']))

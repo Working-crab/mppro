@@ -18,7 +18,7 @@ CONSTS = {
 }
 
 class wb_queries:
-  def get_base_tokens(user):
+  def get_base_tokens(user, check=False):
     user_wb_tokens = cache_worker.get_user_wb_tokens(user.id)
 
     user_wb_tokens['wb_cmp_token'] = user.wb_cmp_token
@@ -26,8 +26,9 @@ class wb_queries:
     
     # if not user_wb_tokens['wb_user_id'] or not user_wb_tokens['wb_supplier_id']:
       # user_wb_tokens = wb_queries.reset_base_tokens(user)
-
-    user_wb_tokens = wb_queries.reset_base_tokens(user)
+    if check:
+      
+      user_wb_tokens = wb_queries.reset_base_tokens(user)
 
     return user_wb_tokens
   
@@ -39,6 +40,17 @@ class wb_queries:
       result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
       attemps = 1
       if result.raise_for_status:
+        if result.status_code == 401:
+          token_update = cache_worker.get_user_session(user_id)['update_v3_main_token']
+
+          difference = datetime.now() - datetime.strptime(token_update, "%Y-%m-%d %H:%M:%S.%f")
+          if difference.minutes < 20:
+            raise Exception('Неверный токен!')
+          else:
+            user = db_queries.get_user_by_telegram_user_id(user_id)
+            wb_queries.reset_base_tokens(user)
+            result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
+            
         while ((result.raise_for_status and result.status_code != 200) and attemps != 3):
           logger.warn(f"In while {attemps}")
           attemps += 1
@@ -176,11 +188,10 @@ class wb_queries:
     custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
     req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
     # print('get_campaign_info', req_params)
-
     r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/placement', 
       cookies=req_params['cookies'],
       headers=req_params['headers'],
-      timeout=10
+      timeout=10,
     )
     campaign_key_word = ''
 
@@ -444,12 +455,12 @@ class wb_queries:
     
 # def get_user_atrevds(req_params, page_number=1, pagesize=100):
 #     url = f'https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate&pageNumber={page_number}&pageSize={pagesize}'
-  def get_user_atrevds(req_params, pagesize=50):
+  def get_user_atrevds(req_params, pagesize=50, user_id=None):
     url = f'https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate&pageNumber=1&pageSize={pagesize}'
     
     user_atrevds = wb_queries.wb_query(method="get",
                                        url=url,
-                                       cookies=req_params['cookies'], headers=req_params['headers'])
+                                       cookies=req_params['cookies'], headers=req_params['headers'], user_id=user_id)
     view = {'adverts': user_atrevds['content'], 'total_count': user_atrevds['counts']['totalCount']}
     return view
 
