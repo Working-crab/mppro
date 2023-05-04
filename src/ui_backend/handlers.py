@@ -22,7 +22,7 @@ from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
 from datetime import datetime, timedelta
 from cache_worker.cache_worker import cache_worker
-from ui_backend.message_queue import queue_message_async
+from kafka_dir.general_publisher import queue_message_async
 import copy
 from gpt_common.gpt_queries import gpt_queries
 
@@ -93,6 +93,7 @@ async def message_handler(message):
 
     if str(e) == 'Неверный токен!':
       await queue_message_async(
+        topic = 'telegram_message_sender',
         destination_id = message.chat.id,
         message = 'Произошла ошибка валидации токена! Возможно срок его действия истек, попробуйте перезагрузить токен!'
       )
@@ -109,6 +110,7 @@ async def message_handler(message):
     update_user_session(message)
 
     await queue_message_async(
+      topic = 'telegram_message_sender',
       destination_id = message.chat.id,
       message = 'На стороне сервера произошла ошибка, обратитесь к разработчику или попробуйте позже'
     )
@@ -209,12 +211,14 @@ async def choose_city_handler(message):
 
 async def help(message):
   await queue_message_async(
+    topic = 'telegram_message_sender',
     destination_id = message.chat.id,
     message = 'По вопросам работы бота обращайтесь: \n (https://t.me/Ropejamp) \n (https://t.me/plazmenni_rezak)'
   )
 
 async def misSpell(message):
   await queue_message_async(
+    topic = 'telegram_message_sender',
     destination_id = message.chat.id,
     message = 'Для работы с ботом используйте меню',
   )

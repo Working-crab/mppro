@@ -1,5 +1,5 @@
 import re
-from ui_backend.common import msg_handler, universal_reply_markup, reply_markup_trial, reply_markup_payment, status_parser
+from ui_backend.common import universal_reply_markup, reply_markup_trial, reply_markup_payment
 from db.queries import db_queries
 from cache_worker.cache_worker import cache_worker
 from wb_common.wb_queries import wb_queries
@@ -9,19 +9,7 @@ from ui_backend.config import *
 from yookassa import Payment
 import uuid
 
-from ui_backend.message_queue import queue_message_sync
 
-
-# PAYMENT_TOKEN = '390540012:LIVE:30668'
-
-
-@msg_handler(commands=['get_token_cmp'])
-def getToken(message):
-
-  token = db_queries.get_user_wb_cmp_token(telegram_user_id=message.from_user.id)
-  token = re.sub('_', '\_', token)
-  token = re.sub('-', '\-', token)
-  return token
 
 # Команды бота -------------------------------------------------------------------------------------------------------
 @bot.message_handler(commands=['start'])
@@ -139,61 +127,6 @@ async def trial(message):
 
 
 
-@msg_handler(commands=['set_token_cmp'])
-async def set_token_cmp(message):
-    clear_token = message.text.replace('/set_token_cmp ', '').strip()
-    db_queries.set_user_wb_cmp_token(telegram_user_id=message.from_user.id, wb_cmp_token=clear_token)
-    return 'Ваш токен установлен\!'
-
-
-@msg_handler(commands=['search'])
-async def search(message):
-        keyword = re.sub('/search ', '', message.text)
-        item_dicts = wb_queries.search_adverts_by_keyword(keyword)
-        result_message = ''
-
-        if len(item_dicts) == 0:
-            return 'ставки неизвестны'#Максим добавь чтобы при неправильном ввроде перекидывало на /start
-        else:
-            for item_idex in range(len(item_dicts)):
-                price = item_dicts[item_idex]['price']
-                p_id = item_dicts[item_idex]['p_id']
-                result_message += f'{item_idex + 1}\\)  {price}р,  [ссылка на товар](https://www.wildberries.ru/catalog/{p_id}/detail.aspx) \n' 
-            return result_message
-
-
-
-@msg_handler(commands=['add_advert'])
-async def add_advert(message):
-    """
-    Команда для запсии в бд информацию о том, что юзер включает рекламную компанию
-    TO wOrKeD:
-    (индентификатор, бюджет, место которое хочет занять)
-    записать это в бд
-    """
-    user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-
-    #(индентификатор, бюджет, место которое хочет занять)args*
-    message_args = re.sub('/add_advert ', '', message.text).split(sep=' ', maxsplit=4)
-    if len(message_args) != 4:
-        await bot.send_message(message.chat.id, f'Для использования команды используйте формат: /add_advert <campaign_id> <max_budget> <place> <status>')
-        return
-
-    campaign_id = re.sub('/add_advert ', '', message_args[0])
-    max_budget = re.sub('/add_advert ', '', message_args[1])
-    place = re.sub('/add_advert ', '', message_args[2])
-    status = re.sub('/add_advert ', '', message_args[3])
-
-    add_result = db_queries.add_user_advert(user, status, campaign_id, max_budget, place)
-    
-    if add_result == 'UPDATED':
-        return 'Ваша рекламная компания успешно обновлена\!'
-    elif add_result == 'ADDED':
-        return 'Ваша рекламная компания успешно добавлена\!'
-
-    return 'Произошла ошибка\!'
-
-
 @bot.message_handler(regexp='/delete_adv')
 async def delete_user_advert(message):
   bot_message_text = message.text
@@ -205,51 +138,6 @@ async def delete_user_advert(message):
   action_message = f'Отслеживание компании'
   db_queries.add_action_history(user_id=user.id, action_description=deletion_message, action=action_message)
   await bot.send_message(message.chat.id, deletion_message)
-
-
-@msg_handler(commands=['delete_advert'])
-async def delete_advert(message):
-    user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-    campaign_id = int(re.sub('/delete_advert ', '', message.text))
-
-    if not campaign_id:
-        return 'Необходимо указать ID рекламной компании\!'
-
-    delete_result = db_queries.delete_user_advert(user, campaign_id)
-
-    if not delete_result:
-        return f'Компания {campaign_id} не найдена\!'
-
-    return f'Компания {campaign_id} удалена\!'
-
-
-@msg_handler(commands=['my_auto_adverts'])
-async def my_auto_adverts(message):
-
-    user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-    adverts = db_queries.get_user_adverts(user.id)
-
-    result = ''
-
-    for advert in adverts:
-        result += f"{advert.campaign_id} \t Ставка: {advert.max_budget} \t Место: {advert.place} \t Статус: {advert.status}\n"
-        result = re.sub('-', '\-', result)
-        result = re.sub('_', '\_', result)
-        result = re.sub('!', '\!', result)
-
-    if not adverts:
-        result = 'Вы ещё не добавили команий\! Используйте add\_advert'
-    
-    return result
-
-
-
-@msg_handler(commands=['reset_base_tokens'])
-async def reset_base_tokens(message):
-    user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-    tokens = wb_queries.reset_base_tokens(user)
-    
-    return str(tokens)
 
 
 
