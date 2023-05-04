@@ -11,9 +11,6 @@ import ui_backend.commands as commands
 import ui_backend.handlers as handlers
 from gpt_common.gpt_queries import gpt_queries
 
-from ui_backend.message_queue import main as message_queue
-from ui_backend.mq_campaign_info import main as mq_campaign_info
-
 
 app = FastAPI(openapi_url=None)
 
@@ -23,8 +20,6 @@ async def on_startup():
     webhook_info = await bot.get_webhook_info()
     if webhook_info.url != WEBHOOK_URL:
         await bot.set_webhook(url=WEBHOOK_URL)
-    asyncio.create_task(message_queue(asyncio.get_event_loop()))
-    asyncio.create_task(mq_campaign_info(asyncio.get_event_loop()))
 
 @app.post('/')
 async def webhook(update: Dict[str, Any]):
@@ -64,5 +59,3 @@ async def gpt_generate_card_description(data: dict):
 @app.on_event("shutdown")
 def shutdown_event():
   pass
-  # if message_queue_connection:
-  #   message_queue_connection.close()

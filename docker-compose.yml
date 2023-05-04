@@ -11,7 +11,6 @@ services:
   postgres:
     image: postgres:14-alpine
     container_name: 'postgres'
-    restart: always
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
@@ -25,26 +24,11 @@ services:
   redis:
     image: redis:6-alpine
     container_name: 'redis'
-    restart: always
     ports:
       - 127.0.0.1:6379:6379
     command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
     volumes: 
       - redis:/data
-    # networks:
-    #     - app_network
-
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    container_name: 'rabbitmq'
-    restart: always
-    ports:
-        - 127.0.0.1:5672:5672
-        - 127.0.0.1:5671:5671
-        - 127.0.0.1:15672:15672
-    volumes:
-        - rabbitmq:/var/lib/rabbitmq/
-        - rabbitmq:/var/log/rabbitmq
     # networks:
     #     - app_network
 
@@ -65,18 +49,16 @@ services:
     networks:
       - kafka-network
     ports:
-      - 9092:9092
+      - 127.0.0.1:9092:9092
     environment:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-    
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+ 
 
 volumes:
   postgres:
     driver: local
   redis:
-    driver: local
-  rabbitmq:
     driver: local
   kafka:
     driver: local

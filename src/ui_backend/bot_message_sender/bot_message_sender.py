@@ -1,15 +1,17 @@
 
 from ui_backend.config import syncBot
 from ui_backend.common import get_reply_markup
-import pika, sys, os
-import json
+from kafka_dir.general_consumer import create_async_consumer
+import sys, os
+
+import asyncio
 
 from common.appLogger import appLogger
 logger = appLogger.getLogger('bot_message_sender')
 
 
 DEFAULT_MARKUP = 'universal_reply_markup'
-CONSUMER_QUEUE = 'bot_message_sender_queue'
+CONSUMER_TOPIC = 'telegram_message_sender'
 
 def send_message(**kwargs):
 
@@ -51,37 +53,23 @@ def set_reply_kwarg(reply_kwargs, kwargs, param):
 
 
 
-def main():
+async def consume():
+  consumer = await create_async_consumer(CONSUMER_TOPIC)
+  print('start consume')
+  try:
+    async for msg in consumer:
+      send_message(**msg.value)
+  finally:
+    await consumer.stop()
 
-  host='localhost'
+async def main():
+  await asyncio.gather(consume())
 
-  connection = None
-  channel = None
-
-  def callback(ch, method, properties, body):
-    check_connection()
-    body_loaded = json.loads(body)
-    logger.info(body_loaded)
-    send_message(**body_loaded)
-
-  def check_connection():
-    nonlocal connection
-    nonlocal channel
-
-    if not connection or connection.is_closed:
-      connection = pika.BlockingConnection(pika.ConnectionParameters(host=host))
-      channel = connection.channel()
-      channel.queue_declare(queue=CONSUMER_QUEUE)
-      channel.basic_consume(queue=CONSUMER_QUEUE, on_message_callback=callback, auto_ack=True)
-      channel.start_consuming()
-
-  check_connection()
-  logger.info(' Started, waiting for messages')
 
 
 if __name__ == '__main__':
     try:
-        main()
+        asyncio.run(main())
     except KeyboardInterrupt:
         print('Interrupted')
         try:
