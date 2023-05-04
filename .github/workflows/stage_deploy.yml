@@ -27,5 +27,5 @@ jobs:
             git checkout stage &&
             git reset --hard origin/stage &&
             git pull origin stage &&
-            bash deploy/init.bash
+            bash deploy.bash
           '
