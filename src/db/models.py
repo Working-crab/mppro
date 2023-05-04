@@ -13,7 +13,7 @@ class User(Base):
     telegram_user_id = Column(BigInteger, nullable=False, unique=True)
     telegram_chat_id = Column(BigInteger, nullable=False, unique=True)
     telegram_username = Column(String(255))
-    wb_main_token = Column(String(2048))
+    wb_v3_main_token = Column(String(2048))
     wb_cmp_token = Column(String(2048))
 
     time_created = Column(DateTime(timezone=True), server_default=func.now())
