@@ -119,3 +119,25 @@ pm2 start pm2_local.config.js
 15. you can work :)
 
 &emsp; You can use debug with VS code(example config in ${workspaceFolder}/ launch_example.json) 
+
+
+
+## Migrating database
+
+source venv/bin/activate
+cd src/db
+
+1) Перейти в src/db
+2) Выполнять команды приведенные ниже
+
+alembic revision --autogenerate -m "<migration name>" - создает файл для миграции в папке migrations
+
+alembic upgrade head - для применения миграции
+
+alembic upgrade -1 - откатывает миграцию назад на 1(вместо "-1" можно использовать хэшь миграции)
+
+------------------------------------------------------->
+
+uvicorn main:app --reload - Команда для запуска фастапи
+
+systemctl reload nginx - Перезагрузка енджинкса
