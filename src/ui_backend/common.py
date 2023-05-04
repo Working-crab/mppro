@@ -366,7 +366,7 @@ def advert_info_message_maker(adverts, page_number, page_size, user):
         if db_advert.status == 'ON':
           bot_status     += f"\t Отслеживается\!"
           add_delete_str += f"\t Перестать отслеживать РК: /delete\_adv\_{advert['id']}\n"
-          add_delete_str += f"\t Макс\. ставка: {db_advert.max_budget} макс\. место: {db_advert.place}\n"
+          add_delete_str += f"\t Макс\. ставка: {db_advert.max_bid} макс\. место: {db_advert.place}\n"
         else:
           bot_status     += f"\t Не отслеживается\!"
           add_delete_str += f"\t Отслеживать РК: /add\_adv\_{advert['id']}\n"

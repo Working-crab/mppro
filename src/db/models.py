@@ -38,7 +38,7 @@ class Advert(Base):
     __tablename__ = "adverts"
 
     id = Column(Integer, primary_key=True)
-    max_budget = Column(Integer, nullable=False)
+    max_bid = Column(Integer, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     place = Column(String, nullable=False)
     campaign_id = Column(Integer, nullable=False, default=0)
@@ -51,7 +51,7 @@ class Advert(Base):
     user_budget_analitics_logs = relationship('User_budget_analitics_logs', back_populates='adverts')
 
     def __repr__(self):
-        return f"Advert(id={self.id!r}, max_budget={self.max_budget!r}, user_id={self.user_id!r}, place={self.place!r})"
+        return f"Advert(id={self.id!r}, max_bid={self.max_bid!r}, user_id={self.user_id!r}, place={self.place!r})"
 
 
 class Subscription(Base):
@@ -135,3 +135,17 @@ class Stat_words(Base):
 
     def __repr__(self):
         return f"Stat_words(id={self.id!r}, status={self.status!r}, campaing_id={self.campaing_id!r}, word={self.word!r}, type={self.type!r}, timestamp={self.timestamp!r})"
+
+
+class User_analitics(Base):
+    __tablename__ = "user_analitics"
+    
+    id = Column(Integer, primary_key=True)
+    max_bid_company = Column(Integer, nullable=False)
+    max_budget_company = Column(Integer, nullable=False)
+    current_bet = Column(Integer, nullable=False)
+    economy = Column(Integer, nullable=False)
+    date_time = Column(DateTime(timezone=True), nullable=False)
+
+    def __repr__(self):
+        return f"User_analitics(id={self.id!r}, max_bid_company ={self.max_bid_company!r}max_budget_company={self.max_budget_company!r}, current_bet={self.current_bet!r}, economy={self.economy!r}, date_time={self.date_time!r})"

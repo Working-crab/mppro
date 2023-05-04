@@ -176,15 +176,15 @@ async def add_advert(message):
     #(индентификатор, бюджет, место которое хочет занять)args*
     message_args = re.sub('/add_advert ', '', message.text).split(sep=' ', maxsplit=4)
     if len(message_args) != 4:
-        await bot.send_message(message.chat.id, f'Для использования команды используйте формат: /add_advert <campaign_id> <max_budget> <place> <status>')
+        await bot.send_message(message.chat.id, f'Для использования команды используйте формат: /add_advert <campaign_id> <max_bid> <place> <status>')
         return
 
     campaign_id = re.sub('/add_advert ', '', message_args[0])
-    max_budget = re.sub('/add_advert ', '', message_args[1])
+    max_bid = re.sub('/add_advert ', '', message_args[1])
     place = re.sub('/add_advert ', '', message_args[2])
     status = re.sub('/add_advert ', '', message_args[3])
 
-    add_result = db_queries.add_user_advert(user, status, campaign_id, max_budget, place)
+    add_result = db_queries.add_user_advert(user, status, campaign_id, max_bid, place)
     
     if add_result == 'UPDATED':
         return 'Ваша рекламная компания успешно обновлена\!'
@@ -232,7 +232,7 @@ async def my_auto_adverts(message):
     result = ''
 
     for advert in adverts:
-        result += f"{advert.campaign_id} \t Ставка: {advert.max_budget} \t Место: {advert.place} \t Статус: {advert.status}\n"
+        result += f"{advert.campaign_id} \t Ставка: {advert.max_bid} \t Место: {advert.place} \t Статус: {advert.status}\n"
         result = re.sub('-', '\-', result)
         result = re.sub('_', '\_', result)
         result = re.sub('!', '\!', result)
