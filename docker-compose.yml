@@ -1,56 +1,64 @@
 version: '3.8'
 
-# networks:
-#   app_network:
-#     driver: bridge
+networks:
+  app_network:
+    driver: bridge
+  kafka-network:
+    driver: bridge
 
 services:
 
   postgres:
     image: postgres:14-alpine
     container_name: 'postgres'
-    restart: always
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     ports:
-      - '127.0.0.1:5432:5432'
+      - 127.0.0.1:5432:5432
     volumes: 
       - postgres:/var/lib/postgresql/data
-    # networks:
-    #     - app_network
-
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    container_name: 'rabbitmq'
-    restart: always
-    ports:
-        - 127.0.0.1:5672:5672
-        - 127.0.0.1:5671:5671
-        - 127.0.0.1:15672:15672
-    volumes:
-        - rabbitmq:/var/lib/rabbitmq/
-        - rabbitmq:/var/log/rabbitmq
     # networks:
     #     - app_network
 
   redis:
     image: redis:6-alpine
     container_name: 'redis'
-    restart: always
     ports:
-      - '127.0.0.1:6379:6379'
+      - 127.0.0.1:6379:6379
     command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
     volumes: 
       - redis:/data
     # networks:
     #     - app_network
-    
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:6.1.1
+    container_name: zookeeper
+    networks:
+      - kafka-network
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      
+  kafka:
+    image: confluentinc/cp-kafka:6.1.1
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    networks:
+      - kafka-network
+    ports:
+      - 127.0.0.1:9092:9092
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+ 
 
 volumes:
   postgres:
     driver: local
-  rabbitmq:
-    driver: local
   redis:
+    driver: local
+  kafka:
     driver: local

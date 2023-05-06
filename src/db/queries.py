@@ -58,7 +58,14 @@ class db_queries:
             user = session.scalars(user).one()
             user.wb_cmp_token = wb_cmp_token
             session.commit()
-
+    
+    
+    def set_user_wb_v3_main_token(telegram_user_id, wb_v3_main_token):
+          with Session(engine) as session:
+              user = select(User).where(User.telegram_user_id == telegram_user_id)
+              user = session.scalars(user).one()
+              user.wb_v3_main_token = wb_v3_main_token
+              session.commit()
 
 
     def get_user_wb_cmp_token(telegram_user_id):

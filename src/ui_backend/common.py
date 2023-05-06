@@ -16,38 +16,35 @@ import math
 from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
 
-from ui_backend.message_queue import queue_message_sync
-from ui_backend import mq_campaign_info
-
-def try_except_decorator(fn):
+# def try_except_decorator(fn):
     
-    def the_wrapper(message):
-        try:
-            sucsess_message = fn(message)
-            queue_message_sync(
-              destination_id = message.chat.id,
-              message = sucsess_message,
-              request_message = message.text,
-              parse_mode = 'MarkdownV2'
-            )
-            logger.info(f'{datetime.now()}: {message.from_user.id}: {message.text}: {sucsess_message}')
-        except Exception as e:
-            err_message = f'Произошла ошибка: {type(e).__name__}: {e}'
-            queue_message_sync(
-              destination_id = message.chat.id,
-              request_message = message.text,
-              error = err_message,
-              message = 'На стороне сервера произошла ошибка! Обратитесь к разработчику или попробуйте позже',
-              parse_mode = 'MarkdownV2'
-            )
-            logger.error(f'{datetime.now()}: {message.from_user.id}: {message.text}: {err_message}: {e}')
+#     def the_wrapper(message):
+#         try:
+#             sucsess_message = fn(message)
+#             queue_message_sync(
+#               destination_id = message.chat.id,
+#               message = sucsess_message,
+#               request_message = message.text,
+#               parse_mode = 'MarkdownV2'
+#             )
+#             logger.info(f'{datetime.now()}: {message.from_user.id}: {message.text}: {sucsess_message}')
+#         except Exception as e:
+#             err_message = f'Произошла ошибка: {type(e).__name__}: {e}'
+#             queue_message_sync(
+#               destination_id = message.chat.id,
+#               request_message = message.text,
+#               error = err_message,
+#               message = 'На стороне сервера произошла ошибка! Обратитесь к разработчику или попробуйте позже',
+#               parse_mode = 'MarkdownV2'
+#             )
+#             logger.error(f'{datetime.now()}: {message.from_user.id}: {message.text}: {err_message}: {e}')
 
-    return the_wrapper
+#     return the_wrapper
 
-def msg_handler(*args, **kwargs):
-    def decorator(fn):
-        return syncBot.message_handler(*args, **kwargs)(try_except_decorator(fn))
-    return decorator
+# def msg_handler(*args, **kwargs):
+#     def decorator(fn):
+#         return syncBot.message_handler(*args, **kwargs)(try_except_decorator(fn))
+#     return decorator
 
 
 def universal_reply_markup(search=False):
@@ -164,6 +161,29 @@ def action_history_reply_markup():
   return markup_inline
 
 
+def management_tokens_reply_markup():
+  markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
+
+  btn_wbtoken = types.KeyboardButton(text='WBToken')
+  btn_wildauthnewV3 = types.KeyboardButton(text='WildAuthNewV3')
+  btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
+
+  markup_inline.add(btn_wbtoken, btn_wildauthnewV3)
+  markup_inline.add(btn_back)
+    
+  return markup_inline
+
+
+def edit_token_reply_markup():
+  markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
+
+  btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
+
+  markup_inline.add(btn_back)
+    
+  return markup_inline
+
+
 def action_history_filter_reply_markup(action):
   markup_inline = types.InlineKeyboardMarkup()
   
@@ -184,7 +204,7 @@ def universal_reply_markup_additionally(user_id=None):
   markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
   btn_help = types.KeyboardButton(text='👨‍💻 Помощь 👨‍💻')
-  btn_set_token_cmp = types.KeyboardButton(text='🔑 Установить токен 🔑')
+  btn_set_token_cmp = types.KeyboardButton(text='🔑 Управление токенами 🔑')
   btn_get_logs = types.KeyboardButton(text='📋 История действий 📋')
   # btn_add_adverts = types.KeyboardButton(text='📄 Добавить рекламную компанию 📄')
   btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
@@ -408,7 +428,7 @@ async def test_adverts_list(adverts, page_number, page_size, chat_id, user):
   data = campaign_query_info_maker(lst_adverts_ids, user, msg.id)
   data.set(page_number)
 
-  await mq_campaign_info.queue_message_async(data)
+  # await mq_campaign_info.queue_message_async(data)
 
 
 
