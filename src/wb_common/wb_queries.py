@@ -484,11 +484,7 @@ class wb_queries:
     if 'total' in r:
       total_budget = int(r['total'])
 
-    res = {
-      'Бюджет компании': total_budget,
-    }
-
-    return res
+    return {'Бюджет компании': total_budget,}
 
 
   def get_all_categories():

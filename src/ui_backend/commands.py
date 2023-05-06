@@ -127,6 +127,7 @@ async def trial(message):
 
 
 
+
 @bot.message_handler(regexp='/delete_adv')
 async def delete_user_advert(message):
   bot_message_text = message.text
@@ -138,7 +139,6 @@ async def delete_user_advert(message):
   action_message = f'Отслеживание компании'
   db_queries.add_action_history(user_id=user.id, action_description=deletion_message, action=action_message)
   await bot.send_message(message.chat.id, deletion_message)
-
 
 
 @bot.message_handler(commands=['buy'])
