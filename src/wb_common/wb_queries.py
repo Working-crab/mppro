@@ -22,7 +22,10 @@ class wb_queries:
     user_wb_tokens = cache_worker.get_user_wb_tokens(user.id)
 
     user_wb_tokens['wb_cmp_token'] = user.wb_cmp_token
-    user_wb_tokens['wb_v3_main_token'] = user.wb_v3_main_token
+    try:
+      user_wb_tokens['wb_v3_main_token'] = user.wb_v3_main_token
+    except:
+      user_wb_tokens['wb_v3_main_token'] = None
     
     # if not user_wb_tokens['wb_user_id'] or not user_wb_tokens['wb_supplier_id']:
       # user_wb_tokens = wb_queries.reset_base_tokens(user)
@@ -44,7 +47,7 @@ class wb_queries:
           token_update = cache_worker.get_user_session(user_id)['update_v3_main_token']
 
           difference = datetime.now() - datetime.strptime(token_update, "%Y-%m-%d %H:%M:%S.%f")
-          if difference.minutes < 20:
+          if difference.minutes < 10:
             raise Exception('Неверный токен!')
           else:
             user = db_queries.get_user_by_telegram_user_id(user_id)
@@ -55,7 +58,7 @@ class wb_queries:
           logger.warn(f"In while {attemps}")
           attemps += 1
           result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
-          time.sleep(3)
+          # time.sleep(3)
           logger.warn(result.status_code)
           
       if data == "{}":

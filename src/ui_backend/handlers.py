@@ -277,7 +277,11 @@ async def wb_v3_main_token_handler(message):
     await bot.send_message(message.chat.id, f'WildAuthNewV3 *Не найден* либо *Просрочен*\nНапишите новый токен, если хотите добавить/исправить токен', parse_mode="MarkdownV2", reply_markup=edit_token_reply_markup())
     return set_user_session_step(message, 'Wb_v3_main_token_edit')
   
-  await bot.send_message(message.chat.id, f'WildAuthNewV3: {user_wild_auth_v3_token["wb_v3_main_token"]}\nНа данный момент он Активен\nНапишите новый токен, если хотите изменить', reply_markup=edit_token_reply_markup())
+  if user_wild_auth_v3_token["wb_v3_main_token"] == None or user_wild_auth_v3_token["wb_v3_main_token"] == "":
+    await bot.send_message(message.chat.id, f'WildAuthNewV3 *Не найден* либо *Просрочен*\nНапишите новый токен, если хотите добавить/исправить токен', parse_mode="MarkdownV2", reply_markup=edit_token_reply_markup())
+    return set_user_session_step(message, 'Wb_v3_main_token_edit')
+  else:
+    await bot.send_message(message.chat.id, f'WildAuthNewV3: {user_wild_auth_v3_token["wb_v3_main_token"]}\nНа данный момент он Активен\nНапишите новый токен, если хотите изменить', reply_markup=edit_token_reply_markup())
   set_user_session_step(message, 'Wb_v3_main_token_edit')
 
 
@@ -369,7 +373,7 @@ async def kek(data):
 @bot.message_handler(regexp='Добавить рекламную компанию')
 async def cb_adverts(message):
   pass # TODO refactor
-  # msg_text = 'Введите данные в формате "<campaign_id> <max_budget> <place> <status>" в следующем сообщение.'
+  # msg_text = 'Введите данные в формате "<campaign_id> <max_bid> <place> <status>" в следующем сообщение.'
   # sent = await bot.send_message(message.chat.id, msg_text, reply_markup=types.ReplyKeyboardRemove())
   # await bot.register_next_step_handler(sent,add_advert_handler)
 
@@ -385,16 +389,16 @@ async def add_advert_handler(message):
   #(индентификатор, бюджет, место которое хочет занять)args*
   message_args = re.sub('/add_advert ', '', message.text).split(sep=' ', maxsplit=4)
   if len(message_args) != 4:
-      msg_text = 'Для использования команды используйте формат: /add_advert <campaign_id> <max_budget> <place> <status>'
+      msg_text = 'Для использования команды используйте формат: /add_advert <campaign_id> <max_bid> <place> <status>'
       await bot.send_message(message.chat.id, msg_text, reply_markup=universal_reply_markup())
       return
 
   campaign_id = re.sub('/add_advert ', '', message_args[0])
-  max_budget = re.sub('/add_advert ', '', message_args[1])
+  max_bid = re.sub('/add_advert ', '', message_args[1])
   place = re.sub('/add_advert ', '', message_args[2])
   status = re.sub('/add_advert ', '', message_args[3])
 
-  add_result = db_queries.add_user_advert(user, status, campaign_id, max_budget, place)
+  add_result = db_queries.add_user_advert(user, status, campaign_id, max_bid, place)
   
   res_msg = ''
   if add_result == 'UPDATED':

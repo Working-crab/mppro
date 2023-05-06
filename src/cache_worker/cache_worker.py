@@ -42,7 +42,8 @@ class cache_worker:
       
       expire = 60 * 60 * 24 * 7 # 7 days
       redis_client.set(make_wb_key(user_id, 'wb_cmp_token'),    user_wb_tokens['wb_cmp_token'],   ex=expire)
-      redis_client.set(make_wb_key(user_id, 'wb_v3_main_token'),    user_wb_tokens['wb_v3_main_token'],   ex=expire)
+      if 'wb_v3_main_token' in user_wb_tokens:
+        redis_client.set(make_wb_key(user_id, 'wb_v3_main_token'),    user_wb_tokens['wb_v3_main_token'],   ex=expire)
       redis_client.set(make_wb_key(user_id, 'wb_supplier_id'),  user_wb_tokens['wb_supplier_id'], ex=expire)
       redis_client.set(make_wb_key(user_id, 'wb_user_id'),      user_wb_tokens['wb_user_id'],     ex=expire)
 

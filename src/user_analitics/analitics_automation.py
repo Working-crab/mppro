@@ -10,4 +10,3 @@ class analitics_automation:
     campaign_popa = db_queries.get_campaign_by_user_id_and_campaign_id(user.id, campaign_id)
     total_budget = wb_queries.get_budget(user, campaign_popa)
     print(total_budget)
-
