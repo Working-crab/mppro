@@ -1,4 +1,5 @@
 from datetime import datetime
+from functools import wraps
 from ui_backend.config import syncBot
 from telebot import types
 from db.queries import db_queries
@@ -16,38 +17,35 @@ import math
 from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
 
-from ui_backend.message_queue import queue_message_sync
-from ui_backend import mq_campaign_info
-
-def try_except_decorator(fn):
+# def try_except_decorator(fn):
     
-    def the_wrapper(message):
-        try:
-            sucsess_message = fn(message)
-            queue_message_sync(
-              destination_id = message.chat.id,
-              message = sucsess_message,
-              request_message = message.text,
-              parse_mode = 'MarkdownV2'
-            )
-            logger.info(f'{datetime.now()}: {message.from_user.id}: {message.text}: {sucsess_message}')
-        except Exception as e:
-            err_message = f'Произошла ошибка: {type(e).__name__}: {e}'
-            queue_message_sync(
-              destination_id = message.chat.id,
-              request_message = message.text,
-              error = err_message,
-              message = 'На стороне сервера произошла ошибка! Обратитесь к разработчику или попробуйте позже',
-              parse_mode = 'MarkdownV2'
-            )
-            logger.error(f'{datetime.now()}: {message.from_user.id}: {message.text}: {err_message}: {e}')
+#     def the_wrapper(message):
+#         try:
+#             sucsess_message = fn(message)
+#             queue_message_sync(
+#               destination_id = message.chat.id,
+#               message = sucsess_message,
+#               request_message = message.text,
+#               parse_mode = 'MarkdownV2'
+#             )
+#             logger.info(f'{datetime.now()}: {message.from_user.id}: {message.text}: {sucsess_message}')
+#         except Exception as e:
+#             err_message = f'Произошла ошибка: {type(e).__name__}: {e}'
+#             queue_message_sync(
+#               destination_id = message.chat.id,
+#               request_message = message.text,
+#               error = err_message,
+#               message = 'На стороне сервера произошла ошибка! Обратитесь к разработчику или попробуйте позже',
+#               parse_mode = 'MarkdownV2'
+#             )
+#             logger.error(f'{datetime.now()}: {message.from_user.id}: {message.text}: {err_message}: {e}')
 
-    return the_wrapper
+#     return the_wrapper
 
-def msg_handler(*args, **kwargs):
-    def decorator(fn):
-        return syncBot.message_handler(*args, **kwargs)(try_except_decorator(fn))
-    return decorator
+# def msg_handler(*args, **kwargs):
+#     def decorator(fn):
+#         return syncBot.message_handler(*args, **kwargs)(try_except_decorator(fn))
+#     return decorator
 
 
 def universal_reply_markup(search=False):
@@ -164,6 +162,30 @@ def action_history_reply_markup():
   return markup_inline
 
 
+def management_tokens_reply_markup():
+  markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
+
+  btn_wbtoken = types.KeyboardButton(text='WBToken')
+  btn_wildauthnewV3 = types.KeyboardButton(text='WildAuthNewV3')
+  btn_x_supplier_id = types.KeyboardButton(text='x_supplier_id')
+  btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
+
+  markup_inline.add(btn_wbtoken, btn_x_supplier_id, btn_wildauthnewV3)
+  markup_inline.add(btn_back)
+    
+  return markup_inline
+
+
+def edit_token_reply_markup():
+  markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
+
+  btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
+
+  markup_inline.add(btn_back)
+    
+  return markup_inline
+
+
 def action_history_filter_reply_markup(action):
   markup_inline = types.InlineKeyboardMarkup()
   
@@ -184,7 +206,7 @@ def universal_reply_markup_additionally(user_id=None):
   markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
   btn_help = types.KeyboardButton(text='👨‍💻 Помощь 👨‍💻')
-  btn_set_token_cmp = types.KeyboardButton(text='🔑 Установить токен 🔑')
+  btn_set_token_cmp = types.KeyboardButton(text='🔑 Управление токенами 🔑')
   btn_get_logs = types.KeyboardButton(text='📋 История действий 📋')
   # btn_add_adverts = types.KeyboardButton(text='📄 Добавить рекламную компанию 📄')
   btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
@@ -366,7 +388,7 @@ def advert_info_message_maker(adverts, page_number, page_size, user):
         if db_advert.status == 'ON':
           bot_status     += f"\t Отслеживается\!"
           add_delete_str += f"\t Перестать отслеживать РК: /delete\_adv\_{advert['id']}\n"
-          add_delete_str += f"\t Макс\. ставка: {db_advert.max_budget} макс\. место: {db_advert.place}\n"
+          add_delete_str += f"\t Макс\. ставка: {db_advert.max_bid} макс\. место: {db_advert.place}\n"
         else:
           bot_status     += f"\t Не отслеживается\!"
           add_delete_str += f"\t Отслеживать РК: /add\_adv\_{advert['id']}\n"
@@ -408,7 +430,7 @@ async def test_adverts_list(adverts, page_number, page_size, chat_id, user):
   data = campaign_query_info_maker(lst_adverts_ids, user, msg.id)
   data.set(page_number)
 
-  await mq_campaign_info.queue_message_async(data)
+  # await mq_campaign_info.queue_message_async(data)
 
 
 
@@ -485,3 +507,28 @@ def get_search_result_message(keyword, city=None):
     result_message += f'{message_string}\n'
 
   return result_message
+
+
+def check_sub(required_subs):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(message):
+          user_id = message.from_user.id
+          user = db_queries.get_user_by_telegram_user_id(user_id)
+          
+          sub = db_queries.get_sub(user.subscriptions_id)
+          if sub is None:
+              await bot.send_message(user_id, "У вас недостаточно прав для выполнения данной команды, купите подписку")
+              return None
+          else:
+            sub_name = sub.title  
+          
+            if sub is not None and sub_name in required_subs:
+                return await func(message, sub_name)
+            elif sub is not None and sub_name not in required_subs:
+              await bot.send_message(user_id, "У вас недостаточно прав для выполнения данной команды, купите подписку по лучше")
+              return None
+            
+            
+        return wrapper
+    return decorator

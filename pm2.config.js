@@ -37,7 +37,7 @@ module.exports = {
     {
       ...defaults,
       name: 'bot_message_sender',
-      script: 'venv/bin/python3 src/ui_backend/bot_message_sender/bot_message_sender.py',
+      script: 'src/ui_backend/bot_message_sender/bot_message_sender.py',
       log_file: 'logs/pm2/bot_message_sender.log',
     },
     {
@@ -54,12 +54,12 @@ module.exports = {
       log_file: 'logs/pm2/user_automation.log',
       cron_restart: '*/10 * * * *', // once per 10 minutes
     },
-    {
-      ...defaults,
-      name: 'mq_campaign_info_consumer',
-      script: 'src/ui_backend/mq_campaign_info.py',
-      log_file: 'logs/pm2/campaign_info_consumer.log',
-    },
+    // { TODO: Refactor
+    //   ...defaults,
+    //   name: 'mq_campaign_info_consumer',
+    //   script: 'src/ui_backend/mq_campaign_info.py',
+    //   log_file: 'logs/pm2/campaign_info_consumer.log',
+    // },
 
     // {
     //   name: 'mp_pro_web_test',
