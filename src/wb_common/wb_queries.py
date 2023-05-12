@@ -419,7 +419,8 @@ class wb_queries:
     
     r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/set-plus?fixed={switch}',
       cookies=req_params['cookies'],
-      headers=req_params['headers']
+      headers=req_params['headers'],
+      request=True
     )
     
     status = "Включены" if switch == "true" else "Выключены"

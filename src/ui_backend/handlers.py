@@ -1023,7 +1023,8 @@ async def adv_settings_switch_on_word(message):
         await bot.send_message(message.chat.id, f"Фиксированные фразы были *Включены*", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
       else:
         await bot.send_message(message.chat.id, f"Произошла ошибка и Фиксированные фразы не были *Включены*, попробуйте еще раз", parse_mode="MarkdownV2", reply_markup=fixed_word_switch(fixed_status=False))
-    except Exception:
+    except Exception as e:
+      logger.warn(f"error {e}")
       await bot.send_message(message.chat.id, f"Произошла ошибка при изменении статуса фиксированных фраз, попробуйте еще раз", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
     
   
