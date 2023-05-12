@@ -40,7 +40,7 @@ class wb_queries:
           logger.warn(f"In while {attemps}")
           attemps += 1
           result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
-          time.sleep(3)
+          # time.sleep(3)
           logger.warn(result.status_code)
           
       logger.warn(f"result {result}")
