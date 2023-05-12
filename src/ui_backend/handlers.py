@@ -298,7 +298,6 @@ async def set_x_supplier_id_handler(message):
   await bot.send_message(message.chat.id, f'Ваш id установлен\!')
   
   db_queries.set_user_x_supplier_id(telegram_user_id=message.from_user.id, x_supplier_id=clear_id)  
-  # cache_worker.set_user_wb_tokens()
   db_queries.add_action_history(user_id=user.id, action="x_supplier_id", action_description=f"Был установлен x_supplier_id: '{clear_id}'")
 
 
@@ -326,7 +325,6 @@ async def wb_v3_main_token_handler(message):
     user_wild_auth_v3_token = wb_queries.get_base_tokens(user, check=True)
   except Exception as e:
     logger.warn(e)
-    # logger.warn(user_wild_auth_v3_token)
     await bot.send_message(message.chat.id, f'WildAuthNewV3 *Не найден* либо *Просрочен*\nНапишите новый токен, если хотите добавить/исправить токен', parse_mode="MarkdownV2", reply_markup=edit_token_reply_markup())
     return set_user_session_step(message, 'Wb_v3_main_token_edit')
   
@@ -356,9 +354,6 @@ async def set_wb_v3_main_token_handler(message):
   await bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
   db_queries.add_action_history(user_id=user.id, action="Токен", action_description=f"Был установлен V3 Main Token: '{clear_token}'")
 
-# async def set_token_cmp(message):
-#   await bot.send_message(message.chat.id, 'Введите токен', reply_markup=types.ReplyKeyboardRemove())
-#   set_user_session_step(message, 'Set_token_cmp')
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
