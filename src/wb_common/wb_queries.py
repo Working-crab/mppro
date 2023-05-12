@@ -22,38 +22,44 @@ class wb_queries:
     user_wb_tokens = cache_worker.get_user_wb_tokens(user.id)
 
     user_wb_tokens['wb_cmp_token'] = user.wb_cmp_token
-    try:
-      user_wb_tokens['wb_v3_main_token'] = user.wb_v3_main_token
-    except:
-      user_wb_tokens['wb_v3_main_token'] = None
     
+    if user.wb_v3_main_token:
+      user_wb_tokens['wb_v3_main_token'] = user.wb_v3_main_token
+              
+    if user.x_supplier_id:
+      user_wb_tokens['x_supplier_id'] = user.x_supplier_id
     # if not user_wb_tokens['wb_user_id'] or not user_wb_tokens['wb_supplier_id']:
-      # user_wb_tokens = wb_queries.reset_base_tokens(user)
-    if check:
+    #   user_wb_tokens = wb_queries.reset_base_tokens(user)
       
+    if check:
       user_wb_tokens = wb_queries.reset_base_tokens(user)
 
     return user_wb_tokens
   
 
-  def wb_query(method, url, cookies=None, headers=None, data=None, user_id=None, timeout=None):
+  def wb_query(method, url, cookies=None, headers=None, data=None, user_id=None, timeout=None, request=False):
     result = None
     result = {}
     try:
+      logger.warn(f"{method} url={url}, cookies={cookies}, headers={headers}, data={data}, timeout={timeout}")
       result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
-      attemps = 1
       if result.raise_for_status:
         if result.status_code == 401:
-          token_update = cache_worker.get_user_session(user_id)['update_v3_main_token']
-
-          difference = datetime.now() - datetime.strptime(token_update, "%Y-%m-%d %H:%M:%S.%f")
-          if difference.minutes < 10:
-            raise Exception('Неверный токен!')
+          user = db_queries.get_user_by_telegram_user_id(user_id)
+          if user.update_v3_main_token:
+            token_update = cache_worker.get_user_session(user_id)['update_v3_main_token']
+            difference = datetime.now() - datetime.strptime(token_update, "%Y-%m-%d %H:%M:%S.%f")
+            if difference.seconds < 600:
+              raise Exception('Неверный токен!')
+            else:
+              user = db_queries.get_user_by_telegram_user_id(user_id)
+              wb_queries.reset_base_tokens(user)
+              result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
+              if result.raise_for_status:
+                raise Exception('Неверный токен!')
           else:
-            user = db_queries.get_user_by_telegram_user_id(user_id)
-            wb_queries.reset_base_tokens(user)
-            result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
-            
+            raise Exception('Неверный токен!')
+        attemps = 1    
         while ((result.raise_for_status and result.status_code != 200) and attemps != 3):
           logger.warn(f"In while {attemps}")
           attemps += 1
@@ -67,7 +73,8 @@ class wb_queries:
       logger.warn(f"result {result}")
       logger.warn(f"result status code")
       logger.warn(result.status_code)
-      result = result.json()
+      if not request:
+        result = result.json()
     except Exception as e:
       logger.debug({
         'method': method,
@@ -77,7 +84,7 @@ class wb_queries:
         'data': data
       })
       # logger.error(result, result)
-      # raise Exception("wb_query error" + str(e))
+      raise Exception("wb_query error " + str(e))
 
     logger.debug(f'user_id: {user_id} url: {url} \t headers: {str(headers)} \t result: {str(result)}')    
     
@@ -92,8 +99,19 @@ class wb_queries:
     user_wb_tokens['wb_v3_main_token'] = ""
     
     user_wb_tokens['wb_cmp_token'] = user.wb_cmp_token
-    user_wb_tokens['wb_v3_main_token'] = user.wb_v3_main_token
     
+    logger.warn(user.x_supplier_id)
+    
+    if user.x_supplier_id != None:
+      user_wb_tokens['x_supplier_id'] = user.x_supplier_id
+    else:
+      raise Exception('x_supplier_id Отсутствует!')
+
+    if user.wb_v3_main_token != None or user.wb_v3_main_token != "":
+      user_wb_tokens['wb_v3_main_token'] = user.wb_v3_main_token
+
+      # if token_cmp: TODO
+      #   raise Exception("Ошибка установки нового токена")
     
     
     if token_cmp:
@@ -101,6 +119,8 @@ class wb_queries:
       
     if token_main_v3:
       user_wb_tokens['wb_v3_main_token'] = token_main_v3
+      
+    logger.warn(user_wb_tokens['wb_v3_main_token'])  
 
     # if not user_wb_tokens['wb_cmp_token']:
     #   raise Exception('Не найден токен! wb_cmp_token')
@@ -110,7 +130,8 @@ class wb_queries:
 
     cookies = {
       'WBToken': user_wb_tokens['wb_cmp_token'],
-      'WILDAUTHNEW_V3': user_wb_tokens['wb_v3_main_token']
+      'WILDAUTHNEW_V3': user_wb_tokens['wb_v3_main_token'],
+      'x-supplier-id-external': user_wb_tokens['x_supplier_id'],
     }
 
     headers = {
@@ -118,26 +139,32 @@ class wb_queries:
       'User-Agent': CONSTS['User-Agent'],
     }
 
-    logger_token.info('cookies, headers', cookies, headers)
+    logger_token.warn('cookies, headers', cookies, headers)
     # logger.warn(auth_result)
     # if not user_wb_tokens['wb_cmp_token']:
+    
     if user_wb_tokens['wb_v3_main_token']:
-      auth_result = wb_queries.wb_query(method='post', url='https://cmp.wildberries.ru/passport/api/v2/auth/wild_v3_upgrade', cookies=cookies, headers=headers, data="{}")
+      auth_result = wb_queries.wb_query(method='post', url='https://cmp.wildberries.ru/passport/api/v2/auth/wild_v3_upgrade', cookies={'WILDAUTHNEW_V3': user_wb_tokens['wb_v3_main_token']}, data="{}")
       
       if not auth_result or not "Set-Cookie" in auth_result:
         raise Exception('Неверный токен!')
       
-      cmp_token = db_queries.get_user_wb_cmp_token(user.telegram_user_id)
-      cookies['WBToken'] = auth_result['Set-Cookie'].replace('WBToken=', '')
+      cmp_token = db_queries.get_user_wb_cmp_token(user.telegram_user_id)    
+      cookies['WBToken'] = auth_result['Set-Cookie'].replace('WBToken=', '').split(";")[0]
+            
       if cmp_token != cookies['WBToken']:
         db_queries.set_user_wb_cmp_token(telegram_user_id=user.telegram_user_id, wb_cmp_token=cookies['WBToken'])
-      
-      
+        # if token_cmp:
+        #   raise Exception("Ошибка установки нового токена")
+    
+    logger.warn("COOKIES")
+    logger.warn(cookies)
       
     introspect_result = wb_queries.wb_query(method='get', url='https://cmp.wildberries.ru/passport/api/v2/auth/introspect', cookies=cookies, headers=headers)
-      
+    
+    # introspect_result = introspect.json()
     #   logger_token.info('introspect_result', introspect_result)
-
+    
     if not introspect_result or not 'sessionID' in introspect_result or not 'userID' in introspect_result:
       print(f'{datetime.now()} \t reset_base_tokens \t introspect error! \t {introspect_result}')
       raise Exception('Неверный токен!')
@@ -147,11 +174,15 @@ class wb_queries:
 
     cookies['WBToken']              = introspect_result['sessionID']
     headers['X-User-Id']            = str(introspect_result['userID'])
+    logger.warn(introspect_result)
 
-
-    supplierslist_result = wb_queries.wb_query(method="get", url='https://cmp.wildberries.ru/backend/supplierslist', cookies=cookies, headers=headers)
-
-    user_wb_tokens['wb_supplier_id'] = supplierslist_result[0]['id']
+    logger.warn("REQ")
+    logger.warn(headers)
+    logger.warn(cookies)
+    
+    supplier_result = wb_queries.wb_query(method="get", url='https://cmp.wildberries.ru/backend/api/v3/supplier', cookies=cookies, headers=headers)
+    logger.warn(supplier_result['supplier']['id'])
+    user_wb_tokens['wb_supplier_id'] = supplier_result['supplier']['id']
     logger.warn(user_wb_tokens)
     cache_worker.set_user_wb_tokens(user.id, user_wb_tokens)
 
@@ -447,7 +478,7 @@ class wb_queries:
     return {
       'cookies': {
         'WBToken': user_wb_tokens['wb_cmp_token'],
-        'x-supplier-id-external': str(user_wb_tokens['wb_supplier_id']),
+        'x-supplier-id-external': user_wb_tokens['x_supplier_id'],
       },
       'headers': {
         'Referer': referer,
@@ -464,6 +495,7 @@ class wb_queries:
     user_atrevds = wb_queries.wb_query(method="get",
                                        url=url,
                                        cookies=req_params['cookies'], headers=req_params['headers'], user_id=user_id)
+    logger.warn(user_atrevds)
     view = {'adverts': user_atrevds['content'], 'total_count': user_atrevds['counts']['totalCount']}
     return view
 

@@ -2,7 +2,11 @@ import telebot
 from telebot.async_telebot import AsyncTeleBot
 from yookassa import Configuration
 import os
+from common.appLogger import appLogger
+# import locale
 
+# logger.warn("LOCALE")
+# locale.setlocale(locale.LC_ALL, "ru_RU.UTF-8")
 
 if os.path.isfile('src/ui_backend/config_local.py'):
     from ui_backend import config_local

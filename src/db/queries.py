@@ -6,7 +6,7 @@ from sqlalchemy import desc
 from sqlalchemy.sql.expression import bindparam
 import traceback
 
-from .models import Stat_words, User, Advert, Subscription, Transaction, Action_history
+from .models import Stat_words, User, Advert, Subscription, Transaction, Action_history, User_analitics
 from .engine import engine
 
 
@@ -66,23 +66,37 @@ class db_queries:
               user = session.scalars(user).one()
               user.wb_v3_main_token = wb_v3_main_token
               session.commit()
-
-
+              
+              
     def get_user_wb_cmp_token(telegram_user_id):
         with Session(engine) as session:
             user = select(User).where(User.telegram_user_id == telegram_user_id)
             user = session.scalars(user).one()
             return user.wb_cmp_token
+              
+    
+    def set_user_x_supplier_id(telegram_user_id, x_supplier_id):
+          with Session(engine) as session:
+              user = select(User).where(User.telegram_user_id == telegram_user_id)
+              user = session.scalars(user).one()
+              user.x_supplier_id = x_supplier_id
+              session.commit()
+              
+    
+    def get_user_x_supplier_id(telegram_user_id):
+        with Session(engine) as session:
+            user = select(User).where(User.telegram_user_id == telegram_user_id)
+            user = session.scalars(user).one()
+            return user.x_supplier_id
 
 
-
-    def add_user_advert(user,  campaign_id,  max_budget=None, status='ON', place=None):
+    def add_user_advert(user,  campaign_id,  max_bid=None, status='ON', place=None):
         with Session(engine) as session:
 
             advert = session.query(Advert).filter(Advert.user_id == user.id, Advert.campaign_id == int(campaign_id)).first()
 
             if not advert:
-                advert_budget = max_budget
+                advert_budget = max_bid
                 if advert_budget is None:
                     advert_budget = 0
                     status = 'OFF'
@@ -91,7 +105,7 @@ class db_queries:
                     place = 1
 
                 advert = Advert(
-                    max_budget = advert_budget, #(int())
+                    max_bid = advert_budget, #(int())
                     user_id = user.id,
                     place = place, # maybe string
                     campaign_id = int(campaign_id),
@@ -101,10 +115,10 @@ class db_queries:
                 session.commit()
                 return 'ADDED'
             else:
-                if max_budget is not None:
-                    advert.max_budget = max_budget
+                if max_bid is not None:
+                    advert.max_budget = max_bid
 
-                if not max_budget and not advert.max_budget:
+                if not max_bid and not advert.max_bid:
                     status = 'OFF'
                 
                 if place is not None:
