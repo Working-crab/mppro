@@ -27,12 +27,14 @@ class cache_worker:
     wb_v3_main_token    = redis_client.get(make_wb_key(user_id, 'wb_v3_main_token'))
     wb_supplier_id  = redis_client.get(make_wb_key(user_id, 'wb_supplier_id'))
     wb_user_id      = redis_client.get(make_wb_key(user_id, 'wb_user_id'))
+    # x_supplier_id      = redis_client.get(make_wb_key(user_id, 'x_supplier_id'))
 
     result = {
       'wb_cmp_token': wb_cmp_token,
       'wb_supplier_id': wb_supplier_id,
       'wb_user_id': wb_user_id,
-      'wb_v3_main_token' : wb_v3_main_token
+      'wb_v3_main_token' : wb_v3_main_token,
+      # 'x_supplier_id': x_supplier_id
     }
 
     return result
@@ -42,7 +44,10 @@ class cache_worker:
       
       expire = 60 * 60 * 24 * 7 # 7 days
       redis_client.set(make_wb_key(user_id, 'wb_cmp_token'),    user_wb_tokens['wb_cmp_token'],   ex=expire)
-      redis_client.set(make_wb_key(user_id, 'wb_v3_main_token'),    user_wb_tokens['wb_v3_main_token'],   ex=expire)
+      if 'wb_v3_main_token' in user_wb_tokens:
+        redis_client.set(make_wb_key(user_id, 'wb_v3_main_token'),    user_wb_tokens['wb_v3_main_token'],   ex=expire)
+      # if 'x_supplier_id' in user_wb_tokens:
+      #   redis_client.set(make_wb_key(user_id, 'x_supplier_id'),  user_wb_tokens['x_supplier_id'], ex=expire)
       redis_client.set(make_wb_key(user_id, 'wb_supplier_id'),  user_wb_tokens['wb_supplier_id'], ex=expire)
       redis_client.set(make_wb_key(user_id, 'wb_user_id'),      user_wb_tokens['wb_user_id'],     ex=expire)
 

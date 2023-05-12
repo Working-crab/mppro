@@ -37,7 +37,7 @@ module.exports = {
     {
       ...defaults,
       name: 'bot_message_sender',
-      script: 'venv/bin/python3 src/ui_backend/bot_message_sender/bot_message_sender.py',
+      script: 'src/ui_backend/bot_message_sender/bot_message_sender.py',
       log_file: 'logs/pm2/bot_message_sender.log',
     },
     {

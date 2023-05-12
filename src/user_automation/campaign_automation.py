@@ -3,7 +3,7 @@ from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
 import time
 from datetime import datetime
-
+from user_analitics import main as user_analitics
 import traceback
 from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
@@ -26,6 +26,7 @@ class campaign_automation:
       try:
         campaign_automation.check_campaign(campaign)
         campaign_automation.check_stat_word(campaign)
+        user_analitics.start_logs_analitcs(campaign.user_id, campaign.id)
       except Exception as e:
         traceback.print_exc()
         logger.error(f'Exception: {e}.')
@@ -64,7 +65,7 @@ class campaign_automation:
     for bid in current_bids_table:
       if int(bid['position']) < int(campaign.place):
         continue
-      if bid['price'] < campaign.max_budget:
+      if bid['price'] < campaign.max_bid:
         new_bid = bid['price'] + 1
         bid_p_id = bid['p_id']
         approximate_place = bid['position']

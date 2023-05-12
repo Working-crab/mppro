@@ -2,9 +2,11 @@ import asyncio
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 import json
 
+from common.appLogger import appLogger
+logger = appLogger.getLogger(__name__)
 
 producer = {}
-DEFAULT_TOPIC = {}
+DEFAULT_TOPIC = 'telegram_message_sender'
 
 async def create_async_producer():
   producer = AIOKafkaProducer(
@@ -18,6 +20,7 @@ async def create_async_producer():
 
 
 async def queue_message_async(**kwargs):
+  logger.warn(123)
   global producer
   if not producer:
     producer = await create_async_producer()
