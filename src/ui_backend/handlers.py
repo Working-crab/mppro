@@ -1179,15 +1179,23 @@ async def show_my_sub(message):
 
 # --- card product --------------------------------------------------------------------------------------------
 
-@check_sub(['Standart🔥'])
+@check_sub(['Trial', 'Standart🔥', 'Advanced'])
 async def card_product(message, sub_name):
-  await bot.send_message(message.chat.id, f'У вас подключена подписка: "{sub_name}"\nВведите ключевые слова для описание товара', reply_markup=types.ReplyKeyboardRemove())
-  set_user_session_step(message, 'card_product')
+  user = db_queries.get_user_by_telegram_user_id(message.chat.id)
+  tokens = db_queries.get_user_tokens(user_id=user.id)
+  if tokens > 100:
+    await bot.send_message(message.chat.id, f'На данный момент у вас "{tokens}" токенов, этого хватит примерно на ~{tokens / 150}\nВведите ключевые слова для описание товара', reply_markup=edit_token_reply_markup())
+    set_user_session_step(message, 'card_product')
+  else:
+    await bot.send_message(message.chat.id, f'На данный момент у вас "{tokens}" токенов, этого не хватает для создания карточки товара.\nМинимум 100', reply_markup=universal_reply_markup())
+    set_user_session_step(message, 'База')
+  
 
 async def card_product_next_step_handler(message):
   keyword = message.text
   proccesing = await bot.send_message(message.chat.id, "Обработка запроса...", reply_markup=universal_reply_markup())
-  gpt_text = gpt_queries.get_card_description(prompt=keyword)
+  user = db_queries.get_user_by_telegram_user_id(message.chat.id)
+  gpt_text = gpt_queries.get_card_description(user_id=user.id, prompt=keyword)
   # logger.warn(gpt_text)
   
   await bot.delete_message(proccesing.chat.id, proccesing.message_id)
@@ -1278,6 +1286,7 @@ step_map = {
   },
   'card_product': {
     'default': card_product_next_step_handler,
+    'Назад': menu_back,
   },
   'get_word': {
     'Назад': menu_back_word,

@@ -10,11 +10,17 @@ logger_token = appLogger.getLogger(__name__+'_token')
 
 class gpt_queries:
 
-    def get_card_description(prompt):
+    def get_card_description(prompt, user_id):
         openai.api_key = GPT_TOKEN
         completion = openai.ChatCompletion.create(
             model=GPT_MODEL_NAME,
             messages=[{"role": "user", "content": f"Создай описание товара и индексируемые теги на маркетплейсе с такими ключевыми параметрами [{prompt}]. Все должно быть СТРОГО по следующему шаблону. Индексируемых тегов должно быть СТРОГО НЕ МЕНЬШЕ 10. Индексируемые теги должны идти СТРОГО через заяпятую БЕЗ ЛИШНИХ СИМВОЛОВ. Шаблон: Название товара; Описание товара; Индексируемые теги"}])
+        
+        logger.warn("completion")
+        logger.warn(completion)
+        tokens_spent = completion.usage.total_tokens
+        
+        db_queries.edit_user_tokens_transaction(user_id=user_id, amount=-tokens_spent, type="Карточка товара")
         
         completion_content = completion.choices[0].message.content
 

@@ -1,12 +1,11 @@
 
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import select, update
-from sqlalchemy import desc
+from sqlalchemy import Integer, func, select, update, desc, cast
 from sqlalchemy.sql.expression import bindparam
 import traceback
 
-from .models import Stat_words, User, Advert, Subscription, Transaction, Action_history, User_analitics
+from .models import GPT_Transaction, Stat_words, User, Advert, Subscription, Transaction, Action_history, User_analitics
 from .engine import engine
 
 
@@ -403,3 +402,24 @@ class db_queries:
                 return True
             else:
                 return False
+            
+            
+    def get_user_tokens(user_id):
+        with Session(engine) as session:
+            if session.query(GPT_Transaction).filter(GPT_Transaction.user_id == user_id).first() is not None:
+                tokens = session.query(func.sum(cast(GPT_Transaction.amount, Integer))).filter(GPT_Transaction.user_id == user_id).scalar()
+                return tokens
+            else:
+                return 0
+        
+        
+    def edit_user_tokens_transaction(user_id, amount, type):
+        with Session(engine) as session:
+            add_tokens = GPT_Transaction(
+                user_id = user_id,
+                type = type,
+                amount = amount
+            )
+            session.add(add_tokens)
+            session.commit()
+            return True

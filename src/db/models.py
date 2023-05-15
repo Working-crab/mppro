@@ -31,6 +31,7 @@ class User(Base):
     sub_end_date = Column(DateTime(timezone=True))
 
     adverts = relationship("Advert")
+    gpt_transactions = relationship("GPT_Transaction")
 
     def __repr__(self):
         return f"User(id={self.id!r}, username={self.telegram_username!r})"
@@ -62,6 +63,7 @@ class Subscription(Base):
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
     price = Column(Integer, default=0)
+    tokens_get = Column(Integer, default=0)
 
     user = relationship('User', back_populates='subscriptions')
     transactions = relationship('Transaction', back_populates='subscriptions')
@@ -87,6 +89,20 @@ class Transaction(Base):
 
     def __repr__(self):
         return f"Transaction(id={self.id!r}, title={self.title!r}, total={self.total!r}, user_id={self.user_id!r}, subscription_id={self.subscription_id!r})"
+    
+    
+class GPT_Transaction(Base):
+    __tablename__ = "gpt_transactions"
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    type = Column(String, nullable=False)
+    amount = Column(String, nullable=True)
+
+    user = relationship('User', back_populates='gpt_transactions')
+
+    def __repr__(self):
+        return f"GPT_Transaction(id={self.id!r}, user_id={self.user_id!r}, type={self.type!r}, amount={self.amount!r})"
 
 
 class User_budget_analitics_logs(Base):
