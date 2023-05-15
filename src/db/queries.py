@@ -211,59 +211,40 @@ class db_queries:
                 
                 transaction = Transaction(
                     title = sub.title,
-                    description = "Была активирована подписка",
+                    description = f"Была активирована {sub.title} подписка",
                     total = total,
                     user_id = user.id,
                     subscription_id = sub.id,
                 )
-                session.add(transaction)
-                session.commit()
-                return True
-            else:
-                return False
-            
-
-        
-    def set_trial(user_id, sub_name):
-        with Session(engine) as session:
-            user = session.query(User).filter(User.telegram_user_id == user_id).first()
-            sub = session.query(Subscription).filter(Subscription.title == sub_name).first()
-            
-            if user:
-                sub = session.query(Subscription).filter(Subscription.title == sub_name).first()
-                user.sub_start_date = datetime.now()
-                user.sub_end_date = datetime.now() + timedelta(days=7)
-                user.subscriptions_id = sub.id
                 
-                transaction = Transaction(
-                    title = "Trial",
-                    description = "Была активирована Пробная подписка",
-                    total = 0,
+                token_transaction = GPT_Transaction(
                     user_id = user.id,
-                    subscription_id = sub.id,
+                    type = "Активация подписки",
+                    amount = sub.tokens_get
                 )
+                
                 session.add(transaction)
+                session.add(token_transaction)
                 session.commit()
                 return True
             else:
                 return False
             
-
         
-    def sub_list(user_id, sub_name):
-        with Session(engine) as session:
-            user = session.query(User).filter(User.telegram_user_id == user_id).first()
-            sub = session.query(Subscription).filter(Subscription.title == sub_name).first()
+    # def sub_list(user_id, sub_name):
+    #     with Session(engine) as session:
+    #         user = session.query(User).filter(User.telegram_user_id == user_id).first()
+    #         sub = session.query(Subscription).filter(Subscription.title == sub_name).first()
             
-            if user:
-                sub = session.query(Subscription).filter(Subscription.title == sub_name).first()
-                user.sub_start_date = datetime.now()
-                user.sub_end_date = datetime.now() + timedelta(days=30)
-                user.subscriptions_id = sub.id
-                session.commit()
-                return True
-            else:
-                return False
+    #         if user:
+    #             sub = session.query(Subscription).filter(Subscription.title == sub_name).first()
+    #             user.sub_start_date = datetime.now()
+    #             user.sub_end_date = datetime.now() + timedelta(days=30)
+    #             user.subscriptions_id = sub.id
+    #             session.commit()
+    #             return True
+    #         else:
+    #             return False
             
 
         

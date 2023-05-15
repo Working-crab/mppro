@@ -1157,7 +1157,7 @@ async def show_my_sub(message):
   user = db_queries.get_user_by_telegram_user_id(message.chat.id)
   my_sub = db_queries.get_sub(sub_id=user.subscriptions_id)
   if user.subscriptions_id:
-    await bot.send_message(message.chat.id, 'Подключен: `{}`\nСрок действия с `{}` по `{}`'.format(my_sub.title, user.sub_start_date.strftime('%d/%m/%Y'), user.sub_end_date.strftime('%d/%m/%Y')), reply_markup=universal_reply_markup())
+    await bot.send_message(message.chat.id, 'Подключен: `{}`\nОписание: `{}`\nСрок действия с `{}` по `{}`'.format(my_sub.title, my_sub.description, user.sub_start_date.strftime('%d/%m/%Y'), user.sub_end_date.strftime('%d/%m/%Y')), reply_markup=universal_reply_markup())
     if not "Advanced" in my_sub.title:
       await bot.send_message(message.chat.id, 'Вы можете обновиться на более крутую подписку', reply_markup=universal_reply_markup())
       sub_list = db_queries.get_all_sub()
@@ -1166,14 +1166,16 @@ async def show_my_sub(message):
         for sub in sub_list:
           if sub.title == my_sub.title:
             continue
-          await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
+          await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
+          # await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\n   Хотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
   else:
     await bot.send_message(message.chat.id, 'У вас не подключено никаких платных подписок\nНиже предоставлены варианты для покупки: ')
     sub_list = db_queries.get_all_sub()
     # if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
     if PAYMENT_TOKEN.split(':')[1] == 'TEST':
       for sub in sub_list:
-        await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
+        await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
+        # await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
 
 # --------------------------------------------------------------------------------------------------------------------------------
 
@@ -1183,16 +1185,25 @@ async def show_my_sub(message):
 async def card_product(message, sub_name):
   user = db_queries.get_user_by_telegram_user_id(message.chat.id)
   tokens = db_queries.get_user_tokens(user_id=user.id)
-  if tokens > 100:
-    await bot.send_message(message.chat.id, f'На данный момент у вас "{tokens}" токенов, этого хватит примерно на ~{tokens / 150}\nВведите ключевые слова для описание товара', reply_markup=edit_token_reply_markup())
+  if tokens > 650:
+    # цена запроса с огр на длинну 255 символов(которые вводит юзер) + * кол во на 2 + * 100 умножить(свободный)
+    await bot.send_message(message.chat.id, f'На данный момент у вас: {round(tokens / 650, 2)} средних запросов\nВведите ключевые слова для описание товара', reply_markup=edit_token_reply_markup())
     set_user_session_step(message, 'card_product')
   else:
-    await bot.send_message(message.chat.id, f'На данный момент у вас "{tokens}" токенов, этого не хватает для создания карточки товара.\nМинимум 100', reply_markup=universal_reply_markup())
+    # await bot.send_message(message.chat.id, f'На данный момент у вас "{tokens}" токенов, этого не хватает для создания карточки товара.\nМинимум 100', reply_markup=universal_reply_markup())
+    await bot.send_message(message.chat.id, f'На данный момент у вас "{round(tokens / 650, 2)}" средних запросов, этого не хватает для создания карточки товара.', reply_markup=universal_reply_markup())
     set_user_session_step(message, 'База')
-  
+
 
 async def card_product_next_step_handler(message):
+  user = db_queries.get_user_by_telegram_user_id(message.chat.id)
+  tokens = db_queries.get_user_tokens(user_id=user.id)
+  
   keyword = message.text
+  
+  if len(keyword) >= 255:
+    return await bot.send_message(message.chat.id, f'К сожалению, нельзя использовать больше 255 символов, попробуйте еще раз', reply_markup=universal_reply_markup())
+  
   proccesing = await bot.send_message(message.chat.id, "Обработка запроса...", reply_markup=universal_reply_markup())
   user = db_queries.get_user_by_telegram_user_id(message.chat.id)
   gpt_text = gpt_queries.get_card_description(user_id=user.id, prompt=keyword)

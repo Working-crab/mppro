@@ -37,7 +37,7 @@ async def start(message):
 async def trial(call):
     if call.data == "Trial_Yes":
         await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text="Активируем Вам подписку, а пока можете посмотреть что она предоставляет: Информация\nИли /trial - Информация", reply_markup=reply_markup_trial(trial=True))
-        db_queries.set_trial(user_id=call.message.chat.id, sub_name='Trial')
+        db_queries.update_sub(user_id=call.message.chat.id, sub_name='Trial', total=0)
     if call.data == "Trial_No":
         await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text=f'Хорошо, но если вы всё же захотите активировать подписку, введите команду /trial', parse_mode='Markdown')
     if call.data == "Trial_info":
