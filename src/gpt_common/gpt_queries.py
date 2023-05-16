@@ -11,6 +11,16 @@ logger_token = appLogger.getLogger(__name__+'_token')
 class gpt_queries:
 
     def get_card_description(prompt, user_id):
+        
+        user = db_queries.get_user_by_id(user_id)
+        
+        if user.subscriptions_id == None:
+            return 401
+        
+        # tokens = db_queries.get_user_tokens(user_id)
+        # if tokens < 650:
+        #     return "Недостаточно токенов"
+        
         openai.api_key = GPT_TOKEN
         completion = openai.ChatCompletion.create(
             model=GPT_MODEL_NAME,
