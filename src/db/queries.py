@@ -219,10 +219,14 @@ class db_queries:
                     subscription_id = sub.id,
                 )
                 
+                if sub.requests_get is None:
+                    requests_get = 0
+                
                 token_transaction = GPT_Transaction(
                     user_id = user.id,
                     type = "Активация подписки",
-                    amount = sub.tokens_get
+                    request_amount = requests_get,
+                    token_amount = 700 * requests_get
                 )
                 
                 session.add(transaction)
