@@ -1162,9 +1162,11 @@ async def show_paid_services(message):
 async def show_my_requests(message):
   set_user_session_step(message, 'paid_service')
   user = db_queries.get_user_by_telegram_user_id(message.chat.id)
-  gtp_requests = db_queries.get_user_gpt_requests(user_id=user.id)
+  gpt_requests = db_queries.get_user_gpt_requests(user_id=user.id)
+  
+  gpt_requests = 0 if gpt_requests == None else gpt_requests
     # цена запроса с огр на длинну 255 символов(которые вводит юзер) + * кол во на 2 + * 100 умножить(свободный)
-  await bot.send_message(message.chat.id, f'На данный момент у вас: {format_requests_count(gtp_requests)}, нажав на кнопку под сообщением, вы можете купить определенное количество запросов', reply_markup=paid_requests_inline_markup())
+  await bot.send_message(message.chat.id, f'На данный момент у вас: {format_requests_count(gpt_requests)}, нажав на кнопку под сообщением, вы можете купить определенное количество запросов', reply_markup=paid_requests_inline_markup())
     
 
 @bot.callback_query_handler(func=lambda x: re.match('paid_service:', x.data))

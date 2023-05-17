@@ -41,7 +41,7 @@ async def webhook(data: dict):
             db_queries.update_sub(user_id=data['object']['metadata']['telegram_user_id'], sub_name=data['object']['metadata']['subscription_name'], total=int(float(total)))
             await bot.send_message(data['object']['metadata']['telegram_user_id'], f"Была подключена подписка: {data['object']['metadata']['subscription_name']}\nЕсли хотите узнать подробнее, нажмите - Платные услуги >>> Моя подписка")
         elif 'requests_amount' in data['object']['metadata']:
-            db_queries.edit_user_transaction(user_id=data['object']['metadata']['telegram_user_id'], type="Buy", token_amount=data['object']['metadata']['requests_amount'] * 700, request_amount=data['object']['metadata']['requests_amount'])
+            db_queries.edit_user_transaction(user_id=data['object']['metadata']['telegram_user_id'], type="Buy", token_amount=int(data['object']['metadata']['requests_amount']) * 700, request_amount=int(data['object']['metadata']['requests_amount']))
             await bot.send_message(data['object']['metadata']['telegram_user_id'], f"Было успешно куплено: {data['object']['metadata']['requests_amount']} запросов\nЕсли хотите узнать сколько у вас сейчас запросов нажмите: Платные услуги >>> Мои запросы")
     return 'ok'
 

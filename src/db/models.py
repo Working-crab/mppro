@@ -83,7 +83,7 @@ class Transaction(Base):
     time_created = Column(DateTime(timezone=True), server_default=func.now())
     
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    subscription_id = Column(Integer, ForeignKey('subscriptions.id'), nullable=False)
+    subscription_id = Column(Integer, ForeignKey('subscriptions.id'), nullable=True)
 
     user = relationship('User', back_populates='transactions')
     subscriptions = relationship('Subscription', back_populates='transactions')
@@ -100,6 +100,7 @@ class GPT_Transaction(Base):
     type = Column(String, nullable=False)
     token_amount = Column(Integer, nullable=True)
     request_amount = Column(Integer, nullable=True)
+    time_created = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship('User', back_populates='gpt_transactions')
 

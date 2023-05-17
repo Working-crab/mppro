@@ -398,8 +398,10 @@ class db_queries:
         
     def edit_user_transaction(user_id, type, token_amount, request_amount):
         with Session(engine) as session:
+            user = session.query(User).filter(User.telegram_user_id == user_id).first()
+            
             add_tokens = GPT_Transaction(
-                user_id = user_id,
+                user_id = user.id,
                 type = type,
                 token_amount = token_amount,
                 request_amount = request_amount
