@@ -31,6 +31,7 @@ class User(Base):
     sub_end_date = Column(DateTime(timezone=True))
 
     adverts = relationship("Advert")
+    user_analitics = relationship("User_analitics")
     gpt_transactions = relationship("GPT_Transaction")
 
     def __repr__(self):
@@ -158,11 +159,15 @@ class User_analitics(Base):
     __tablename__ = "user_analitics"
     
     id = Column(Integer, primary_key=True)
+    campaign_id = Column(Integer, nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     max_bid_company = Column(Integer, nullable=False)
     max_budget_company = Column(Integer, nullable=False)
     current_bet = Column(Integer, nullable=False)
     economy = Column(Integer, nullable=False)
     date_time = Column(DateTime(timezone=True), nullable=False)
 
+    user = relationship('User', back_populates='user_analitics')
+
     def __repr__(self):
-        return f"User_analitics(id={self.id!r}, max_bid_company ={self.max_bid_company!r}max_budget_company={self.max_budget_company!r}, current_bet={self.current_bet!r}, economy={self.economy!r}, date_time={self.date_time!r})"
+        return f"User_analitics(id={self.id!r}, campaign_id ={self.campaign_id!r}, user_id ={self.user_id!r}, max_bid_company ={self.max_bid_company!r}, max_budget_company={self.max_budget_company!r}, current_bet={self.current_bet!r}, economy={self.economy!r}, date_time={self.date_time!r})"

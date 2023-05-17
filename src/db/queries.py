@@ -25,9 +25,11 @@ class db_queries:
             session.commit()
 
 
-    def add_user_analitcs(max_bid_company, max_budget_company, current_bet, economy, date_time):
+    def add_user_analitcs(user_id, campaign_id, max_bid_company, max_budget_company, current_bet, economy, date_time):
         with Session(engine) as session:
             user_analitics = User_analitics(
+                user_id = user_id,
+                campaign_id = campaign_id,
                 max_bid_company = max_bid_company,
                 max_budget_company = max_budget_company,
                 current_bet = current_bet,
