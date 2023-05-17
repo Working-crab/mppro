@@ -64,7 +64,7 @@ class Subscription(Base):
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
     price = Column(Integer, default=0)
-    tokens_get = Column(Integer, default=0)
+    requests_get = Column(Integer, default=0)
 
     user = relationship('User', back_populates='subscriptions')
     transactions = relationship('Transaction', back_populates='subscriptions')
@@ -98,12 +98,13 @@ class GPT_Transaction(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     type = Column(String, nullable=False)
-    amount = Column(String, nullable=True)
+    token_amount = Column(Integer, nullable=True)
+    request_amount = Column(Integer, nullable=True)
 
     user = relationship('User', back_populates='gpt_transactions')
 
     def __repr__(self):
-        return f"GPT_Transaction(id={self.id!r}, user_id={self.user_id!r}, type={self.type!r}, amount={self.amount!r})"
+        return f"GPT_Transaction(id={self.id!r}, user_id={self.user_id!r}, type={self.type!r}, token_amount={self.token_amount!r}, request_amount={self.request_amount!r})"
 
 
 class User_budget_analitics_logs(Base):
