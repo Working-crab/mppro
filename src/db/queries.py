@@ -388,19 +388,31 @@ class db_queries:
     def get_user_tokens(user_id):
         with Session(engine) as session:
             if session.query(GPT_Transaction).filter(GPT_Transaction.user_id == user_id).first() is not None:
-                tokens = session.query(func.sum(cast(GPT_Transaction.amount, Integer))).filter(GPT_Transaction.user_id == user_id).scalar()
+                tokens = session.query(func.sum(cast(GPT_Transaction.token_amount, Integer))).filter(GPT_Transaction.user_id == user_id).scalar()
                 return tokens
             else:
                 return 0
         
         
-    def edit_user_tokens_transaction(user_id, amount, type):
+    def edit_user_transaction(user_id, type, token_amount, request_amount):
         with Session(engine) as session:
             add_tokens = GPT_Transaction(
                 user_id = user_id,
                 type = type,
-                amount = amount
+                token_amount = token_amount,
+                request_amount = request_amount
             )
             session.add(add_tokens)
             session.commit()
             return True
+        
+        
+    def get_user_gpt_requests(user_id):
+        with Session(engine) as session:
+            if session.query(GPT_Transaction).filter(GPT_Transaction.user_id == user_id).first() is not None:
+                gtp_requests = session.query(func.sum(cast(GPT_Transaction.request_amount, Integer))).filter(GPT_Transaction.user_id == user_id).scalar()
+                return gtp_requests
+            else:
+                return 0
+            
+        
