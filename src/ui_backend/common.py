@@ -407,6 +407,7 @@ def advert_info_message_maker(adverts, page_number, page_size, user):
       budget = wb_queries.get_budget(user, campaign)
       budget = budget.get("Бюджет компании")
     except Exception as e:
+      budget = None
       logger.info(e)
 
     if budget is not None:

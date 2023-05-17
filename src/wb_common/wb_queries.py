@@ -37,7 +37,7 @@ class wb_queries:
     return user_wb_tokens
   
 
-  def wb_query(method, url, cookies=None, headers=None, data=None, user_id=None, timeout=None, request=False):
+  def wb_query(method, url, cookies=None, headers=None, data=None, user_id=None, timeout=3, request=False):
     result = None
     result = {}
     try:

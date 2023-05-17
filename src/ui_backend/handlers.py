@@ -101,6 +101,14 @@ async def message_handler(message):
       )
       return
     
+    if "Read timed out" in str(e):
+      await queue_message_async(
+        topic = 'telegram_message_sender',
+        destination_id = message.chat.id,
+        message = 'WB сейчас перегружен, попробуйте еще раз позже'
+      )
+      return
+    
     if "Ошибка установки нового токена" in str(e):
       await queue_message_async(
         topic = 'telegram_message_sender',
@@ -123,6 +131,14 @@ async def message_handler(message):
           topic = 'telegram_message_sender',
           destination_id = message.chat.id,
           message = 'Произошла ошибка! x_supplier_id Отсутствует, добавьте изначально его'
+        )
+        return
+      
+      if "EOF" in str(e):
+        await queue_message_async(
+          topic = 'telegram_message_sender',
+          destination_id = message.chat.id,
+          message = 'Произошла ошибка на стороне WB, попробуйте еще раз'
         )
         return
       
