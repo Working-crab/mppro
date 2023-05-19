@@ -20,4 +20,4 @@ class gpt_queries:
 
         db_queries.add_action_history(telegram_user_id=0, action="gpt_get_card_description", action_description=f"Генерация карточки по запросу: '{prompt}': '{completion_content}'")
   
-        return completion_content
+        return None

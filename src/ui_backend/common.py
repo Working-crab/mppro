@@ -57,7 +57,7 @@ def universal_reply_markup(search=False):
   btn_my_sub = types.KeyboardButton(text='💻 Моя подписка 💻')
   btn_additionally = types.KeyboardButton(text='⚙️ Дополнительные опции ⚙️')
 
-  markup_inline.add(btn_search, btn_list_adverts, btn_card)
+  markup_inline.add(btn_search, btn_list_adverts) #btn_card
   markup_inline.add(btn_additionally, btn_my_sub)
   
   if search:

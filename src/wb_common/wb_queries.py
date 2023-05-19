@@ -25,6 +25,8 @@ class wb_queries:
     
     if user.wb_v3_main_token:
       user_wb_tokens['wb_v3_main_token'] = user.wb_v3_main_token
+    else:
+      user_wb_tokens['wb_v3_main_token'] = ""
               
     if user.x_supplier_id:
       user_wb_tokens['x_supplier_id'] = user.x_supplier_id
@@ -37,7 +39,7 @@ class wb_queries:
     return user_wb_tokens
   
 
-  def wb_query(method, url, cookies=None, headers=None, data=None, user_id=None, timeout=None, request=False):
+  def wb_query(method, url, cookies=None, headers=None, data=None, user_id=None, timeout=3, request=False):
     result = None
     result = {}
     try:
@@ -59,13 +61,13 @@ class wb_queries:
                 raise Exception('Неверный токен!')
           else:
             raise Exception('Неверный токен!')
-        attemps = 1    
-        while ((result.raise_for_status and result.status_code != 200) and attemps != 3):
-          logger.warn(f"In while {attemps}")
-          attemps += 1
-          result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
-          # time.sleep(3)
-          logger.warn(result.status_code)
+      attemps = 1
+      while ((result.raise_for_status and result.status_code != 200) and attemps != 3):
+        logger.warn(f"In while {attemps}")
+        attemps += 1
+        result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
+        # time.sleep(3)
+        logger.warn(result.status_code)
           
       if data == "{}":
         return result.headers
@@ -222,7 +224,7 @@ class wb_queries:
     r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/placement', 
       cookies=req_params['cookies'],
       headers=req_params['headers'],
-      timeout=10,
+      timeout=2,
     )
     campaign_key_word = ''
     logger.warn("get_campaign_info")
@@ -358,7 +360,7 @@ class wb_queries:
     r = wb_queries.wb_query(method="post", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/budget/deposit',
     cookies=req_params['cookies'],
     headers=req_params['headers'],
-    data=json.dumps(request_body))
+    data=json.dumps(request_body), request=True)
         
     
     # if not r.raise_for_status:
