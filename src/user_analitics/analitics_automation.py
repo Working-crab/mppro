@@ -28,4 +28,4 @@ class analitics_automation:
     current_bid = analitics_automation.get_campaign_bid(user_id, campaign_id)# Получает текущую ставку кампании
     user_economy = max_bid_company - current_bid# Экономия пользователя
     time = datetime.datetime.now()# Текущая дата и время
-    db_queries.add_user_analitcs(max_bid_company, max_budget_company, current_bid, user_economy, time)
+    db_queries.add_user_analitcs(user_id, campaign_id, max_bid_company, max_budget_company, current_bid, user_economy, time)

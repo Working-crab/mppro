@@ -1,7 +1,7 @@
 BOT_NAME = 'mp_pro_bot'
 TOKEN = '6014923966:AAGnsVeVehXuLG1fKoTbOrbRwZWUrwJ_jto'
 WEBHOOK_URL = 'https://stage.admp.pro/'# урл домена
-GPT_TOKEN = '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' #
+GPT_TOKEN = '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' #
 GPT_MODEL_NAME = 'gpt-3.5-turbo'
 
 yookassa_account_id = 980339 #Тест версия
