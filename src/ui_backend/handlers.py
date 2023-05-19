@@ -1,7 +1,7 @@
 import re
 from unittest import mock
 from ui_backend.app import bot
-from ui_backend.common import (edit_token_reply_markup, management_tokens_reply_markup, status_parser, 
+from ui_backend.common import (edit_token_reply_markup, format_requests_count, management_tokens_reply_markup, paid_requests_inline_markup, paid_service_reply_markup, status_parser, 
                                switch_status_reply_markup, 
                                universal_reply_markup, 
                                paginate_buttons, 
@@ -16,7 +16,8 @@ from ui_backend.common import (edit_token_reply_markup, management_tokens_reply_
                                action_history_filter_reply_markup, 
                                adv_settings_words_reply_markup, 
                                fixed_word_switch,
-                               check_sub)
+                               check_sub, 
+                               paid_requests_inline_markup)
 from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
@@ -38,7 +39,7 @@ logger = appLogger.getLogger(__name__)
 
 #Пример для создания истории действий
 #db_queries.add_action_history(user_id=message.chat.id, action=f"Какое-то событие")
-
+INCREASE = 10
 # all messages handler
 @bot.message_handler(func=lambda m: True)
 async def message_handler(message):
@@ -107,7 +108,6 @@ async def message_handler(message):
         message = 'WB сейчас перегружен, попробуйте еще раз позже'
       )
       return
-
     
     if "Ошибка установки нового токена" in str(e):
       await queue_message_async(
@@ -140,9 +140,7 @@ async def message_handler(message):
           destination_id = message.chat.id,
           message = 'Произошла ошибка на стороне WB, попробуйте еще раз'
         )
-        return
-
-      
+        return      
     
       # else:
       #   await queue_message_async(
@@ -1171,43 +1169,93 @@ async def add_budget_next_step_handler(message):
     
     
 
-# Подписка -----------------------------------------------------------------------------------------------------------------------
+# Платные услуги -----------------------------------------------------------------------------------------------------------------------
+
+async def show_paid_services(message):
+  await bot.send_message(message.chat.id, "Здравствуйте, здесь Вы можете купить *подписку* или *запросы* для ChatGPT", parse_mode="MarkdownV2", reply_markup=paid_service_reply_markup())
+  set_user_session_step(message, 'paid_service')
+  
+  
+async def show_my_requests(message):
+  set_user_session_step(message, 'paid_service')
+  user = db_queries.get_user_by_telegram_user_id(message.chat.id)
+  gpt_requests = db_queries.get_user_gpt_requests(user_id=user.id)
+  
+  gpt_requests = 0 if gpt_requests == None else gpt_requests
+    # цена запроса с огр на длинну 255 символов(которые вводит юзер) + * кол во на 2 + * 100 умножить(свободный)
+  await bot.send_message(message.chat.id, f'На данный момент у вас: {format_requests_count(gpt_requests)}, нажав на кнопку под сообщением, вы можете купить определенное количество запросов', reply_markup=paid_requests_inline_markup())
+    
+
+@bot.callback_query_handler(func=lambda x: re.match('paid_service:', x.data))
+async def paid_service(data):
+  user = db_queries.get_user_by_telegram_user_id(data.message.chat.id)
+  
+  action, action_type, amount =  data.data.split(":")
+  amount = int(amount)
+  if amount == 100:
+    price = amount * INCREASE * 0.9
+  else:
+    price = amount * INCREASE
+  
+  if action_type == "requests":
+    await bot.send_message(data.message.chat.id, f'Вы выбрали покупку запросов\nКоличество: {amount}\n Цена: {price} ₽', reply_markup=reply_markup_payment(purchase=action_type, user_data=f"{amount}:{price}"))
+  
 
 async def show_my_sub(message):
+  set_user_session_step(message, 'paid_service')
   user = db_queries.get_user_by_telegram_user_id(message.chat.id)
   my_sub = db_queries.get_sub(sub_id=user.subscriptions_id)
   if user.subscriptions_id:
-    await bot.send_message(message.chat.id, 'Подключен: `{}`\nСрок действия с `{}` по `{}`'.format(my_sub.title, user.sub_start_date.strftime('%d/%m/%Y'), user.sub_end_date.strftime('%d/%m/%Y')), reply_markup=universal_reply_markup())
+    await bot.send_message(message.chat.id, 'Подключен: `{}`\nОписание: `{}`\nСрок действия с `{}` по `{}`'.format(my_sub.title, my_sub.description, user.sub_start_date.strftime('%d/%m/%Y'), user.sub_end_date.strftime('%d/%m/%Y')), reply_markup=paid_service_reply_markup())
     if not "Advanced" in my_sub.title:
-      await bot.send_message(message.chat.id, 'Вы можете обновиться на более крутую подписку', reply_markup=universal_reply_markup())
+      await bot.send_message(message.chat.id, 'Вы можете обновиться на более крутую подписку', reply_markup=paid_service_reply_markup())
       sub_list = db_queries.get_all_sub()
       # if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
       if PAYMENT_TOKEN.split(':')[1] == 'TEST':
         for sub in sub_list:
           if sub.title == my_sub.title:
             continue
-          await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
+          await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
+          # await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\n   Хотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
   else:
     await bot.send_message(message.chat.id, 'У вас не подключено никаких платных подписок\nНиже предоставлены варианты для покупки: ')
     sub_list = db_queries.get_all_sub()
     # if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
     if PAYMENT_TOKEN.split(':')[1] == 'TEST':
       for sub in sub_list:
-        await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
+        await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
+        # await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
 
 # --------------------------------------------------------------------------------------------------------------------------------
 
 # --- card product --------------------------------------------------------------------------------------------
 
-@check_sub(['Standart🔥'])
+@check_sub(['Trial', 'Standart🔥', 'Advanced'])
 async def card_product(message, sub_name):
-  await bot.send_message(message.chat.id, f'У вас подключена подписка: "{sub_name}"\nВведите ключевые слова для описание товара', reply_markup=types.ReplyKeyboardRemove())
-  set_user_session_step(message, 'card_product')
+  user = db_queries.get_user_by_telegram_user_id(message.chat.id)
+  gtp_requests = db_queries.get_user_gpt_requests(user_id=user.id)
+  
+  if gtp_requests >= 1:
+    # цена запроса с огр на длинну 255 символов(которые вводит юзер) + * кол во на 2 + * 100 умножить(свободный)
+    await bot.send_message(message.chat.id, f'На данный момент у вас: {gtp_requests} запросов\nВведите ключевые слова для описание товара', reply_markup=edit_token_reply_markup())
+    set_user_session_step(message, 'card_product')
+  else:
+    # await bot.send_message(message.chat.id, f'На данный момент у вас "{tokens}" токенов, этого не хватает для создания карточки товара.\nМинимум 100', reply_markup=universal_reply_markup())
+    await bot.send_message(message.chat.id, f'На данный момент у вас "{gtp_requests}" запросов, этого не достаточно для создания карточки товара.', reply_markup=universal_reply_markup())
+    set_user_session_step(message, 'База')
+
 
 async def card_product_next_step_handler(message):
+  user = db_queries.get_user_by_telegram_user_id(message.chat.id)
+  
   keyword = message.text
+  
+  if len(keyword) >= 255:
+    return await bot.send_message(message.chat.id, f'К сожалению, нельзя использовать больше 255 символов, попробуйте еще раз', reply_markup=universal_reply_markup())
+  
   proccesing = await bot.send_message(message.chat.id, "Обработка запроса...", reply_markup=universal_reply_markup())
-  gpt_text = gpt_queries.get_card_description(prompt=keyword)
+  user = db_queries.get_user_by_telegram_user_id(message.chat.id)
+  gpt_text = gpt_queries.get_card_description(user_id=user.id, prompt=keyword)
   # logger.warn(gpt_text)
   
   await bot.delete_message(proccesing.chat.id, proccesing.message_id)
@@ -1236,7 +1284,7 @@ step_map = {
   'База': {
     'Помощь': help,
     'Поиск': search_adverts,
-    'Моя подписка': show_my_sub,
+    'Платные услуги': show_paid_services,
     'Список рекламных компаний': list_adverts,
     'Выбрать город': choose_city,
     'Выбор:': choose_city_handler,
@@ -1298,6 +1346,7 @@ step_map = {
   },
   'card_product': {
     'default': card_product_next_step_handler,
+    'Назад': menu_back,
   },
   'get_word': {
     'Назад': menu_back_word,
@@ -1345,5 +1394,10 @@ step_map = {
   'add_budget': {
     'default': add_budget_next_step_handler,
     'Назад': menu_back_word,
+  },
+  'paid_service': {
+    'Моя подписка': show_my_sub,
+    'Мои запросы': show_my_requests,
+    'Назад': menu_back
   }
 }

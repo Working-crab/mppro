@@ -1,12 +1,11 @@
 
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import select, update
-from sqlalchemy import desc
+from sqlalchemy import Integer, func, select, update, desc, cast
 from sqlalchemy.sql.expression import bindparam
 import traceback
 
-from .models import Stat_words, User, Advert, Subscription, Transaction, Action_history, User_analitics
+from .models import GPT_Transaction, Stat_words, User, Advert, Subscription, Transaction, Action_history, User_analitics
 from .engine import engine
 
 
@@ -26,9 +25,11 @@ class db_queries:
             session.commit()
 
 
-    def add_user_analitcs(max_bid_company, max_budget_company, current_bet, economy, date_time):
+    def add_user_analitcs(user_id, campaign_id, max_bid_company, max_budget_company, current_bet, economy, date_time):
         with Session(engine) as session:
             user_analitics = User_analitics(
+                user_id = user_id,
+                campaign_id = campaign_id,
                 max_bid_company = max_bid_company,
                 max_budget_company = max_budget_company,
                 current_bet = current_bet,
@@ -212,59 +213,44 @@ class db_queries:
                 
                 transaction = Transaction(
                     title = sub.title,
-                    description = "Была активирована подписка",
+                    description = f"Была активирована {sub.title} подписка",
                     total = total,
                     user_id = user.id,
                     subscription_id = sub.id,
                 )
-                session.add(transaction)
-                session.commit()
-                return True
-            else:
-                return False
-            
-
-        
-    def set_trial(user_id, sub_name):
-        with Session(engine) as session:
-            user = session.query(User).filter(User.telegram_user_id == user_id).first()
-            sub = session.query(Subscription).filter(Subscription.title == sub_name).first()
-            
-            if user:
-                sub = session.query(Subscription).filter(Subscription.title == sub_name).first()
-                user.sub_start_date = datetime.now()
-                user.sub_end_date = datetime.now() + timedelta(days=7)
-                user.subscriptions_id = sub.id
                 
-                transaction = Transaction(
-                    title = "Trial",
-                    description = "Была активирована Пробная подписка",
-                    total = 0,
+                if sub.requests_get is None:
+                    requests_get = 0
+                
+                token_transaction = GPT_Transaction(
                     user_id = user.id,
-                    subscription_id = sub.id,
+                    type = "Активация подписки",
+                    request_amount = requests_get,
+                    token_amount = 700 * requests_get
                 )
+                
                 session.add(transaction)
+                session.add(token_transaction)
                 session.commit()
                 return True
             else:
                 return False
             
-
         
-    def sub_list(user_id, sub_name):
-        with Session(engine) as session:
-            user = session.query(User).filter(User.telegram_user_id == user_id).first()
-            sub = session.query(Subscription).filter(Subscription.title == sub_name).first()
+    # def sub_list(user_id, sub_name):
+    #     with Session(engine) as session:
+    #         user = session.query(User).filter(User.telegram_user_id == user_id).first()
+    #         sub = session.query(Subscription).filter(Subscription.title == sub_name).first()
             
-            if user:
-                sub = session.query(Subscription).filter(Subscription.title == sub_name).first()
-                user.sub_start_date = datetime.now()
-                user.sub_end_date = datetime.now() + timedelta(days=30)
-                user.subscriptions_id = sub.id
-                session.commit()
-                return True
-            else:
-                return False
+    #         if user:
+    #             sub = session.query(Subscription).filter(Subscription.title == sub_name).first()
+    #             user.sub_start_date = datetime.now()
+    #             user.sub_end_date = datetime.now() + timedelta(days=30)
+    #             user.subscriptions_id = sub.id
+    #             session.commit()
+    #             return True
+    #         else:
+    #             return False
             
 
         
@@ -403,3 +389,38 @@ class db_queries:
                 return True
             else:
                 return False
+            
+            
+    def get_user_tokens(user_id):
+        with Session(engine) as session:
+            if session.query(GPT_Transaction).filter(GPT_Transaction.user_id == user_id).first() is not None:
+                tokens = session.query(func.sum(cast(GPT_Transaction.token_amount, Integer))).filter(GPT_Transaction.user_id == user_id).scalar()
+                return tokens
+            else:
+                return 0
+        
+        
+    def edit_user_transaction(user_id, type, token_amount, request_amount):
+        with Session(engine) as session:
+            user = session.query(User).filter(User.telegram_user_id == user_id).first()
+            
+            add_tokens = GPT_Transaction(
+                user_id = user.id,
+                type = type,
+                token_amount = token_amount,
+                request_amount = request_amount
+            )
+            session.add(add_tokens)
+            session.commit()
+            return True
+        
+        
+    def get_user_gpt_requests(user_id):
+        with Session(engine) as session:
+            if session.query(GPT_Transaction).filter(GPT_Transaction.user_id == user_id).first() is not None:
+                gtp_requests = session.query(func.sum(cast(GPT_Transaction.request_amount, Integer))).filter(GPT_Transaction.user_id == user_id).scalar()
+                return gtp_requests
+            else:
+                return 0
+            
+        

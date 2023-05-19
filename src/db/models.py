@@ -31,6 +31,8 @@ class User(Base):
     sub_end_date = Column(DateTime(timezone=True))
 
     adverts = relationship("Advert")
+    user_analitics = relationship("User_analitics")
+    gpt_transactions = relationship("GPT_Transaction")
 
     def __repr__(self):
         return f"User(id={self.id!r}, username={self.telegram_username!r})"
@@ -62,6 +64,7 @@ class Subscription(Base):
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
     price = Column(Integer, default=0)
+    requests_get = Column(Integer, default=0)
 
     user = relationship('User', back_populates='subscriptions')
     transactions = relationship('Transaction', back_populates='subscriptions')
@@ -80,13 +83,29 @@ class Transaction(Base):
     time_created = Column(DateTime(timezone=True), server_default=func.now())
     
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    subscription_id = Column(Integer, ForeignKey('subscriptions.id'), nullable=False)
+    subscription_id = Column(Integer, ForeignKey('subscriptions.id'), nullable=True)
 
     user = relationship('User', back_populates='transactions')
     subscriptions = relationship('Subscription', back_populates='transactions')
 
     def __repr__(self):
         return f"Transaction(id={self.id!r}, title={self.title!r}, total={self.total!r}, user_id={self.user_id!r}, subscription_id={self.subscription_id!r})"
+    
+    
+class GPT_Transaction(Base):
+    __tablename__ = "gpt_transactions"
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    type = Column(String, nullable=False)
+    token_amount = Column(Integer, nullable=True)
+    request_amount = Column(Integer, nullable=True)
+    time_created = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship('User', back_populates='gpt_transactions')
+
+    def __repr__(self):
+        return f"GPT_Transaction(id={self.id!r}, user_id={self.user_id!r}, type={self.type!r}, token_amount={self.token_amount!r}, request_amount={self.request_amount!r})"
 
 
 class User_budget_analitics_logs(Base):
@@ -142,11 +161,15 @@ class User_analitics(Base):
     __tablename__ = "user_analitics"
     
     id = Column(Integer, primary_key=True)
+    campaign_id = Column(Integer, nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     max_bid_company = Column(Integer, nullable=False)
     max_budget_company = Column(Integer, nullable=False)
     current_bet = Column(Integer, nullable=False)
     economy = Column(Integer, nullable=False)
     date_time = Column(DateTime(timezone=True), nullable=False)
 
+    user = relationship('User', back_populates='user_analitics')
+
     def __repr__(self):
-        return f"User_analitics(id={self.id!r}, max_bid_company ={self.max_bid_company!r}max_budget_company={self.max_budget_company!r}, current_bet={self.current_bet!r}, economy={self.economy!r}, date_time={self.date_time!r})"
+        return f"User_analitics(id={self.id!r}, campaign_id ={self.campaign_id!r}, user_id ={self.user_id!r}, max_bid_company ={self.max_bid_company!r}, max_budget_company={self.max_budget_company!r}, current_bet={self.current_bet!r}, economy={self.economy!r}, date_time={self.date_time!r})"

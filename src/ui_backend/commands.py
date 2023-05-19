@@ -8,7 +8,10 @@ from telebot.types import LabeledPrice
 from ui_backend.config import *
 from yookassa import Payment
 import uuid
+from ui_backend.config import WEBHOOK_URL
 
+from common.appLogger import appLogger
+logger = appLogger.getLogger(__name__)
 
 
 # Команды бота -------------------------------------------------------------------------------------------------------
@@ -37,7 +40,7 @@ async def start(message):
 async def trial(call):
     if call.data == "Trial_Yes":
         await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text="Активируем Вам подписку, а пока можете посмотреть что она предоставляет: Информация\nИли /trial - Информация", reply_markup=reply_markup_trial(trial=True))
-        db_queries.set_trial(user_id=call.message.chat.id, sub_name='Trial')
+        db_queries.update_sub(user_id=call.message.chat.id, sub_name='Trial', total=0)
     if call.data == "Trial_No":
         await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text=f'Хорошо, но если вы всё же захотите активировать подписку, введите команду /trial', parse_mode='Markdown')
     if call.data == "Trial_info":
@@ -45,38 +48,35 @@ async def trial(call):
 
 
 # Обработка Оплаты ----------------------------------------------------------------------------------------------------
-@bot.callback_query_handler(func=lambda x: re.match('Оплата', x.data))
+@bot.callback_query_handler(func=lambda x: re.match('payment', x.data))
 async def payment_func(call):
     #Обработка кнопок покупки подписки
-    if "Telegram" in call.data:
+    if "telegram" in call.data:
         try:    
-            sub_name = call.data.replace('Оплата Telegram ', '')
-            sub = db_queries.get_sub_name(sub_name=sub_name)
-            product_price = [LabeledPrice(label=sub.title, amount=sub.price * 100)]
-            await bot.send_invoice(call.message.chat.id,
-                            title=sub.title,
-                            description=sub.description,
-                            invoice_payload=sub.title,
-                            provider_token=PAYMENT_TOKEN,
-                            currency='rub',
-                            prices=product_price,
-                            start_parameter='one-month-sub',
-                            is_flexible=False,
-                            )
+            purchase = call.data.split(':')[2]
+            if purchase == "subscription":
+                sub_name = call.data.split(':')[3]
+                sub = db_queries.get_sub_name(sub_name=sub_name)
+                product_price = [LabeledPrice(label=sub.title, amount=sub.price * 100)]
+                await bot.send_invoice(call.message.chat.id,
+                                title=sub.title,
+                                description=sub.description,
+                                invoice_payload=sub.title,
+                                provider_token=PAYMENT_TOKEN,
+                                currency='rub',
+                                prices=product_price,
+                                start_parameter='one-month-sub',
+                                is_flexible=False,
+                                )
         except Exception as e:
             await bot.send_message(call.message.chat.id, e)
     
-    if "Сайт" in call.data:
+    if "site" in call.data:
         try:
-            sub_name = call.data.replace('Оплата Сайт ', '')
-            sub = db_queries.get_sub_name(sub_name=sub_name)
-            # product_price = [LabeledPrice(label=sub.title, amount=sub.price * 100)]
-            # user = db_queries.get_user_by_telegram_user_id(message.chat.id)
-            
-            idempotence_key = str(uuid.uuid4())
-            payment = Payment.create({
+            price = 0
+            payment_dict = {
                 "amount": {
-                    "value": sub.price,
+                    "value": price,
                     "currency": "RUB"
                 },
                 "payment_method_data": {
@@ -84,17 +84,40 @@ async def payment_func(call):
                 },
                 "confirmation": {
                 "type": "redirect",
-                "return_url": f"https://t.me/mp_pro_bot"
+                "return_url": f"{WEBHOOK_URL}"
                 },
                 "capture": True,
-                "metadata": {
+                }
+            
+            idempotence_key = str(uuid.uuid4())
+            purchase = call.data.split(':')[2]
+            if purchase == "subscription":
+                sub_name = call.data.split(":")[3]
+                sub = db_queries.get_sub_name(sub_name=sub_name)
+                price = sub.price
+                payment_dict['amount']['value'] = price
+                payment_dict['metadata'] = {
                     'telegram_user_id': f'{call.message.chat.id}',
-                    'subscription_name': f'{sub.title}'},
-                }, idempotence_key)
-        
-        
+                    'subscription_name': f'{sub.title}',
+                    }
+                # product_price = [LabeledPrice(label=sub.title, amount=sub.price * 100)]
+                # user = db_queries.get_user_by_telegram_user_id(message.chat.id)
+            elif purchase == "requests":
+                amount, price = call.data.split(":")[3:]
+                
+                payment_dict['amount']['value'] = price
+                payment_dict['metadata'] = {
+                    'telegram_user_id': f'{call.message.chat.id}',
+                    'requests_amount': f'{amount}',
+                    }
+            
+            idempotence_key = str(uuid.uuid4())
+            
+            payment = Payment.create(payment_dict, idempotence_key)
+            
             confirmation_url = payment.confirmation.confirmation_url
             await bot.send_message(call.message.chat.id, confirmation_url)
+                
         except Exception as e:
             await bot.send_message(call.message.chat.id, e)
             
@@ -147,7 +170,7 @@ async def buy_subscription(message):
         sub_list = db_queries.get_all_sub()
         if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
             for sub in sub_list:
-                await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
+                await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
     except Exception as e:
         await bot.send_message(message.chat.id, e)
 
