@@ -42,4 +42,4 @@ class gpt_queries:
 
         db_queries.add_action_history(user_id=user.id, action="gpt_get_card_description", action_description=f"Генерация карточки по запросу: '{prompt}': '{completion_content}'")
   
-        return None
+        return completion_content
