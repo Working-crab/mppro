@@ -1210,8 +1210,8 @@ async def show_my_sub(message):
     if not "Advanced" in my_sub.title:
       await bot.send_message(message.chat.id, 'Вы можете обновиться на более крутую подписку', reply_markup=paid_service_reply_markup())
       sub_list = db_queries.get_all_sub()
-      # if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
-      if PAYMENT_TOKEN.split(':')[1] == 'TEST':
+      if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
+      # if PAYMENT_TOKEN.split(':')[1] == 'TEST':
         for sub in sub_list:
           if sub.title == my_sub.title:
             continue
@@ -1220,8 +1220,8 @@ async def show_my_sub(message):
   else:
     await bot.send_message(message.chat.id, 'У вас не подключено никаких платных подписок\nНиже предоставлены варианты для покупки: ')
     sub_list = db_queries.get_all_sub()
-    # if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
-    if PAYMENT_TOKEN.split(':')[1] == 'TEST':
+    if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
+    # if PAYMENT_TOKEN.split(':')[1] == 'TEST':
       for sub in sub_list:
         await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
         # await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
