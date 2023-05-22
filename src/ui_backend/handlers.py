@@ -384,28 +384,40 @@ async def list_adverts_handler(message):
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
 
   user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  user_wb_tokens = wb_queries.get_base_tokens(user)
-  req_params = wb_queries.get_base_request_params(user_wb_tokens)
+  # user_wb_tokens = wb_queries.get_base_tokens(user)
+  # req_params = wb_queries.get_base_request_params(user_wb_tokens)
   
   page_number = 1
   
   # user_atrevds_data = wb_queries.get_user_atrevds(req_params, page_number)  try:
-  user_atrevds_data = wb_queries.get_user_atrevds(req_params, user_id=message.from_user.id)
+  # user_atrevds_data = wb_queries.get_user_atrevds(req_params, user_id=message.from_user.id)
 
   
-  page_size = 6
-  logger.info(len(user_atrevds_data['adverts']))
-  result_msg = advert_info_message_maker(user_atrevds_data['adverts'], page_number=page_number, page_size=page_size, user=user)
+  # page_size = 6
+  # result_msg = await advert_info_message_maker(user_atrevds_data['adverts'], page_number=page_number, page_size=page_size, user=user)
+  from ui_backend.campaign_info.capaign_processor import Capaign_processor
 
-  total_count_adverts = user_atrevds_data['total_count']
+  campaign_processing = Capaign_processor.create_campaign_processing(user=user, page_number=page_number)
+  print(1)
+  print(campaign_processing)
+  campaign_processing = Capaign_processor.go_campaign_processing(campaign_processing)
+  print(2)
+  print(campaign_processing)
+  campaign_processing = Capaign_processor.decorate_campaign_processing(campaign_processing)
+  print(3)
+  print(campaign_processing)
+
+  campaign_processing = escape_telegram_specials(campaign_processing)
+
+  # total_count_adverts = user_atrevds_data['total_count']
   action = "page"
-  inline_keyboard = paginate_buttons(action, page_number, total_count_adverts, page_size, message.from_user.id)
+  inline_keyboard = paginate_buttons(action, page_number, 6, 6, message.from_user.id)
 
   chat_id_proccessing = proccesing.chat.id
   message_id_proccessing = proccesing.message_id
   await bot.delete_message(chat_id_proccessing, message_id_proccessing)
 
-  await bot.send_message(message.chat.id, result_msg, reply_markup=inline_keyboard, parse_mode='MarkdownV2')
+  await bot.send_message(message.chat.id, campaign_processing, reply_markup=inline_keyboard, parse_mode='MarkdownV2')
 
 
 
@@ -422,7 +434,7 @@ async def kek(data):
   user_atrevds_data = wb_queries.get_user_atrevds(req_params)
 
   page_size = 6
-  result_msg = advert_info_message_maker(user_atrevds_data['adverts'], page_number=page_number, page_size=page_size, user=user)
+  result_msg = await advert_info_message_maker(user_atrevds_data['adverts'], page_number=page_number, page_size=page_size, user=user)
 
   total_count = user_atrevds_data['total_count']
   action = "page"

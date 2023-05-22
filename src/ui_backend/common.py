@@ -1,13 +1,17 @@
 from datetime import datetime
 from functools import wraps
-from ui_backend.config import syncBot
+
 from telebot import types
+from unittest import mock
+
+from ui_backend.config import syncBot
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
-from unittest import mock
 from cache_worker.cache_worker import cache_worker
 from collections import namedtuple
 from .config import bot
+from kafka_dir.general_publisher import create_async_producer
+from kafka_dir.topics import Topics
 
 Campaign = namedtuple('Campaign', ['campaign_id'])
 import re
@@ -349,10 +353,11 @@ def paginate_buttons(action, page_number, total_count_adverts, page_size, user_i
   return inline_keyboard
 
 
-def get_first_place(user_id, campaign):
+def get_first_place(user_id, campaign) -> int:
   campaign_user = db_queries.get_user_by_telegram_user_id(user_id)
   campaign_info = wb_queries.get_campaign_info(campaign_user, campaign)
   campaign_pluse_words = wb_queries.get_stat_words(campaign_user, campaign)
+
 
   check_word = campaign_info['campaign_key_word']
   if campaign_pluse_words['main_pluse_word']:
@@ -380,75 +385,79 @@ def logs_types_reply_markup(user_id, timestamp):
 
     return markup_inline
 
-def advert_info_message_maker(adverts, page_number, page_size, user):
+async def advert_info_message_maker(adverts, page_number, page_size, user):
   adverts = sorted(adverts, key=lambda x: status_parser_priority_map(x['statusId']))
   
-  if page_number != 1:
-    adverts = adverts[(page_size*(page_number-1)):page_size*page_number]
-  else:
-    adverts = adverts[page_number-1:page_size]
+  # if page_number != 1:
+  #   adverts = adverts[(page_size*(page_number-1)):page_size*page_number]
+  # else:
+  #   adverts = adverts[page_number-1:page_size]
   
 
-  lst_adverts_ids = [i['id'] for i in adverts]
-  db_adverts = db_queries.get_user_adverts_by_wb_ids(user.id, lst_adverts_ids)
-  id_to_db_adverts = {x.campaign_id: x for x in db_adverts}
-  lst_adverts_ids = [i.campaign_id for i in db_adverts]
+  # lst_adverts_ids = [i['id'] for i in adverts]
+  # db_adverts = db_queries.get_user_adverts_by_wb_ids(user.id, lst_adverts_ids)
+  # id_to_db_adverts = {x.campaign_id: x for x in db_adverts}
 
-  result_msg = f'Список ваших рекламных компаний с cmp\.wildberries\.ru, страница: {page_number}\n\n'
-  for advert in adverts:
-    stat = status_parser(advert['statusId'])
+  # producer = await create_async_producer()
+  # uuser = user.as_dict()
+  # await producer.send(Topics.PROCESSING_CAMPAIGN_TOPIC, {
+  #   'adverts': adverts, 
+  #   'id_to_db_adverts': id_to_db_adverts, 
+  #   'user': uuser,
+  #   'page_number': page_number
+  # })
 
-    campaign = mock.Mock()
-    campaign.campaign_id = advert['id']
+  # result_msg = f'Список ваших рекламных компаний с cmp\.wildberries\.ru, страница: {page_number}\n\n'
+  # for advert in adverts:
+  #   stat = status_parser(advert['statusId'])
 
-    budget_string = ''
-    try:
-      # first_place_price = get_first_place(user.telegram_user_id, campaign)
-      budget = wb_queries.get_budget(user, campaign)
-      budget = budget.get("Бюджет компании")
-    except Exception as e:
-      budget = None
-      logger.info(e)
+  #   campaign = mock.Mock()
+  #   campaign.campaign_id = advert['id']
 
-    if budget is not None:
-      budget_string = f"\t Бюджет компании {budget}\n"
-    else:
-      budget_string = f"\t ВБ не вернул бюджет компании\!\n"
+  #   budget_string = ''
+  #   try:
+  #     # first_place_price = get_first_place(user.telegram_user_id, campaign)
+  #     budget = wb_queries.get_budget(user, campaign)
+  #     budget = budget.get("Бюджет компании")
+  #   except Exception as e:
+  #     budget = None
+  #     logger.info(e)
 
-    add_delete_str = ''
-    bot_status = ''
-    if advert['id'] in lst_adverts_ids:
-      db_advert = id_to_db_adverts.get(advert['id'])
-      if db_advert:
-        if db_advert.status == 'ON':
-          bot_status     += f"\t Отслеживается\!"
-          add_delete_str += f"\t Перестать отслеживать РК: /delete\_adv\_{advert['id']}\n"
-          add_delete_str += f"\t Макс\. ставка: {db_advert.max_bid} макс\. место: {db_advert.place}\n"
-        else:
-          bot_status     += f"\t Не отслеживается\!"
-          add_delete_str += f"\t Отслеживать РК: /add\_adv\_{advert['id']}\n"
-    else:
-      bot_status     += f"\t Не отслеживается\!"
-      add_delete_str += f"\t Отслеживать РК: /add\_adv\_{advert['id']}\n"
+  #   if budget is not None:
+  #     budget_string = f"\t Бюджет компании {budget}\n"
+  #   else:
+  #     budget_string = f"\t ВБ не вернул бюджет компании\!\n"
 
-    add_delete_str += f"\t Настроить РК: /adv\_settings\_{advert['id']}\n"
+  #   add_delete_str = ''
+  #   bot_status = ''
+  #   if db_advert := id_to_db_adverts.get(advert['id']):
+  #     if db_advert.status == 'ON':
+  #       bot_status     += f"\t Отслеживается\!"
+  #       add_delete_str += f"\t Перестать отслеживать РК: /delete\_adv\_{advert['id']}\n"
+  #       add_delete_str += f"\t Макс\. ставка: {db_advert.max_bid} макс\. место: {db_advert.place}\n"
+  #     else:
+  #       bot_status     += f"\t Не отслеживается\!"
+  #       add_delete_str += f"\t Отслеживать РК: /add\_adv\_{advert['id']}\n"
+  #   else:
+  #     bot_status     += f"\t Не отслеживается\!"
+  #     add_delete_str += f"\t Отслеживать РК: /add\_adv\_{advert['id']}\n"
 
-    campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{advert['id']}"
+  #   add_delete_str += f"\t Настроить РК: /adv\_settings\_{advert['id']}\n"
+
+  #   campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{advert['id']}"
     
-    result_msg += f"*Имя компании: {advert['campaignName']}*\n"
-    result_msg += f"\t ID: [{advert['id']}]({campaign_link}) Статус: {stat}\n"
+  #   result_msg += f"*Имя компании: {advert['campaignName']}*\n"
+  #   result_msg += f"\t ID: [{advert['id']}]({campaign_link}) Статус: {stat}\n"
 
-    result_msg += budget_string
+  #   result_msg += budget_string
 
-    result_msg += bot_status
-    # TODO Текущая ставка
-    result_msg += add_delete_str
-    # TODO Текущие ставки на 1-2 месте по рекламному слову
-    result_msg += f"\n"
-  return result_msg
+  #   result_msg += bot_status
+  #   # TODO Текущая ставка
+  #   result_msg += add_delete_str
+  #   # TODO Текущие ставки на 1-2 месте по рекламному слову
+  #   result_msg += f"\n"
+  # return result_msg
 
-# campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{advert['id']}"
-# result_msg += f"\t ID: [{advert['id']}]({campaign_link}) Статус: {stat}\n"
 
 async def test_adverts_list(adverts, page_number, page_size, chat_id, user):
   adverts = sorted(adverts, key=lambda x: status_parser_priority_map(x['statusId']))
@@ -498,8 +507,8 @@ def wrapper_get_budget(user_id, campaign_id):
 
   wb_queries.get_budget(user, campaign)
 
-def get_first_place(user_id, campaign_id):
-  get_first_place(user_id, campaign_id)
+# def get_first_place(user_id, campaign_id):
+#   get_first_place(user_id, campaign_id)
 
 
 def get_search_result_message(keyword, city=None):

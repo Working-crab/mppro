@@ -36,6 +36,14 @@ class User(Base):
 
     def __repr__(self):
         return f"User(id={self.id!r}, username={self.telegram_username!r})"
+    
+    def as_dict(self):
+       dict_res = {}
+       dates_field_names = ['time_created', 'time_updated', 'sub_start_date', 'sub_end_date']
+       for c in self.__table__.columns:
+           if c.name not in dates_field_names:
+                dict_res[c.name] = getattr(self, c.name)
+       return dict_res
 
 class Advert(Base):
     __tablename__ = "adverts"
