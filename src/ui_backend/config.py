@@ -18,6 +18,8 @@ if os.path.isfile('src/ui_backend/config_local.py'):
     WEBHOOK_URL = config_local.WEBHOOK_URL
     GPT_TOKEN = config_local.GPT_TOKEN
     GPT_MODEL_NAME = config_local.GPT_MODEL_NAME
+    JWT_TOKEN = config_local.JWT_TOKEN
+    ALGORITHM = config_local.ALGORITHM
 else:
     from ui_backend import config_template
     TOKEN = config_template.TOKEN
@@ -28,6 +30,8 @@ else:
     WEBHOOK_URL = config_template.WEBHOOK_URL
     GPT_TOKEN = config_template.GPT_TOKEN
     GPT_MODEL_NAME = config_template.GPT_MODEL_NAME
+    JWT_TOKEN = config_template.JWT_TOKEN
+    ALGORITHM = config_template.ALGORITHM
     
     
 bot = AsyncTeleBot(TOKEN)

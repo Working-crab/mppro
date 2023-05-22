@@ -11,9 +11,10 @@ charset-normalizer==2.1.1
 click==8.1.3
 Deprecated==1.2.13
 distro==1.8.0
+python-jose==3.3.0
+passlib==1.7.4
 fastapi==0.89.1
 frozenlist==1.3.3
-greenlet==2.0.1
 h11==0.14.0
 httpcore==0.16.3
 httpx==0.23.3
@@ -47,3 +48,4 @@ yookassa==2.3.4
 zipp==3.11.0
 openai==0.27.4
 kafka-python==2.0.2
+requests-toolbelt==0.10.1

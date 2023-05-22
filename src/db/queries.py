@@ -23,6 +23,17 @@ class db_queries:
             )
             session.add(user)
             session.commit()
+            
+            
+    def create_api_user(email, password):
+        with Session(engine) as session:
+            user = User(
+                email = email,
+                password = password
+            )
+            session.add(user)
+            session.commit()
+            return True
 
 
     def add_user_analitcs(user_id, campaign_id, max_bid_company, max_budget_company, current_bet, economy, date_time):
@@ -50,7 +61,11 @@ class db_queries:
     def get_user_by_telegram_user_id(telegram_user_id):
         with Session(engine) as session:
             return session.query(User).filter(User.telegram_user_id == telegram_user_id).first()
-
+        
+        
+    def get_user_by_email(email):
+        with Session(engine) as session:
+            return session.query(User).filter(User.email == email).first()
 
 
     def set_user_wb_cmp_token(telegram_user_id, wb_cmp_token):

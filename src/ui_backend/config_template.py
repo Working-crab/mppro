@@ -7,7 +7,8 @@ GPT_MODEL_NAME = 'gpt-3.5-turbo'
 yookassa_account_id = 980339 #Тест версия
 yookassa_secret_key = 'test_Ue2xPoNd6OaYiH2jogyGl1H0PenP_xB993f3nqTyxj4' #Тест версия
 PAYMENT_TOKEN = '381764678:TEST:49601' #Тест
-
+JWT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+ALGORITHM = "HS256"
 
 # Configuration.account_id = 978902 #Боевой
 # Configuration.secret_key = 'live_l0GbasWj_Beak-mP0iScmjYPCEUuUtua6FpyyGlM6zQ' #Боевой
