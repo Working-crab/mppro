@@ -23,7 +23,7 @@ from ui_backend.auth import authenticate_user, UserIn, pwd_context, create_acces
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
-app = FastAPI() # openapi_url=None fix on the end TODO
+app = FastAPI(openapi_url=None) # openapi_url=None fix on the end TODO
 
 @app.on_event('startup')
 async def on_startup():
