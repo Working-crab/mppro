@@ -41,7 +41,10 @@ class User(Base):
        dict_res = {}
        dates_field_names = ['time_created', 'time_updated', 'sub_start_date', 'sub_end_date']
        for c in self.__table__.columns:
-           if c.name not in dates_field_names:
+           if c.name in dates_field_names:
+               pass
+                # dict_res[c.name] = getattr(self, c.name).isoformat()
+           else:
                 dict_res[c.name] = getattr(self, c.name)
        return dict_res
 

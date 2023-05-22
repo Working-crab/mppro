@@ -1,5 +1,6 @@
 import datetime
 import re
+import copy
 
 from wb_common.wb_queries import wb_queries
 from ui_backend.campaign_info.capaign_processor_field_structure import campaign_field_structure
@@ -9,7 +10,8 @@ from db.queries import db_queries
 header_template = 'Список ваших рекламных кампаний с cmp.wildberries.ru, страница: #page_number# \n\n'
 campaign_template = '''
 Кампания
-#watching_status#
+  #watching_status#
+  #budget#
 '''
 page_size = 6
 
@@ -66,7 +68,7 @@ class Capaign_processor:
 
     campaign_processing['metadata'] = {}
     campaign_processing['metadata']['created_at'] = datetime.datetime.now().isoformat()
-    campaign_processing['metadata']['user_id'] = user.id
+    campaign_processing['metadata']['user'] = user
 
 
     compaign_fields = re.findall(r'\#(.*?)\#', campaign_template)
@@ -77,7 +79,7 @@ class Capaign_processor:
       campaign_processing['fields'][advert['id']] = {}
       for field in compaign_fields:
 
-        campaign_processing['fields'][advert['id']][field] = campaign_field_structure['default']
+        campaign_processing['fields'][advert['id']][field] = copy.deepcopy(campaign_field_structure['default'])
         campaign_processing['fields'][advert['id']][field].update(campaign_field_structure[field])
 
         campaign_processing['fields'][advert['id']][field]['updated_at'] = datetime.datetime.now().isoformat()

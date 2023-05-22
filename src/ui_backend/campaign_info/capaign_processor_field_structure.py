@@ -16,5 +16,11 @@ campaign_field_structure = {
     'result_function': 'get_advert_status',
     'decorator_function': 'advert_status_decorator',
     'priority': 2
+  },
+  'budget': {
+    'name': 'budget',
+    'result_function': 'get_advert_budget',
+    'decorator_function': 'advert_budget_decorator',
+    'priority': 3
   }
 }

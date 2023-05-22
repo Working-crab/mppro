@@ -1,5 +1,7 @@
 from wb_common.wb_queries import wb_queries
 
+from unittest import mock
+
 class Capaign_processor_functions:
 
   def get_processor_function(function_name):
@@ -26,10 +28,20 @@ class Capaign_processor_functions:
     return_string = ''
 
     if result:
-      return_string += f"\t Отслеживается!"
-      return_string += f"\t Перестать отслеживать РК: /delete_adv_{wb_advert_id}\n"
+      return_string += f"Отслеживается!"
+      return_string += f"Перестать отслеживать РК: /delete_adv_{wb_advert_id}"
     else:
-      return_string += f"\t Не отслеживается!"
-      return_string += f"\t Отслеживать РК: /add_adv_{wb_advert_id}\n"
+      return_string += f"Не отслеживается!"
+      return_string += f"Отслеживать РК: /add_adv_{wb_advert_id}"
 
     return return_string
+  
+  def get_advert_budget(context, wb_advert_id, **kwargs):
+    campaign = mock.Mock()
+    campaign.campaign_id = wb_advert_id
+    user = context['metadata']['user']
+    res = wb_queries.get_budget(user, campaign)
+    return res
+
+  def advert_budget_decorator(context, wb_advert_id, result, **kwargs):
+    return f"Бюджет компании {result['Бюджет компании']}"
