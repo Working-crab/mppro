@@ -1,7 +1,8 @@
+import re
 from fastapi import Depends, HTTPException, status
 from jose import jwt, JWTError
 from passlib.context import CryptContext
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from datetime import datetime, timedelta
 from typing import Optional
 from db.queries import db_queries
@@ -20,6 +21,25 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
 class UserIn(BaseModel):
     email: str
     password: str
+    
+    @validator('email')
+    def validate_email(cls, v):
+        email_regex = r'^\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        if not re.match(email_regex, v):
+            raise ValueError('Invalid email address')
+        return v
+    
+    @validator('password')
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        if not any(x.isdigit() for x in v):
+            raise ValueError('Password must contain at least one digit')
+        if not any(x.isupper() for x in v):
+            raise ValueError('Password must contain at least one uppercase letter')
+        if not any(x.islower() for x in v):
+            raise ValueError('Password must contain at least one lowercase letter')
+        return v
     
     
 class TokenData(BaseModel):

@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends, status
 from jose import jwt, JWTError
 from passlib.context import CryptContext
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -83,15 +83,19 @@ async def login_for_access_token(user: UserIn):
 
 
 @app.post("/api/v1/register", status_code=status.HTTP_201_CREATED)
-async def register(user: UserIn):
+async def register(user: dict):
     try:
-        if db_queries.get_user_by_email(user.email) != None:
-            raise HTTPException(status_code=400, detail="Email is taken")
-        hashed_password = pwd_context.hash(user.password)
-        user = db_queries.create_api_user(email=user.email, password=hashed_password)
-        return True
-    except:
-        return False
+        user_in = UserIn(**user)
+    except ValidationError as error:
+        errors = {error['loc'][0]: error['msg'] for error in error.errors()}
+        raise HTTPException(status_code=400, detail=errors)
+        
+    if db_queries.get_user_by_email(user.email) != None:
+        raise HTTPException(status_code=400, detail="Email is taken")
+    hashed_password = pwd_context.hash(user.password)
+    user = db_queries.create_api_user(email=user.email, password=hashed_password)
+    return True
+    
 
 
 @app.post('/api/v1/search-campaign-depth-of-market')
