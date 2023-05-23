@@ -1,5 +1,4 @@
 from fastapi import FastAPI, HTTPException, Depends, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from pydantic import BaseModel
@@ -8,7 +7,6 @@ from typing import Optional
 
 from telebot import types
 from fastapi.responses import RedirectResponse
-from fastapi.security import OAuth2PasswordBearer
 
 import asyncio
 from typing import Union, Dict, Any
@@ -19,9 +17,8 @@ import ui_backend.commands as commands
 import ui_backend.handlers as handlers
 from gpt_common.gpt_queries import gpt_queries
 
-from ui_backend.auth import authenticate_user, UserIn, pwd_context, create_access_token
+from ui_backend.auth import authenticate_user, UserIn, get_current_user, pwd_context, create_access_token
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
 app = FastAPI() # openapi_url=None fix on the end TODO
 
@@ -63,15 +60,15 @@ class Token(BaseModel):
     token_type: str
 
 @app.post("/api/v1/login", response_model=Token)
-async def login_for_access_token(email: str, password: str):
-    db_user = db_queries.get_user_by_email(email)
+async def login_for_access_token(user: UserIn):
+    db_user = db_queries.get_user_by_email(user.email)
     if db_user == None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not registered",
         )
         
-    user = authenticate_user(db_user, password)
+    user = authenticate_user(db_user, user.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -96,15 +93,29 @@ async def register(user: UserIn):
     except:
         return False
 
+
 @app.post('/api/v1/search-campaign-depth-of-market')
 async def search_campaign_depth_of_market(data: dict):
     data = common.get_search_result_message(data.get('keyword'))
     return { "data": data }
 
+
 @app.post('/api/v1/gpt-generate-card-description')
-async def gpt_generate_card_description(data: dict):
-    data = gpt_queries.get_card_description(data.get('keyword'))
-    return { "data": data }
+async def gpt_generate_card_description(data: dict, current_user: UserIn = Depends(get_current_user)):
+    user_id = current_user.id
+    data = gpt_queries.get_card_description(data.get('keyword'), user_id)
+    if data == "You do not have permission":
+        raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You do not have permission to perform this action",
+    )
+    elif data == "Not enough tokens":
+        raise HTTPException(
+        status_code=status.HTTP_402_PAYMENT_REQUIRED,
+        detail="Not enough tokens",
+    )
+    else:
+        return { "data": data }
 
   
 @app.on_event("shutdown")
