@@ -4,10 +4,6 @@ from unittest import mock
 
 class Capaign_processor_functions:
 
-  def get_processor_function(function_name):
-    if function_name in locals():
-      return locals()[function_name]
-
   def default(context, wb_advert_id, **kwargs):
     return 'default value'
   
