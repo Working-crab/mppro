@@ -21,7 +21,7 @@ class campaign_automation:
     for advert in adverts:
       time.sleep(1)
       print('=== campaign automation ===')
-      print(campaign.campaign_id, campaign)
+      # print(campaign.campaign_id, campaign)
 
       try:
         campaign_automation.check_campaign(advert)
