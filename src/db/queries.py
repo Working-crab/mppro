@@ -23,6 +23,17 @@ class db_queries:
             )
             session.add(user)
             session.commit()
+            
+            
+    def create_api_user(email, password):
+        with Session(engine) as session:
+            user = User(
+                email = email,
+                password = password
+            )
+            session.add(user)
+            session.commit()
+            return True
 
 
     def add_user_analitcs(user_id, campaign_id, max_bid_company, max_budget_company, current_bet, economy, date_time):
@@ -50,7 +61,11 @@ class db_queries:
     def get_user_by_telegram_user_id(telegram_user_id):
         with Session(engine) as session:
             return session.query(User).filter(User.telegram_user_id == telegram_user_id).first()
-
+        
+        
+    def get_user_by_email(email):
+        with Session(engine) as session:
+            return session.query(User).filter(User.email == email).first()
 
 
     def set_user_wb_cmp_token(telegram_user_id, wb_cmp_token):
@@ -219,10 +234,14 @@ class db_queries:
                     subscription_id = sub.id,
                 )
                 
+                if sub.requests_get is None:
+                    requests_get = 0
+                
                 token_transaction = GPT_Transaction(
                     user_id = user.id,
                     type = "Активация подписки",
-                    amount = sub.tokens_get
+                    request_amount = requests_get,
+                    token_amount = 700 * requests_get
                 )
                 
                 session.add(transaction)
@@ -390,24 +409,26 @@ class db_queries:
     def get_user_tokens(user_id):
         with Session(engine) as session:
             if session.query(GPT_Transaction).filter(GPT_Transaction.user_id == user_id).first() is not None:
-                tokens = session.query(func.sum(cast(GPT_Transaction.amount, Integer))).filter(GPT_Transaction.user_id == user_id).scalar()
+                tokens = session.query(func.sum(cast(GPT_Transaction.token_amount, Integer))).filter(GPT_Transaction.user_id == user_id).scalar()
                 return tokens
             else:
                 return 0
         
         
-    def edit_user_tokens_transaction(user_id, amount, type):
+    def edit_user_transaction(user_id, type, token_amount, request_amount):
         with Session(engine) as session:
+            user = session.query(User).filter(User.telegram_user_id == user_id).first()
+            
             add_tokens = GPT_Transaction(
-                user_id = user_id,
+                user_id = user.id,
                 type = type,
-                amount = amount
+                token_amount = token_amount,
+                request_amount = request_amount
             )
             session.add(add_tokens)
             session.commit()
             return True
 
-    
     def get_user_analitics_data(
     user_id, 
     campaign_id
@@ -416,3 +437,12 @@ class db_queries:
             return session.query(User_analitics).filter( 
                 (User_analitics.user_id == user_id) and (User_analitics.campaign_id == campaign_id) ).all()
         return 'User_analitcs data doesn`t exist'        
+   
+        
+    def get_user_gpt_requests(user_id):
+        with Session(engine) as session:
+            if session.query(GPT_Transaction).filter(GPT_Transaction.user_id == user_id).first() is not None:
+                gtp_requests = session.query(func.sum(cast(GPT_Transaction.request_amount, Integer))).filter(GPT_Transaction.user_id == user_id).scalar()
+                return gtp_requests
+            else:
+                return 0

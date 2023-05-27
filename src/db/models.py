@@ -10,8 +10,10 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
-    telegram_user_id = Column(BigInteger, nullable=False, unique=True)
-    telegram_chat_id = Column(BigInteger, nullable=False, unique=True)
+    telegram_user_id = Column(BigInteger, nullable=True, unique=True)
+    telegram_chat_id = Column(BigInteger, nullable=True, unique=True)
+    email = Column(String)
+    password = Column(String)
     telegram_username = Column(String(255))
     wb_v3_main_token = Column(String(2048))
     wb_cmp_token = Column(String(2048))
@@ -64,7 +66,7 @@ class Subscription(Base):
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
     price = Column(Integer, default=0)
-    tokens_get = Column(Integer, default=0)
+    requests_get = Column(Integer, default=0)
 
     user = relationship('User', back_populates='subscriptions')
     transactions = relationship('Transaction', back_populates='subscriptions')
@@ -83,7 +85,7 @@ class Transaction(Base):
     time_created = Column(DateTime(timezone=True), server_default=func.now())
     
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    subscription_id = Column(Integer, ForeignKey('subscriptions.id'), nullable=False)
+    subscription_id = Column(Integer, ForeignKey('subscriptions.id'), nullable=True)
 
     user = relationship('User', back_populates='transactions')
     subscriptions = relationship('Subscription', back_populates='transactions')
@@ -98,12 +100,14 @@ class GPT_Transaction(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     type = Column(String, nullable=False)
-    amount = Column(String, nullable=True)
+    token_amount = Column(Integer, nullable=True)
+    request_amount = Column(Integer, nullable=True)
+    time_created = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship('User', back_populates='gpt_transactions')
 
     def __repr__(self):
-        return f"GPT_Transaction(id={self.id!r}, user_id={self.user_id!r}, type={self.type!r}, amount={self.amount!r})"
+        return f"GPT_Transaction(id={self.id!r}, user_id={self.user_id!r}, type={self.type!r}, token_amount={self.token_amount!r}, request_amount={self.request_amount!r})"
 
 
 class User_budget_analitics_logs(Base):
