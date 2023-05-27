@@ -25,6 +25,8 @@ class wb_queries:
     
     if user.wb_v3_main_token:
       user_wb_tokens['wb_v3_main_token'] = user.wb_v3_main_token
+    else:
+      user_wb_tokens['wb_v3_main_token'] = ""
               
     if user.x_supplier_id:
       user_wb_tokens['x_supplier_id'] = user.x_supplier_id
@@ -59,13 +61,13 @@ class wb_queries:
                 raise Exception('Неверный токен!')
           else:
             raise Exception('Неверный токен!')
-        attemps = 1    
-        while ((result.raise_for_status and result.status_code != 200) and attemps != 3):
-          logger.warn(f"In while {attemps}")
-          attemps += 1
-          result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
-          # time.sleep(3)
-          logger.warn(result.status_code)
+      attemps = 1
+      while ((result.raise_for_status and result.status_code != 200) and attemps != 3):
+        logger.warn(f"In while {attemps}")
+        attemps += 1
+        result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
+        # time.sleep(3)
+        logger.warn(result.status_code)
           
       if data == "{}":
         return result.headers
@@ -87,8 +89,6 @@ class wb_queries:
       raise Exception("wb_query error " + str(e))
 
     logger.debug(f'user_id: {user_id} url: {url} \t headers: {str(headers)} \t result: {str(result)}')    
-    
-
     return result
 
 
@@ -218,16 +218,16 @@ class wb_queries:
 
   def get_campaign_info(user, campaign, send_exeption=True):
     user_wb_tokens = wb_queries.get_base_tokens(user)
-    logger.warn('after_user_wb_tokens')
     custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
     req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
     # print('get_campaign_info', req_params)
     r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/placement', 
       cookies=req_params['cookies'],
       headers=req_params['headers'],
-      timeout=10,
+      timeout=2,
     )
     campaign_key_word = ''
+    logger.warn("get_campaign_info")
 
     if 'place' in r and len(r['place']) > 0:
       campaign_key_word = r['place'][0]['keyWord']
@@ -360,7 +360,7 @@ class wb_queries:
     r = wb_queries.wb_query(method="post", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/budget/deposit',
     cookies=req_params['cookies'],
     headers=req_params['headers'],
-    data=json.dumps(request_body))
+    data=json.dumps(request_body), request=True)
         
     
     # if not r.raise_for_status:
@@ -495,6 +495,8 @@ class wb_queries:
     
     user_atrevds = wb_queries.wb_query(method="get",
                                        url=url,
+    # logger.warn("USER_LIST")
+    # logger.warn(user_atrevds)
                                        cookies=req_params['cookies'], headers=req_params['headers'], user_id=user_id)
     logger.warn(user_atrevds)
     view = {'adverts': user_atrevds['content'], 'total_count': user_atrevds['counts']['totalCount']}

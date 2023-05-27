@@ -127,6 +127,14 @@ async def message_handler(message):
         )
         return
       
+      if "'User' object has no attribute 'update_v3_main_token'" in str(e):
+        await queue_message_async(
+        topic = 'telegram_message_sender',
+        destination_id = message.chat.id,
+        message = 'Произошла ошибка валидации токена! Попробуйте загрузить токен еще раз!'
+        )
+        return
+      
       if "x_supplier_id Отсутствует!" in str(e):
         await queue_message_async(
           topic = 'telegram_message_sender',
@@ -141,8 +149,7 @@ async def message_handler(message):
           destination_id = message.chat.id,
           message = 'Произошла ошибка на стороне WB, попробуйте еще раз'
         )
-        return
-      
+        return      
     
       # else:
       #   await queue_message_async(
@@ -1153,10 +1160,12 @@ async def add_budget_next_step_handler(message):
   
   try:
     check = wb_queries.add_budget(campaign_user, campaign, amount)
+    logger.warn("After check")
     if check.raise_for_status and check.status_code == 429:
       return await bot.send_message(message.chat.id, f'Не удалось пополнить бюджет рекламной компании, попробуйте еще раз', parse_mode="MarkdownV2")
     else:  
       budget2 = wb_queries.get_budget(campaign_user, campaign)['Бюджет компании']
+      logger.warn("After budget")
       if budget2 == None:
         return await bot.send_message(message.chat.id, f'WB не вернул бюджет, попробуйте посмотреть изменение бюджета, нажав повторно кнопку \"Пополнить бюджет\"', parse_mode="MarkdownV2")
       else:
@@ -1210,8 +1219,8 @@ async def show_my_sub(message):
     if not "Advanced" in my_sub.title:
       await bot.send_message(message.chat.id, 'Вы можете обновиться на более крутую подписку', reply_markup=paid_service_reply_markup())
       sub_list = db_queries.get_all_sub()
-      # if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
-      if PAYMENT_TOKEN.split(':')[1] == 'TEST':
+      if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
+      # if PAYMENT_TOKEN.split(':')[1] == 'TEST':
         for sub in sub_list:
           if sub.title == my_sub.title:
             continue
@@ -1220,8 +1229,8 @@ async def show_my_sub(message):
   else:
     await bot.send_message(message.chat.id, 'У вас не подключено никаких платных подписок\nНиже предоставлены варианты для покупки: ')
     sub_list = db_queries.get_all_sub()
-    # if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
-    if PAYMENT_TOKEN.split(':')[1] == 'TEST':
+    if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
+    # if PAYMENT_TOKEN.split(':')[1] == 'TEST':
       for sub in sub_list:
         await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
         # await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
