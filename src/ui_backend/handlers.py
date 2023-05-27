@@ -126,6 +126,14 @@ async def message_handler(message):
         )
         return
       
+      if "'User' object has no attribute 'update_v3_main_token'" in str(e):
+        await queue_message_async(
+        topic = 'telegram_message_sender',
+        destination_id = message.chat.id,
+        message = 'Произошла ошибка валидации токена! Попробуйте загрузить токен еще раз!'
+        )
+        return
+      
       if "x_supplier_id Отсутствует!" in str(e):
         await queue_message_async(
           topic = 'telegram_message_sender',
