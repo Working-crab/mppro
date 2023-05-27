@@ -428,7 +428,16 @@ class db_queries:
             session.add(add_tokens)
             session.commit()
             return True
-        
+
+    def get_user_analitics_data(
+    user_id, 
+    campaign_id
+    ):
+        with Session(engine) as session:
+            return session.query(User_analitics).filter( 
+                (User_analitics.user_id == user_id) and (User_analitics.campaign_id == campaign_id) ).all()
+        return 'User_analitcs data doesn`t exist'        
+   
         
     def get_user_gpt_requests(user_id):
         with Session(engine) as session:
@@ -437,5 +446,3 @@ class db_queries:
                 return gtp_requests
             else:
                 return 0
-            
-        

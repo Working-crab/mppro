@@ -1,5 +1,6 @@
 import re
 from unittest import mock
+from user_analitics.graphic_analitic import graphics_analitics
 from ui_backend.app import bot
 from ui_backend.common import (edit_token_reply_markup, format_requests_count, management_tokens_reply_markup, paid_requests_inline_markup, paid_service_reply_markup, status_parser, 
                                switch_status_reply_markup, 
@@ -1275,12 +1276,23 @@ def update_user_session(message):
   message.user_session['updated_at'] = str(datetime.now())
   cache_worker.set_user_session(message.from_user.id, message.user_session)
 
-
+# --- график с аналитикой для юзера -----------------
+async def user_analitics_grafic(message):
+  user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  user_id = user.id
+  try:
+    campaign_id = message.text.split('_')[-1]
+    file = graphics_analitics.start(user_id, campaign_id)
+    await bot.send_photo(message.chat.id, types.InputFile(file))
+    graphics_analitics.delete_photo(file)
+  except Exception:
+    await bot.send_message(message.chat.id, 'Произошла ошибка с формированием графика')
 
 # --- маппинг степов --------------------------------------------------------------------------------------------
 
 step_map = {
   'База': {
+    'user_analitics_grafic': user_analitics_grafic,
     'Помощь': help,
     'Поиск': search_adverts,
     'Платные услуги': show_paid_services,

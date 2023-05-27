@@ -11,22 +11,22 @@ logger = appLogger.getLogger(__name__)
 class campaign_automation:
 
   def start():
-    campaigns = db_queries.get_adverts_chunk()
+    adverts = db_queries.get_adverts_chunk()
 
     print('============= campaign automation start =============')
 
-    if not campaigns:
+    if not adverts:
       return False
-    
-    for campaign in campaigns:
+
+    for advert in adverts:
       time.sleep(1)
       print('=== campaign automation ===')
       print(campaign.campaign_id, campaign)
 
       try:
-        campaign_automation.check_campaign(campaign)
-        campaign_automation.check_stat_word(campaign)
-        user_analitics.start_logs_analitcs(campaign.user_id, campaign.id)
+        campaign_automation.check_campaign(advert)
+        campaign_automation.check_stat_word(advert)
+        user_analitics.start_logs_analitcs(advert.user_id, advert.campaign_id)
       except Exception as e:
         traceback.print_exc()
         logger.error(f'Exception: {e}.')
