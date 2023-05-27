@@ -15,12 +15,13 @@ class gpt_queries:
         user = db_queries.get_user_by_id(user_id)
         
         if user.subscriptions_id == None:
-            return 401
+            return "You do not have permission"
         
+        logger.warn("after user")
         gtp_requests = db_queries.get_user_gpt_requests(user.id)
         
         if gtp_requests < 1:
-            return "Недостаточно токенов"
+            return "Not enough tokens"
         
         # tokens = db_queries.get_user_tokens(user_id)
         # if tokens < 650:

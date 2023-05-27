@@ -10,8 +10,10 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
-    telegram_user_id = Column(BigInteger, nullable=False, unique=True)
-    telegram_chat_id = Column(BigInteger, nullable=False, unique=True)
+    telegram_user_id = Column(BigInteger, nullable=True, unique=True)
+    telegram_chat_id = Column(BigInteger, nullable=True, unique=True)
+    email = Column(String)
+    password = Column(String)
     telegram_username = Column(String(255))
     wb_v3_main_token = Column(String(2048))
     wb_cmp_token = Column(String(2048))
