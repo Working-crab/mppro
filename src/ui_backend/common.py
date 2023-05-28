@@ -372,7 +372,8 @@ def get_first_place(user_id, campaign) -> int:
 
 
 def escape_telegram_specials(string):
-  return re.sub(r'([_*\[\]\(\)~`>#+-=|{}.!])', r'\\\1', string)
+  # return re.sub(r'([_*\[\]\(\)~`>#+-=|{}.!])', r'\\\1', string)
+  return re.sub(r'([_*~`>#+-=|{}.!])', r'\\\1', string)
 
   
 def logs_types_reply_markup(user_id, timestamp):

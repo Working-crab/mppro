@@ -4,20 +4,22 @@ import asyncio
 from ui_backend.campaign_info.info_processor import process_campaign
 
 from kafka_dir.general_consumer import create_async_consumer
+from kafka_dir.topics import Topics
 import sys, os
 
 from common.appLogger import appLogger
 logger = appLogger.getLogger('campaign_info_sender')
 
 
-CONSUMER_TOPIC = 'processing_campaign_info'
+CONSUMER_TOPIC = 'capaign_processor'
 
 async def consume():
-  consumer = await create_async_consumer(CONSUMER_TOPIC)
-  print(CONSUMER_TOPIC + 'consume')
+  consumer = await create_async_consumer(Topics.PROCESSING_CAMPAIGN_TOPIC)
+  print(Topics.PROCESSING_CAMPAIGN_TOPIC + ' start consume')
   try:
     async for msg in consumer:
-      process_campaign(**msg.value)
+      campaign_processing = msg.value.get('campaign_processing')
+      await process_campaign(campaign_processing)
   finally:
     await consumer.stop()
 
