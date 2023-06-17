@@ -209,19 +209,16 @@ class db_queries:
        
     def get_all_sub():
         with Session(engine) as session:
-            return session.query(Subscription).filter(Subscription.title != 'Trial')
-            
+            return session.query(Subscription).filter(Subscription.title != 'Старт').order_by(Subscription.price)
+        
 
         
     def update_sub(user_id, sub_name, total):
         with Session(engine) as session:
             user = session.query(User).filter(User.telegram_user_id == user_id).first()
-            sub = session.query(Subscription).filter(Subscription.title == sub_name).first()
-            user.sub_start_date = datetime.now()
-            user.sub_end_date = datetime.now() + timedelta(days=30)
             
             if user:
-                sub = session.query(Subscription).filter(Subscription.title == sub_name).first()
+                sub = session.query(Subscription).filter(Subscription.title == str(sub_name)).first()
                 user.sub_start_date = datetime.now()
                 user.sub_end_date = datetime.now() + timedelta(days=30)
                 user.subscriptions_id = sub.id
@@ -236,6 +233,8 @@ class db_queries:
                 
                 if sub.requests_get is None:
                     requests_get = 0
+                else:
+                    requests_get = sub.requests_get
                 
                 token_transaction = GPT_Transaction(
                     user_id = user.id,
@@ -404,6 +403,13 @@ class db_queries:
                 return True
             else:
                 return False
+            
+            
+    def remove_wb_v3_main_token(user_id):
+        with Session(engine) as session:
+            user = session.query(User).filter(User.id == user_id).first()
+            user.wb_v3_main_token = None
+            session.commit()
             
             
     def get_user_tokens(user_id):

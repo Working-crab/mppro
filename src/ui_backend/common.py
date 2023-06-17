@@ -549,7 +549,8 @@ def get_search_result_message(keyword, city=None):
 def check_sub(required_subs):
     def decorator(func):
         @wraps(func)
-        async def wrapper(message):
+        async def wrapper(*args, **kwargs):
+          message = args[0]
           user_id = message.from_user.id
           user = db_queries.get_user_by_telegram_user_id(user_id)
           
@@ -561,7 +562,7 @@ def check_sub(required_subs):
             sub_name = sub.title  
           
             if sub is not None and sub_name in required_subs:
-                return await func(message, sub_name)
+                return await func(*args, sub_name=sub_name, **kwargs)
             elif sub is not None and sub_name not in required_subs:
               await bot.send_message(user_id, "У вас недостаточно прав для выполнения данной команды, купите подписку по лучше")
               return None

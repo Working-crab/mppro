@@ -67,6 +67,7 @@ class Subscription(Base):
     description = Column(String, nullable=True)
     price = Column(Integer, default=0)
     requests_get = Column(Integer, default=0)
+    tracking_advertising = Column(Integer, default=0, nullable=True)
 
     user = relationship('User', back_populates='subscriptions')
     transactions = relationship('Transaction', back_populates='subscriptions')

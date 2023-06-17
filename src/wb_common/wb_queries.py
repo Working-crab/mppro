@@ -47,20 +47,15 @@ class wb_queries:
       result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
       if result.raise_for_status:
         if result.status_code == 401:
+            # token_update = cache_worker.get_user_session(user_id)['update_v3_main_token']
+            # difference = datetime.now() - datetime.strptime(token_update, "%Y-%m-%d %H:%M:%S.%f")
+            # if difference.seconds < 600:
+            #   raise Exception('Неверный токен!')
           user = db_queries.get_user_by_telegram_user_id(user_id)
-          if user.update_v3_main_token:
-            token_update = cache_worker.get_user_session(user_id)['update_v3_main_token']
-            difference = datetime.now() - datetime.strptime(token_update, "%Y-%m-%d %H:%M:%S.%f")
-            if difference.seconds < 600:
-              raise Exception('Неверный токен!')
-            else:
-              user = db_queries.get_user_by_telegram_user_id(user_id)
-              wb_queries.reset_base_tokens(user)
-              result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
-              if result.raise_for_status:
-                raise Exception('Неверный токен!')
-          else:
-            raise Exception('Неверный токен!')
+          wb_queries.reset_base_tokens(user)
+          result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
+          if result.raise_for_status:
+            raise Exception('update_v3_main_token' + " user_id: " + str(user_id))
       attemps = 1
       while ((result.raise_for_status and result.status_code != 200) and attemps != 3):
         logger.warn(f"In while {attemps}")
@@ -86,7 +81,7 @@ class wb_queries:
         'data': data
       })
       # logger.error(result, result)
-      raise Exception("wb_query error " + str(e))
+      raise Exception("wb_query error " + str(e) + " user_id: " + str(user_id))
 
     logger.debug(f'user_id: {user_id} url: {url} \t headers: {str(headers)} \t result: {str(result)}')    
     return result
@@ -143,8 +138,8 @@ class wb_queries:
     # logger.warn(auth_result)
     # if not user_wb_tokens['wb_cmp_token']:
     
-    if user_wb_tokens['wb_v3_main_token']:
-      auth_result = wb_queries.wb_query(method='post', url='https://cmp.wildberries.ru/passport/api/v2/auth/wild_v3_upgrade', cookies={'WILDAUTHNEW_V3': user_wb_tokens['wb_v3_main_token']}, data="{}")
+    if user_wb_tokens['wb_v3_main_token'] or (token_main_v3 and token_cmp == None):
+      auth_result = wb_queries.wb_query(method='post', url='https://cmp.wildberries.ru/passport/api/v2/auth/wild_v3_upgrade', cookies={'WILDAUTHNEW_V3': user_wb_tokens['wb_v3_main_token']}, data="{}", user_id=user.id)
       
       if not auth_result or not "Set-Cookie" in auth_result:
         raise Exception('Неверный токен!')
