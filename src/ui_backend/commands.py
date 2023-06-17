@@ -27,7 +27,7 @@ async def start(message):
         # )
 
         await bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}, вы зарегистрировались в *{await bot.get_me().username}*', parse_mode='Markdown', reply_markup=markup_inline)
-        await bot.send_message(message.chat.id, f'Так как вы только зарегистрировались, предлагаем Вам *Trial* подписку на нашего бота', parse_mode='Markdown', reply_markup=reply_markup_trial(trial=False))
+        await bot.send_message(message.chat.id, f'Так как вы только зарегистрировались, предлагаем Вам *Старт* подписку на нашего бота', parse_mode='Markdown', reply_markup=reply_markup_trial(trial=False))
     else:
         await bot.send_message(message.chat.id, f'Вы уже зарегистрированы')
         
@@ -35,16 +35,16 @@ async def start(message):
         await bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}', reply_markup=markup_inline)
 
 
-# Обработка Trial подписки ----------------------------------------------------------------------------------------------------
+# Обработка Старт подписки ----------------------------------------------------------------------------------------------------
 @bot.callback_query_handler(func=lambda x: re.match('Trial', x.data))
 async def trial(call):
     if call.data == "Trial_Yes":
         await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text="Активируем Вам подписку, а пока можете посмотреть что она предоставляет: Информация\nИли /trial - Информация", reply_markup=reply_markup_trial(trial=True))
-        db_queries.update_sub(user_id=call.message.chat.id, sub_name='Trial', total=0)
+        db_queries.update_sub(user_id=call.message.chat.id, sub_name='Старт', total=0)
     if call.data == "Trial_No":
         await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text=f'Хорошо, но если вы всё же захотите активировать подписку, введите команду /trial', parse_mode='Markdown')
     if call.data == "Trial_info":
-        await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text='`Trial` подписка предоставляет: "Функционал"', parse_mode='Markdown')
+        await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text='`Старт` подписка предоставляет: "Функционал"', parse_mode='Markdown')
 
 
 # Обработка Оплаты ----------------------------------------------------------------------------------------------------
@@ -135,18 +135,18 @@ async def payment_func(call):
 @bot.message_handler(commands=['trial'])
 async def trial(message):
     user = db_queries.get_user_by_telegram_user_id(message.chat.id)
-    transaction = db_queries.get_transaction(user_id=user.id, transaction_title="Trial")
+    transaction = db_queries.get_transaction(user_id=user.id, transaction_title="Старт")
     if user.subscriptions_id == None:
         if transaction:
-            await bot.send_message(message.chat.id, f'У вас уже была активирована Пробная подписка', parse_mode='Markdown')
+            await bot.send_message(message.chat.id, f'У вас уже была активирована Стартовая подписка', parse_mode='Markdown')
         else:
-            await bot.send_message(message.chat.id, f'Информация о пробной подписке\nКнопка *Согласиться* активирует Вам подписку', reply_markup=reply_markup_trial(trial=False), parse_mode='Markdown')
+            await bot.send_message(message.chat.id, f'Информация о Стартовой подписке\nКнопка *Согласиться* активирует Вам подписку', reply_markup=reply_markup_trial(trial=False), parse_mode='Markdown')
     else:    
         sub = db_queries.get_sub(sub_id=user.subscriptions_id)
-        if sub.title != 'Trial':
-            await bot.send_message(message.chat.id, f'У вас сейчас не пробная подписка', parse_mode='Markdown')
-        elif sub.title == 'Trial':
-            await bot.send_message(message.chat.id, f'Нажмите на `Информация` чтобы узнать, что дает пробная подписка', reply_markup=reply_markup_trial(trial=True), parse_mode='Markdown')
+        if sub.title != 'Старт':
+            await bot.send_message(message.chat.id, f'У вас сейчас не Стартовая подписка', parse_mode='Markdown')
+        elif sub.title == 'Старт':
+            await bot.send_message(message.chat.id, f'Нажмите на `Информация` чтобы узнать, что дает Стартовая подписка', reply_markup=reply_markup_trial(trial=True), parse_mode='Markdown')
 
 
 

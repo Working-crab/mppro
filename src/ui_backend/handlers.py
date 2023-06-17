@@ -150,6 +150,15 @@ async def message_handler(message):
           message = 'Произошла ошибка на стороне WB, попробуйте еще раз'
         )
         return      
+      
+      if "update_v3_main_token" in str(e):
+        db_queries.remove_wb_v3_main_token(str(e).split(":")[1])
+        await queue_message_async(
+          topic = 'telegram_message_sender',
+          destination_id = message.chat.id,
+          message = 'Произошла ошибка с WildAuthNewV3 Token, токен был сброшен'
+        )
+        return
     
       # else:
       #   await queue_message_async(
@@ -374,7 +383,6 @@ async def set_wb_v3_main_token_handler(message):
       return
     raise e
 
-  message.user_session['update_v3_main_token'] = str(datetime.now())
   db_queries.set_user_wb_v3_main_token(telegram_user_id=message.from_user.id, wb_v3_main_token=clear_token)
   await bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
   db_queries.add_action_history(user_id=user.id, action="Токен", action_description=f"Был установлен V3 Main Token: '{clear_token}'")
@@ -653,8 +661,15 @@ async def action_page(data):
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # --- правка ставки компании --------------------------------------------------------------------------------------------
-
-async def send_message_for_advert_bid(message, adv_id):
+@check_sub(['Старт', 'Победитель', 'Мастер', 'Чемпион'])
+async def send_message_for_advert_bid(message, adv_id, sub_name):
+  user = db_queries.get_user_by_telegram_user_id(message.chat.id)
+  adverts_count = db_queries.get_user_adverts(user.id)
+  my_sub = db_queries.get_sub(user.subscriptions_id)
+  
+  if len(adverts_count) > my_sub.tracking_advertising:
+    return await bot.send_message(message.chat.id, "Вы не можете отслеживать больше РК, посмотрите свой тариф", parse_mode = 'MarkdownV2')
+  
   campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{adv_id}"
   result_msg = f'Укажите максимальную ставку для РК с id [{adv_id}]({campaign_link}) в рублях' #f"\t ID: [{advert['id']}]({campaign_link}) Статус: {stat}\n"
   await bot.send_message(message.chat.id, result_msg, parse_mode = 'MarkdownV2') 
@@ -1216,30 +1231,26 @@ async def show_my_sub(message):
   my_sub = db_queries.get_sub(sub_id=user.subscriptions_id)
   if user.subscriptions_id:
     await bot.send_message(message.chat.id, 'Подключен: `{}`\nОписание: `{}`\nСрок действия с `{}` по `{}`'.format(my_sub.title, my_sub.description, user.sub_start_date.strftime('%d/%m/%Y'), user.sub_end_date.strftime('%d/%m/%Y')), reply_markup=paid_service_reply_markup())
-    if not "Advanced" in my_sub.title:
+    #TODO do another systeam
+    sub_list = db_queries.get_all_sub()
+    if sub_list[-1].title != my_sub.title:
       await bot.send_message(message.chat.id, 'Вы можете обновиться на более крутую подписку', reply_markup=paid_service_reply_markup())
-      sub_list = db_queries.get_all_sub()
-      if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
-      # if PAYMENT_TOKEN.split(':')[1] == 'TEST':
-        for sub in sub_list:
-          if sub.title == my_sub.title:
-            continue
-          await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
-          # await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\n   Хотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
+      
+      for sub in sub_list:
+        if sub.title == my_sub.title:
+          continue
+        await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
   else:
     await bot.send_message(message.chat.id, 'У вас не подключено никаких платных подписок\nНиже предоставлены варианты для покупки: ')
     sub_list = db_queries.get_all_sub()
-    if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
-    # if PAYMENT_TOKEN.split(':')[1] == 'TEST':
-      for sub in sub_list:
-        await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
-        # await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
+    for sub in sub_list:
+      await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
 
 # --------------------------------------------------------------------------------------------------------------------------------
 
 # --- card product --------------------------------------------------------------------------------------------
 
-@check_sub(['Trial', 'Standart🔥', 'Advanced'])
+@check_sub(['Старт', 'Победитель', 'Мастер', 'Чемпион'])
 async def card_product(message, sub_name):
   user = db_queries.get_user_by_telegram_user_id(message.chat.id)
   gtp_requests = db_queries.get_user_gpt_requests(user_id=user.id)
