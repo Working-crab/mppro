@@ -4,6 +4,7 @@ from datetime import datetime
 from cache_worker.cache_worker import cache_worker
 import requests
 import time
+import traceback
 
 from db.queries import db_queries
 
@@ -20,8 +21,11 @@ CONSTS = {
 class wb_queries:
   def get_base_tokens(user, check=False):
     user_wb_tokens = cache_worker.get_user_wb_tokens(user.id)
-
-    user_wb_tokens['wb_cmp_token'] = user.wb_cmp_token
+    
+    if user.wb_cmp_token:
+      user_wb_tokens['wb_cmp_token'] = user.wb_cmp_token
+    else:
+      user_wb_tokens['wb_cmp_token'] = ""
     
     if user.wb_v3_main_token:
       user_wb_tokens['wb_v3_main_token'] = user.wb_v3_main_token
@@ -46,7 +50,7 @@ class wb_queries:
       logger.warn(f"{method} url={url}, cookies={cookies}, headers={headers}, data={data}, timeout={timeout}")
       result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
       if result.raise_for_status:
-        if result.status_code == 401:
+        if result.status_code == 401 and user_id:
             # token_update = cache_worker.get_user_session(user_id)['update_v3_main_token']
             # difference = datetime.now() - datetime.strptime(token_update, "%Y-%m-%d %H:%M:%S.%f")
             # if difference.seconds < 600:
@@ -55,7 +59,7 @@ class wb_queries:
           wb_queries.reset_base_tokens(user)
           result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
           if result.raise_for_status:
-            raise Exception('update_v3_main_token' + " user_id: " + str(user_id))
+            raise Exception('Неверный токен!' + ' update_v3_main_token' + " user_id: " + str(user_id))
       attemps = 1
       while ((result.raise_for_status and result.status_code != 200) and attemps != 3):
         logger.warn(f"In while {attemps}")
@@ -71,8 +75,15 @@ class wb_queries:
       logger.warn(f"result status code")
       logger.warn(result.status_code)
       if not request:
-        result = result.json()
+        try:
+          result = result.json()
+        except Exception as e:
+          logger.error('result.json() error')
+          if (result.status_code != 200):
+            raise e
+          
     except Exception as e:
+      traceback.print_exc()
       logger.debug({
         'method': method,
         'url': url,
@@ -93,17 +104,19 @@ class wb_queries:
     user_wb_tokens['wb_cmp_token'] = ""
     user_wb_tokens['wb_v3_main_token'] = ""
     
-    user_wb_tokens['wb_cmp_token'] = user.wb_cmp_token
-    
-    logger.warn(user.x_supplier_id)
-    
-    if user.x_supplier_id != None:
-      user_wb_tokens['x_supplier_id'] = user.x_supplier_id
-    else:
-      raise Exception('x_supplier_id Отсутствует!')
+    if user is not None:      
+      if user.x_supplier_id not in [None, ""]:
+        user_wb_tokens['x_supplier_id'] = user.x_supplier_id
+      else:
+        raise Exception('x_supplier_id Отсутствует!')
 
-    if user.wb_v3_main_token != None or user.wb_v3_main_token != "":
-      user_wb_tokens['wb_v3_main_token'] = user.wb_v3_main_token
+      
+      if user.wb_cmp_token not in [None, ""]:
+        user_wb_tokens['wb_cmp_token'] = user.wb_cmp_token
+      
+      if user.wb_v3_main_token not in [None, ""]:
+        user_wb_tokens['wb_v3_main_token'] = user.wb_v3_main_token
+
 
       # if token_cmp: TODO
       #   raise Exception("Ошибка установки нового токена")
@@ -121,7 +134,7 @@ class wb_queries:
     #   raise Exception('Не найден токен! wb_cmp_token')
     
 
-    logger_token.info(f' \t reset_base_tokens \t User id: {user.id} \t Old tokens: {str(user_wb_tokens)}')
+    # logger_token.info(f' \t reset_base_tokens \t User id: {user.id} \t Old tokens: {str(user_wb_tokens)}')
 
     cookies = {
       'WBToken': user_wb_tokens['wb_cmp_token'],
@@ -134,7 +147,7 @@ class wb_queries:
       'User-Agent': CONSTS['User-Agent'],
     }
 
-    logger_token.warn('cookies, headers', cookies, headers)
+    # logger_token.warn('cookies, headers', cookies, headers)
     # logger.warn(auth_result)
     # if not user_wb_tokens['wb_cmp_token']:
     
@@ -155,7 +168,9 @@ class wb_queries:
     logger.warn("COOKIES")
     logger.warn(cookies)
       
-    introspect_result = wb_queries.wb_query(method='get', url='https://cmp.wildberries.ru/passport/api/v2/auth/introspect', cookies=cookies, headers=headers)
+    introspect_result = wb_queries.wb_query(method='get', url='https://cmp.wildberries.ru/passport/api/v2/auth/introspect', cookies=cookies, headers=headers, user_id=user.id)
+    
+    logger.warn(introspect_result)
     
     # introspect_result = introspect.json()
     #   logger_token.info('introspect_result', introspect_result)
@@ -175,7 +190,7 @@ class wb_queries:
     logger.warn(headers)
     logger.warn(cookies)
     
-    supplier_result = wb_queries.wb_query(method="get", url='https://cmp.wildberries.ru/backend/api/v3/supplier', cookies=cookies, headers=headers)
+    supplier_result = wb_queries.wb_query(method="get", url='https://cmp.wildberries.ru/backend/api/v3/supplier', cookies=cookies, headers=headers, user_id=user.id)
     logger.warn(supplier_result['supplier']['id'])
     user_wb_tokens['wb_supplier_id'] = supplier_result['supplier']['id']
     logger.warn(user_wb_tokens)
@@ -184,7 +199,7 @@ class wb_queries:
     # TODO move to mq db microservice
     # db_queries.set_user_wb_cmp_token(telegram_user_id=user.telegram_user_id, wb_cmp_token=user_wb_tokens['wb_cmp_token'])
 
-    logger_token.info(f'\t reset_base_tokens \t User id: {user.id} \t New tokens: {str(user_wb_tokens)}')
+    # logger_token.info(f'\t reset_base_tokens \t User id: {user.id} \t New tokens: {str(user_wb_tokens)}')
 
     return user_wb_tokens
 
@@ -219,7 +234,7 @@ class wb_queries:
     r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/placement', 
       cookies=req_params['cookies'],
       headers=req_params['headers'],
-      timeout=2,
+      timeout=5,
     )
     campaign_key_word = ''
     logger.warn("get_campaign_info")
@@ -370,7 +385,6 @@ class wb_queries:
     custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
     req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
     
-    
     # req_params['headers']['Content-type'] = 'application/json'
     
     logger.info("PLACE")
@@ -400,7 +414,9 @@ class wb_queries:
       r = wb_queries.wb_query(method="put", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/placement',
         cookies=req_params['cookies'],
         headers=req_params['headers'],
-        data=json.dumps(full_body))
+        data=json.dumps(full_body),
+        timeout=5
+      )
       
 
     return r

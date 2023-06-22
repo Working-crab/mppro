@@ -101,7 +101,7 @@ async def message_handler(message):
         message = 'Произошла ошибка валидации токена! Возможно срок его действия истек, попробуйте перезагрузить токен!'
       )
       return
-    
+        
     if "Read timed out" in str(e):
       await queue_message_async(
         topic = 'telegram_message_sender',
@@ -150,8 +150,8 @@ async def message_handler(message):
           message = 'Произошла ошибка на стороне WB, попробуйте еще раз'
         )
         return      
-      
-      if "update_v3_main_token" in str(e):
+      # or "wb_cmp_token" in str(e)
+      if "update_v3_main_token" in str(e) or "wb_cmp_token" in str(e):
         db_queries.remove_wb_v3_main_token(str(e).split(":")[1])
         await queue_message_async(
           topic = 'telegram_message_sender',
@@ -241,7 +241,7 @@ async def search_next_step_handler(message, after_city_choose=False):
     if advert_info:
       product_name = escape_telegram_specials(advert_info.get('name')[:30]) if advert_info.get('name')[:30] else product_id
       product_time = f'{advert_info.get("time2")}ч' if advert_info.get('time2') else ''
-      product_category_name = advert_info.get('category_name') if advert_info.get('category_name') else ''
+      product_category_name = escape_telegram_specials(advert_info.get('category_name')) if advert_info.get('category_name') else ''
       message_string = f'{position_index} \t \\({pos}\\) \t *{price}₽*, \t {product_category_name} \t {product_time} \t [{product_name}](https://www.wildberries.ru/catalog/{product_id}/detail.aspx)'
     else:
       message_string += ' возможно нет в наличии'
@@ -667,8 +667,10 @@ async def send_message_for_advert_bid(message, adv_id, sub_name):
   adverts_count = db_queries.get_user_adverts(user.id)
   my_sub = db_queries.get_sub(user.subscriptions_id)
   
+  logger.warn(adverts_count)
+  
   if len(adverts_count) > my_sub.tracking_advertising:
-    return await bot.send_message(message.chat.id, "Вы не можете отслеживать больше РК, посмотрите свой тариф", parse_mode = 'MarkdownV2')
+    return await bot.send_message(message.chat.id, "К сожалению, вы не можете отслеживать больше РК", parse_mode = 'MarkdownV2')
   
   campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{adv_id}"
   result_msg = f'Укажите максимальную ставку для РК с id [{adv_id}]({campaign_link}) в рублях' #f"\t ID: [{advert['id']}]({campaign_link}) Статус: {stat}\n"
