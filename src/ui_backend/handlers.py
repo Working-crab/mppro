@@ -202,7 +202,7 @@ async def search_next_step_handler(message, after_city_choose=False):
     city = "Москва"
   
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
-  item_dicts = wb_queries.search_adverts_by_keyword(keyword, telegram_user_id)
+  item_dicts = await wb_queries.search_adverts_by_keyword(keyword, telegram_user_id)
   result_message = ''
   position_ids = []
   
@@ -227,7 +227,7 @@ async def search_next_step_handler(message, after_city_choose=False):
 
 
   result_message = f'Текущие рекламные ставки по запросу: *{keyword}*\nГород доставки: *{city}*\n\n'
-  adverts_info = wb_queries.get_products_info_by_wb_ids(position_ids, city, telegram_user_id)
+  adverts_info = await wb_queries.get_products_info_by_wb_ids(position_ids, city, telegram_user_id)
 
   for item_idex in range(len(item_dicts)):
 
@@ -298,7 +298,7 @@ async def management_tokens(message):
 async def token_cmp_handler(message):
   try:
     user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-    user_wb_tokens = wb_queries.get_base_tokens(user, check=True)
+    user_wb_tokens = await wb_queries.get_base_tokens(user, check=True)
   except Exception as e:
     logger.warn(e)
     await bot.send_message(message.chat.id, f'WBToken *Не найден* либо *Просрочен*\nНапишите новый токен, если хотите добавить/исправить токен', parse_mode="MarkdownV2", reply_markup=edit_token_reply_markup())
@@ -340,7 +340,7 @@ async def set_token_cmp_handler(message):
   user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
 
   try:
-    wb_queries.reset_base_tokens(user, token_cmp=clear_token)
+    await wb_queries.reset_base_tokens(user, token_cmp=clear_token)
   except Exception as e:
     if str(e) == 'Неверный токен!':
       await bot.send_message(message.chat.id, 'Неверный токен\!', reply_markup=universal_reply_markup())
@@ -356,7 +356,7 @@ async def set_token_cmp_handler(message):
 async def wb_v3_main_token_handler(message):
   try:
     user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-    user_wild_auth_v3_token = wb_queries.get_base_tokens(user, check=True)
+    user_wild_auth_v3_token = await wb_queries.get_base_tokens(user, check=True)
   except Exception as e:
     logger.warn(e)
     await bot.send_message(message.chat.id, f'WildAuthNewV3 *Не найден* либо *Просрочен*\nНапишите новый токен, если хотите добавить/исправить токен', parse_mode="MarkdownV2", reply_markup=edit_token_reply_markup())
@@ -376,7 +376,7 @@ async def set_wb_v3_main_token_handler(message):
 
   logger.warn(clear_token)
   try:
-    wb_queries.reset_base_tokens(user, token_cmp=None, token_main_v3=clear_token)
+    await wb_queries.reset_base_tokens(user, token_cmp=None, token_main_v3=clear_token)
   except Exception as e:
     if str(e) == 'Неверный токен!':
       await bot.send_message(message.chat.id, 'Неверный токен\!', reply_markup=universal_reply_markup())
@@ -400,13 +400,13 @@ async def list_adverts_handler(message):
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
 
   user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  user_wb_tokens = wb_queries.get_base_tokens(user)
-  req_params = wb_queries.get_base_request_params(user_wb_tokens)
+  user_wb_tokens = await wb_queries.get_base_tokens(user)
+  req_params = await wb_queries.get_base_request_params(user_wb_tokens)
   
   page_number = 1
   
-  # user_atrevds_data = wb_queries.get_user_atrevds(req_params, page_number)  try:
-  user_atrevds_data = wb_queries.get_user_atrevds(req_params, user_id=message.from_user.id)
+  # user_atrevds_data = await wb_queries.get_user_atrevds(req_params, page_number)  try:
+  user_atrevds_data = await wb_queries.get_user_atrevds(req_params, user_id=message.from_user.id)
 
   
   page_size = 6
@@ -431,11 +431,11 @@ async def kek(data):
   type_of_callback, page_number, user_id = data.data.split(':') # parameters = [type_of_callback, page_number, user_id]
   page_number = int(page_number)
   user = db_queries.get_user_by_telegram_user_id(user_id)
-  user_wb_tokens = wb_queries.get_base_tokens(user)
-  req_params = wb_queries.get_base_request_params(user_wb_tokens)
+  user_wb_tokens = await wb_queries.get_base_tokens(user)
+  req_params = await wb_queries.get_base_request_params(user_wb_tokens)
   
-  # user_atrevds_data = wb_queries.get_user_atrevds(req_params, page_number=1)
-  user_atrevds_data = wb_queries.get_user_atrevds(req_params)
+  # user_atrevds_data = await wb_queries.get_user_atrevds(req_params, page_number=1)
+  user_atrevds_data = await wb_queries.get_user_atrevds(req_params)
 
   page_size = 6
   result_msg = advert_info_message_maker(user_atrevds_data['adverts'], page_number=page_number, page_size=page_size, user=user)
@@ -727,7 +727,7 @@ async def adv_settings(message):
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
   
-  fixed = wb_queries.get_fixed(campaign_user, campaign)
+  fixed = await wb_queries.get_fixed(campaign_user, campaign)
   
   message.user_session['adv_fixed'] = fixed['fixed']
   
@@ -763,7 +763,7 @@ async def adv_settings_get_plus_word(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   if len(words['fixed']) == 0:
     check_new = True
@@ -823,13 +823,13 @@ async def add_plus_word_next_step_handler(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   pluse_word = [word.lower() for word in words['pluses']]
   pluse_word.append(keyword.lower())
   
   try:
-    wb_queries.add_word(campaign_user, campaign, plus_word=pluse_word)
+    await wb_queries.add_word(campaign_user, campaign, plus_word=pluse_word)
     await bot.send_message(message.chat.id, f"Слово {keyword.lower()} было добавлено")
   except:
     await bot.send_message(message.chat.id, f"На стороне WB произошла ошибка")
@@ -860,7 +860,7 @@ async def adv_settings_get_minus_word(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   if len(words['fixed']) == 0:
     check_new = True
@@ -935,13 +935,13 @@ async def add_minus_word_next_step_handler(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   minus_word = [word.lower() for word in words['minuses']]
   minus_word.append(keyword.lower())
   
   try:
-    wb_queries.add_word(campaign_user, campaign, excluded_word=minus_word)
+    await wb_queries.add_word(campaign_user, campaign, excluded_word=minus_word)
     await bot.send_message(message.chat.id, f"Слово {keyword.lower()} было добавлено")
   except:
     await bot.send_message(message.chat.id, f"На стороне WB произошла ошибка")
@@ -961,7 +961,7 @@ async def delete_plus_word_next_step_handler(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   pluse_word = []
   check = False
@@ -974,7 +974,7 @@ async def delete_plus_word_next_step_handler(message):
   
   try:
     if check:
-      wb_queries.add_word(campaign_user, campaign, plus_word=pluse_word)
+      await wb_queries.add_word(campaign_user, campaign, plus_word=pluse_word)
       await bot.send_message(message.chat.id, f"Слово/фраза {keyword.lower()} было удалено")
     else:
       await bot.send_message(message.chat.id, f"Не удалось найти слово/фразу в списке")  
@@ -996,7 +996,7 @@ async def delete_minus_word_next_step_handler(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   minus_word = []
   check = False
@@ -1009,7 +1009,7 @@ async def delete_minus_word_next_step_handler(message):
   
   try:
     if check:
-      wb_queries.add_word(campaign_user, campaign, excluded_word=minus_word)
+      await wb_queries.add_word(campaign_user, campaign, excluded_word=minus_word)
       await bot.send_message(message.chat.id, f"Слово/фраза {keyword.lower()} было удалено")
     else:
       await bot.send_message(message.chat.id, f"Не удалось найти слово/фразу в списке")  
@@ -1024,7 +1024,7 @@ async def adv_settings_switch_fixed_word(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   if words['fixed_status']:
     await bot.send_message(message.chat.id, f"Фиксированные фразы на данный момент: *Включены*", parse_mode="MarkdownV2", reply_markup=fixed_word_switch(fixed_status=True))
@@ -1041,7 +1041,7 @@ async def adv_settings_switch_on_word(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
   chat_id_proccessing = proccesing.chat.id
   message_id_proccessing = proccesing.message_id
@@ -1053,8 +1053,8 @@ async def adv_settings_switch_on_word(message):
     await bot.send_message(message.chat.id, f"Фиксированные фразы будут *включены* автоматически, когда появяться \"Ключевые слова\", автоматически, если компания отслеживается", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
   else:
     try:
-      switch = wb_queries.switch_word(user=campaign_user, campaign=campaign, switch="true")
-      words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+      switch = await wb_queries.switch_word(user=campaign_user, campaign=campaign, switch="true")
+      words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
       await bot.delete_message(chat_id_proccessing, message_id_proccessing)
       if words['fixed_status']:
         await bot.send_message(message.chat.id, f"Фиксированные фразы были *Включены*", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
@@ -1072,7 +1072,7 @@ async def adv_settings_switch_off_word(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
   chat_id_proccessing = proccesing.chat.id
@@ -1084,8 +1084,8 @@ async def adv_settings_switch_off_word(message):
     await bot.send_message(message.chat.id, f"Фиксированные фразы будут *выключены* автоматически, когда появяться \"Ключеваые слова\", автоматически, если компания отслеживается", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
   else:
     try:
-      switch = wb_queries.switch_word(user=campaign_user, campaign=campaign, switch="false")
-      words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+      switch = await wb_queries.switch_word(user=campaign_user, campaign=campaign, switch="false")
+      words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
       await bot.delete_message(chat_id_proccessing, message_id_proccessing)
       if not words['fixed_status']:
         await bot.send_message(message.chat.id, f"Фиксированные фразы были *Выключены*", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
@@ -1110,7 +1110,7 @@ async def adv_settings_switch_status(message):
   # except:
   #   return await bot.send_message(message.chat.id, f"Произошла ошибка при получении *Статуса* на стороне WB, попробуйте позже", parse_mode="MarkdownV2")
   
-  budget = wb_queries.get_budget(campaign_user, campaign)
+  budget = await wb_queries.get_budget(campaign_user, campaign)
   status_parse = status_parser(status['status'])
   
   chat_id_proccessing = proccesing.chat.id
@@ -1136,7 +1136,7 @@ async def change_status(data):
   user_id = data.message.chat.id
   campaign_user = db_queries.get_user_by_telegram_user_id(user_id)
   
-  wb_queries.switch_status(campaign_user, campaign, status=change_to)
+  await wb_queries.switch_status(campaign_user, campaign, status=change_to)
   
   if change_to == "pause":
     await bot.edit_message_text("Статус был успешно изменён на *Приостановлено*", data.message.chat.id, data.message.id, parse_mode="MarkdownV2")
@@ -1151,7 +1151,7 @@ async def adv_settings_add_budget(message):
   campaign.campaign_id = adv_id
   
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  budget = wb_queries.get_budget(campaign_user, campaign)['Бюджет компании']
+  budget = await wb_queries.get_budget(campaign_user, campaign)['Бюджет компании']
   
   await bot.send_message(message.chat.id, f'Текущий бюджет: {budget} ₽\nid рекламной компании: [{adv_id}](https://cmp.wildberries.ru/campaigns/list/all/edit/search/{adv_id})\nВведите сумму пополенения бюджета или нажмите "Назад"', parse_mode="MarkdownV2")
   set_user_session_step(message, 'add_budget')
@@ -1168,7 +1168,7 @@ async def add_budget_next_step_handler(message):
   campaign.campaign_id = adv_id
   
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  budget = wb_queries.get_budget(campaign_user, campaign)['Бюджет компании']
+  budget = await wb_queries.get_budget(campaign_user, campaign)['Бюджет компании']
   
   if amount <= 99:
     return await bot.send_message(message.chat.id, f'Невозможно пополнить бюджет компании менее, чем на 100 ₽', parse_mode="MarkdownV2")
@@ -1176,12 +1176,12 @@ async def add_budget_next_step_handler(message):
     return await bot.send_message(message.chat.id, f'Невозможно пополнить бюджет компании, сумма не кратна 50', parse_mode="MarkdownV2")
   
   try:
-    check = wb_queries.add_budget(campaign_user, campaign, amount)
+    check = await wb_queries.add_budget(campaign_user, campaign, amount)
     logger.warn("After check")
     if check.raise_for_status and check.status_code == 429:
       return await bot.send_message(message.chat.id, f'Не удалось пополнить бюджет рекламной компании, попробуйте еще раз', parse_mode="MarkdownV2")
     else:  
-      budget2 = wb_queries.get_budget(campaign_user, campaign)['Бюджет компании']
+      budget2 = await wb_queries.get_budget(campaign_user, campaign)['Бюджет компании']
       logger.warn("After budget")
       if budget2 == None:
         return await bot.send_message(message.chat.id, f'WB не вернул бюджет, попробуйте посмотреть изменение бюджета, нажав повторно кнопку \"Пополнить бюджет\"', parse_mode="MarkdownV2")

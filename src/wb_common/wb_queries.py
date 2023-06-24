@@ -1,10 +1,12 @@
 
+import asyncio
 import json
 from datetime import datetime
 from cache_worker.cache_worker import cache_worker
 import requests
 import time
 import traceback
+import aiohttp
 
 from db.queries import db_queries
 
@@ -13,13 +15,13 @@ logger = appLogger.getLogger(__name__)
 logger_token = appLogger.getLogger(__name__+'_token')
 
 CONSTS = {
-  'Referer_default': 'https://cmp.wildberries.ru/campaigns/list/all',
+  'Referer_async default': 'https://cmp.wildberries.ru/campaigns/list/all',
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 YaBrowser/22.11.5.715 Yowser/2.5 Safari/537.36',
   'slice_count': 10
 }
 
 class wb_queries:
-  def get_base_tokens(user, check=False):
+  async def get_base_tokens(user, check=False):
     user_wb_tokens = cache_worker.get_user_wb_tokens(user.id)
     
     if user.wb_cmp_token:
@@ -27,139 +29,120 @@ class wb_queries:
     else:
       user_wb_tokens['wb_cmp_token'] = ""
     
-    if user.wb_v3_main_token:
-      user_wb_tokens['wb_v3_main_token'] = user.wb_v3_main_token
-    else:
-      user_wb_tokens['wb_v3_main_token'] = ""
+    # if user.wb_v3_main_token:
+    #   user_wb_tokens['wb_v3_main_token'] = user.wb_v3_main_token
+    # else:
+    #   user_wb_tokens['wb_v3_main_token'] = ""
               
-    if user.x_supplier_id:
-      user_wb_tokens['x_supplier_id'] = user.x_supplier_id
+    # if user.x_supplier_id:
+    #   user_wb_tokens['x_supplier_id'] = user.x_supplier_id
     # if not user_wb_tokens['wb_user_id'] or not user_wb_tokens['wb_supplier_id']:
-    #   user_wb_tokens = wb_queries.reset_base_tokens(user)
+    #   user_wb_tokens = await wb_queries.reset_base_tokens(user)
       
     if check:
-      user_wb_tokens = wb_queries.reset_base_tokens(user)
+      user_wb_tokens = await wb_queries.reset_base_tokens(user)
 
     return user_wb_tokens
   
 
-  def wb_query(method, url, cookies=None, headers=None, data=None, user_id=None, timeout=5, request=False):
-    result = None
-    result = {}
-    try:
-      logger.warn(f"{method} url={url}, cookies={cookies}, headers={headers}, data={data}, timeout={timeout}")
-      result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
-      
-      if result.raise_for_status:
-        if result.status_code == 401 and user_id:
-            # token_update = cache_worker.get_user_session(user_id)['update_v3_main_token']
-            # difference = datetime.now() - datetime.strptime(token_update, "%Y-%m-%d %H:%M:%S.%f")
-            # if difference.seconds < 600:
-            #   raise Exception('Неверный токен!')
-          user = db_queries.get_user_by_telegram_user_id(user_id)
-          wb_queries.reset_base_tokens(user)
-          result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
-        
-        if result.raise_for_status and result.status_code == 401:
-          raise Exception('Неверный токен!' + ' update_v3_main_token' + " user_id: " + str(user_id))
-        
-      attemps = 1
-      while ((result.raise_for_status and result.status_code != 200) and attemps != 3):
-        logger.warn(f"In while {attemps}")
-        attemps += 1
-        result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
-        # time.sleep(3)
-        logger.warn(result.status_code)
-          
-      if data == "{}":
-        return result.headers
 
-      logger.warn(f"result {result.headers}")
-      logger.warn(f"result {result}")
-      logger.warn(f"result status code")
-      logger.warn(result.status_code)
-
+  async def wb_query(method, url, cookies=None, headers=None, data=None, user_id=None, timeout=3, req=False):
+      result = None
+      result = {}
       try:
-        result = result.json()
-      except Exception as e:
-        logger.error('result.json() error')
-        if (result.status_code != 200):
-          raise e
+        logger.warn(f"{method} url={url}, cookies={cookies}, headers={headers}, data={data}, timeout={timeout}")
+        async with aiohttp.ClientSession() as session:
+          for attempt in range(3):
+            async with session.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout) as response:
+                            
+              if response.status == 401:
+                logger.warn(f"In while {attempt}")
+                await asyncio.sleep(2)
+                logger.warn(response.status)
+              elif response.status == 200:
+                output = await response.json()
+                break
           
-    except Exception as e:
-      traceback.print_exc()
-      logger.debug({
-        'method': method,
-        'url': url,
-        'cookies': cookies,
-        'headers': headers,
-        'data': data
-      })
-      # logger.error(result, result)
-      raise Exception("wb_query error " + str(e) + " user_id: " + str(user_id))
+          if response.status == 401:
+            raise Exception('Неверный токен!')
+          
+          if data == "{}":
+            return response.headers
+          logger.warn(f"result {response.headers}")
+          logger.warn(f"result {response}")
+          logger.warn(f"result status code")
+          logger.warn(response.status)
+          
+          try:
+            if not req:
+              output = await response.json()
+          except Exception as e:
+            logger.error('result.json() error')
+            if (response.status != 200):
+              raise e
 
-    logger.debug(f'user_id: {user_id} url: {url} \t headers: {str(headers)} \t result: {str(result)}')    
-    return result
+      except Exception as e:
+        logger.debug({
+          'method': method,
+          'url': url,
+          'cookies': cookies,
+          'headers': headers,
+          'data': data
+        })
+        raise Exception("wb_query error " + str(e) + " user_id:" + str(user_id))
+
+      logger.debug(f'user_id: {user_id} url: {url} \t headers: {str(headers)} \t result: {str(result)}')    
+      return output
 
 
-  def reset_base_tokens(user, token_cmp=None, token_main_v3=None):
+  async def reset_base_tokens(user, token_cmp=None, token_main_v3=None):
 
-    user_wb_tokens = {}
-    user_wb_tokens['wb_cmp_token'] = ""
-    user_wb_tokens['wb_v3_main_token'] = ""
-    
-    if user is not None:      
-      if user.x_supplier_id not in [None, ""]:
-        user_wb_tokens['x_supplier_id'] = user.x_supplier_id
-      else:
-        raise Exception('x_supplier_id Отсутствует!')
-
+      user_wb_tokens = {}
+      user_wb_tokens['wb_cmp_token'] = ""
+      user_wb_tokens['wb_v3_main_token'] = ""
       
-      if user.wb_cmp_token not in [None, ""]:
-        user_wb_tokens['wb_cmp_token'] = user.wb_cmp_token
+      user_wb_tokens['wb_cmp_token'] = user.wb_cmp_token
       
-      if user.wb_v3_main_token not in [None, ""]:
-        user_wb_tokens['wb_v3_main_token'] = user.wb_v3_main_token
+      if token_cmp:
+        user_wb_tokens['wb_cmp_token'] = token_cmp
+        
+      if token_main_v3:
+        user_wb_tokens['wb_v3_main_token'] = token_main_v3
+        
+      logger.warn(user_wb_tokens['wb_v3_main_token'])  
 
+      logger_token.info(f' \t reset_base_tokens \t User id: {user.id} \t Old tokens: {str(user_wb_tokens)}')
 
-      # if token_cmp: TODO
-      #   raise Exception("Ошибка установки нового токена")
+      cookies = {
+        'WBToken': user_wb_tokens['wb_cmp_token'],
+        'WILDAUTHNEW_V3': user_wb_tokens['wb_v3_main_token'],
+      }
+
+      headers = {
+        'Referer': CONSTS['Referer_async default'],
+        'User-Agent': CONSTS['User-Agent'],
+      }
+
+      logger_token.warn('cookies, headers', cookies, headers)
+              
+      if user_wb_tokens['wb_v3_main_token'] or (token_main_v3 and token_cmp == None):
+        auth_result = await wb_queries.wb_query(method='POST', url='https://cmp.wildberries.ru/passport/api/v2/auth/wild_v3_upgrade', cookies={'WILDAUTHNEW_V3': user_wb_tokens['wb_v3_main_token']}, data="{}", user_id=user.id)
+        
+        if not auth_result or not "Set-Cookie" in auth_result:
+          raise Exception('Неверный токен!')
+        
+        cmp_token = await db_queries.get_user_wb_cmp_token(user.telegram_user_id)    
+        cookies['WBToken'] = auth_result['Set-Cookie'].replace('WBToken=', '').split(";")[0]
+              
+        if cmp_token != cookies['WBToken']:
+          await db_queries.set_user_wb_cmp_token(telegram_user_id=user.telegram_user_id, wb_cmp_token=cookies['WBToken'])
     
-    
-    if token_cmp:
-      user_wb_tokens['wb_cmp_token'] = token_cmp
+      introspect_result = await wb_queries.wb_query(method='GET', url='https://cmp.wildberries.ru/passport/api/v2/auth/introspect', cookies=cookies, headers=headers)
       
-    if token_main_v3:
-      user_wb_tokens['wb_v3_main_token'] = token_main_v3
-      
-    logger.warn(user_wb_tokens['wb_v3_main_token'])  
-
-    # if not user_wb_tokens['wb_cmp_token']:
-    #   raise Exception('Не найден токен! wb_cmp_token')
-    
-
-    # logger_token.info(f' \t reset_base_tokens \t User id: {user.id} \t Old tokens: {str(user_wb_tokens)}')
-
-    cookies = {
-      'WBToken': user_wb_tokens['wb_cmp_token'],
-      'WILDAUTHNEW_V3': user_wb_tokens['wb_v3_main_token'],
-      'x-supplier-id-external': user_wb_tokens['x_supplier_id'],
-    }
-
-    headers = {
-      'Referer': CONSTS['Referer_default'],
-      'User-Agent': CONSTS['User-Agent'],
-    }
-
-    # logger_token.warn('cookies, headers', cookies, headers)
-    # logger.warn(auth_result)
-    # if not user_wb_tokens['wb_cmp_token']:
-    
-    if user_wb_tokens['wb_v3_main_token'] or (token_main_v3 and token_cmp == None):
-      auth_result = wb_queries.wb_query(method='post', url='https://cmp.wildberries.ru/passport/api/v2/auth/wild_v3_upgrade', cookies={'WILDAUTHNEW_V3': user_wb_tokens['wb_v3_main_token']}, data="{}", user_id=user.id)
-      
-      if not auth_result or not "Set-Cookie" in auth_result:
+      if not introspect_result or not 'sessionID' in introspect_result or not 'userID' in introspect_result:
+        print(f'{datetime.now()} \t reset_base_tokens \t introspect error! \t {introspect_result}')
         raise Exception('Неверный токен!')
+<<<<<<< HEAD
       
       cmp_token = db_queries.get_user_wb_cmp_token(user.telegram_user_id)    
       cookies['WBToken'] = auth_result['Set-Cookie'].replace('WBToken=', '').split(";")[0]
@@ -185,11 +168,13 @@ class wb_queries:
 
     user_wb_tokens['wb_cmp_token']  = introspect_result['sessionID']
     user_wb_tokens['wb_user_id']    = introspect_result['userID']
+=======
+>>>>>>> stage
 
-    cookies['WBToken']              = introspect_result['sessionID']
-    headers['X-User-Id']            = str(introspect_result['userID'])
-    logger.warn(introspect_result)
+      user_wb_tokens['wb_cmp_token']  = introspect_result['sessionID']
+      user_wb_tokens['wb_user_id']    = introspect_result['userID']
 
+<<<<<<< HEAD
     logger.warn("REQ")
     logger.warn(headers)
     logger.warn(cookies)
@@ -199,17 +184,24 @@ class wb_queries:
     user_wb_tokens['wb_supplier_id'] = supplier_result['supplier']['id']
     logger.warn(user_wb_tokens)
     cache_worker.set_user_wb_tokens(user.id, user_wb_tokens)
+=======
+      cookies['WBToken']              = introspect_result['sessionID']
+      headers['X-User-Id']            = str(introspect_result['userID'])
+      logger.warn(introspect_result)
+>>>>>>> stage
 
-    # TODO move to mq db microservice
-    # db_queries.set_user_wb_cmp_token(telegram_user_id=user.telegram_user_id, wb_cmp_token=user_wb_tokens['wb_cmp_token'])
+      supplier_result = await wb_queries.wb_query(method='GET', url='https://cmp.wildberries.ru/backend/api/v3/supplier', cookies=cookies, headers=headers)
+      user_wb_tokens['wb_supplier_id'] = supplier_result['supplier']['id']
+      
+      cache_worker.set_user_wb_tokens(user.id, user_wb_tokens)
 
-    # logger_token.info(f'\t reset_base_tokens \t User id: {user.id} \t New tokens: {str(user_wb_tokens)}')
+      logger_token.info(f'\t reset_base_tokens \t User id: {user.id} \t New tokens: {str(user_wb_tokens)}')
 
-    return user_wb_tokens
+      return user_wb_tokens
 
 
-  def search_adverts_by_keyword(keyword, user_id=None):
-    res = wb_queries.wb_query(method="get", url=f'https://catalog-ads.wildberries.ru/api/v5/search?keyword={keyword}', user_id=user_id)
+  async def search_adverts_by_keyword(keyword, user_id=None):
+    res = await wb_queries.wb_query(method='GET', url=f'https://catalog-ads.wildberries.ru/api/v5/search?keyword={keyword}', user_id=user_id)
     wb_search_positions = None
     
     # kill me please
@@ -230,12 +222,12 @@ class wb_queries:
     return result
 
 
-  def get_campaign_info(user, campaign, send_exeption=True):
-    user_wb_tokens = wb_queries.get_base_tokens(user)
+  async def get_campaign_info(user, campaign, send_exeption=True):
+    user_wb_tokens = await wb_queries.get_base_tokens(user)
     custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
-    req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+    req_params = await wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
     # print('get_campaign_info', req_params)
-    r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/placement', 
+    r = await wb_queries.wb_query(method='GET', url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/placement', 
       cookies=req_params['cookies'],
       headers=req_params['headers'],
       timeout=5,
@@ -262,14 +254,14 @@ class wb_queries:
     return res
 
 
-  def get_stat_words(user, campaign):
-    user_wb_tokens = wb_queries.get_base_tokens(user)
+  async def get_stat_words(user, campaign):
+    user_wb_tokens = await wb_queries.get_base_tokens(user)
     custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
-    req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+    req_params = await wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
 
     print('get_campaign_info', req_params)
 
-    r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/stat-words', 
+    r = await wb_queries.wb_query(method='GET', url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/stat-words', 
       cookies=req_params['cookies'],
       headers=req_params['headers']
     )
@@ -313,13 +305,13 @@ class wb_queries:
     return res
   
   
-  def get_fixed(user, campaign):
-    user_wb_tokens = wb_queries.get_base_tokens(user)
+  async def get_fixed(user, campaign):
+    user_wb_tokens = await wb_queries.get_base_tokens(user)
     custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
-    req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+    req_params = await wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
     
 
-    r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/stat-words', 
+    r = await wb_queries.wb_query(method='GET', url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/stat-words', 
       cookies=req_params['cookies'],
       headers=req_params['headers']
     )
@@ -336,16 +328,16 @@ class wb_queries:
     return res
   
   
-  def add_word(user, campaign, plus_word=None, excluded_word=None):
-    user_wb_tokens = wb_queries.get_base_tokens(user)
+  async def add_word(user, campaign, plus_word=None, excluded_word=None):
+    user_wb_tokens = await wb_queries.get_base_tokens(user)
     custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
-    req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+    req_params = await wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
     req_params['headers']['Content-type'] = 'application/json'
     
     if excluded_word == None:
       # plus_word = [plus.lower() for plus in plus_word]
       request_body = {"pluse": plus_word}
-      r = wb_queries.wb_query(method="post", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/set-plus',
+      r = await wb_queries.wb_query(method='POST', url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/set-plus',
       cookies=req_params['cookies'],
       headers=req_params['headers'],
       data=json.dumps(request_body))
@@ -355,7 +347,7 @@ class wb_queries:
       request_body = {
         "excluded": excluded_word
       }
-      r = wb_queries.wb_query(method="post", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/set-excluded',
+      r = await wb_queries.wb_query(method='POST', url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/set-excluded',
       cookies=req_params['cookies'],
       headers=req_params['headers'],
       data=json.dumps(request_body))
@@ -364,17 +356,17 @@ class wb_queries:
 
     return r
   
-  def add_budget(user, campaign, budget):
-    user_wb_tokens = wb_queries.get_base_tokens(user)
+  async def add_budget(user, campaign, budget):
+    user_wb_tokens = await wb_queries.get_base_tokens(user)
     custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
-    req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+    req_params = await wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
     req_params['headers']['Content-type'] = 'application/json'
     
     request_body = {"sum": budget, "type": 1}
-    r = wb_queries.wb_query(method="post", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/budget/deposit',
+    r = await wb_queries.wb_query(method='POST', url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/budget/deposit',
     cookies=req_params['cookies'],
     headers=req_params['headers'],
-    data=json.dumps(request_body), request=True)
+    data=json.dumps(request_body), req=True)
         
     
     # if not r.raise_for_status:
@@ -384,23 +376,23 @@ class wb_queries:
     #   return error
     return r
   
-  def switch_status(user, campaign, status):
-    user_wb_tokens = wb_queries.get_base_tokens(user)
+  async def switch_status(user, campaign, status):
+    user_wb_tokens = await wb_queries.get_base_tokens(user)
     custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
-    req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+    req_params = await wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
     
     # req_params['headers']['Content-type'] = 'application/json'
     
     logger.info("PLACE")
     if status == "pause":
-      r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/pause',
+      r = await wb_queries.wb_query(method='GET', url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/pause',
         cookies=req_params['cookies'],
         headers=req_params['headers'])
   
     elif status == "active":
       req_params['headers']['Content-type'] = 'application/json'
-      full_body = wb_queries.get_campaign_info(user, campaign)
-      budget = wb_queries.get_budget(user, campaign)
+      full_body = await wb_queries.get_campaign_info(user, campaign)
+      budget = await wb_queries.get_budget(user, campaign)
       
       full_body = full_body['full_body']
       
@@ -410,12 +402,12 @@ class wb_queries:
       for places in full_body['place']:
         places["is_active"] = True
 
-      user_wb_tokens = wb_queries.get_base_tokens(user)
+      user_wb_tokens = await wb_queries.get_base_tokens(user)
       custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
-      req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+      req_params = await wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
       
       
-      r = wb_queries.wb_query(method="put", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/placement',
+      r = await wb_queries.wb_query(method="put", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/placement',
         cookies=req_params['cookies'],
         headers=req_params['headers'],
         data=json.dumps(full_body),
@@ -426,16 +418,16 @@ class wb_queries:
     return r
   
 
-  def switch_word(user, campaign, switch):
-    user_wb_tokens = wb_queries.get_base_tokens(user)
+  async def switch_word(user, campaign, switch):
+    user_wb_tokens = await wb_queries.get_base_tokens(user)
     custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
-    req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+    req_params = await wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
     req_params['headers']['Content-type'] = 'application/json'
     
-    r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/set-plus?fixed={switch}',
+    r = await wb_queries.wb_query(method='GET', url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/set-plus?fixed={switch}',
       cookies=req_params['cookies'],
       headers=req_params['headers'],
-      request=True
+      req=True
     )
     
     status = "Включены" if switch == "true" else "Выключены"
@@ -445,13 +437,13 @@ class wb_queries:
     return r
 
 
-  def set_campaign_bid(user, campaign, campaign_info, new_bid, old_bid, approximate_place):
-    user_wb_tokens = wb_queries.get_base_tokens(user)
+  async def set_campaign_bid(user, campaign, campaign_info, new_bid, old_bid, approximate_place):
+    user_wb_tokens = await wb_queries.get_base_tokens(user)
     custom_referer = f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}'
-    req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+    req_params = await wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
     req_params['headers']['Content-type'] = 'application/json'
 
-    budget = wb_queries.get_budget(user, campaign)
+    budget = await wb_queries.get_budget(user, campaign)
 
     request_body = campaign_info['full_body']
     request_body['budget']['total'] = budget['Бюджет компании']
@@ -476,7 +468,7 @@ class wb_queries:
     print('request_body')
     print(request_body)
 
-    r = wb_queries.wb_query(method="put", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/save',
+    r = await wb_queries.wb_query(method="put", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/save',
       cookies=req_params['cookies'],
       headers=req_params['headers'],
       data=json.dumps(request_body)
@@ -490,11 +482,11 @@ class wb_queries:
     return r
 
 
-  def get_base_request_params(user_wb_tokens, referer=CONSTS['Referer_default']):
+  async def get_base_request_params(user_wb_tokens, referer=CONSTS['Referer_async default']):
     return {
       'cookies': {
         'WBToken': user_wb_tokens['wb_cmp_token'],
-        'x-supplier-id-external': user_wb_tokens['x_supplier_id'],
+        # 'x-supplier-id-external': user_wb_tokens['x_supplier_id'],
       },
       'headers': {
         'Referer': referer,
@@ -503,12 +495,12 @@ class wb_queries:
       }
     }
     
-# def get_user_atrevds(req_params, page_number=1, pagesize=100):
+# async def get_user_atrevds(req_params, page_number=1, pagesize=100):
 #     url = f'https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate&pageNumber={page_number}&pageSize={pagesize}'
-  def get_user_atrevds(req_params, pagesize=50, user_id=None):
+  async def get_user_atrevds(req_params, pagesize=50, user_id=None):
     url = f'https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate&pageNumber=1&pageSize={pagesize}'
     
-    user_atrevds = wb_queries.wb_query(method="get",
+    user_atrevds = await wb_queries.wb_query(method='GET',
                                        url=url,
     # logger.warn("USER_LIST")
     # logger.warn(user_atrevds)
@@ -517,14 +509,14 @@ class wb_queries:
     view = {'adverts': user_atrevds['content'], 'total_count': user_atrevds['counts']['totalCount']}
     return view
 
-  def get_budget(user, campaign):
-    user_wb_tokens = wb_queries.get_base_tokens(user)
+  async def get_budget(user, campaign):
+    user_wb_tokens = await wb_queries.get_base_tokens(user)
     custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
-    req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+    req_params = await wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
 
     print('get_campaign_info', req_params)
 
-    r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/budget',
+    r = await wb_queries.wb_query(method='GET', url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/budget',
     cookies=req_params['cookies'],
     headers=req_params['headers']
     )
@@ -537,10 +529,10 @@ class wb_queries:
     return {'Бюджет компании': total_budget,}
 
 
-  def get_all_categories():
-    return wb_queries.wb_query(method='get', url='https://static-basket-01.wb.ru/vol0/data/subject-base.json')
+  async def get_all_categories():
+    return await wb_queries.wb_query(method='GET', url='https://static-basket-01.wb.ru/vol0/data/subject-base.json')
   
-  def get_category_by_id(subjectId):
+  async def get_category_by_id(subjectId):
     categories = cache_worker.get_wb_categories()
     category = categories.get(str(subjectId))
 
@@ -550,9 +542,9 @@ class wb_queries:
     return category
   
 
-  def get_products_info_by_wb_ids(wb_ids, city, user_id=None):
+  async def get_products_info_by_wb_ids(wb_ids, city, user_id=None):
 
-    # default_query = f'https://search.wb.ru/exactmatch/ru/common/v4/search?appType=1&couponsGeo=12,3,18,15,21&curr=rub&dest=-1257786&emp=0&lang=ru&locale=ru&pricemarginCoeff=1.0&query={keyword}&reg=0&regions=80,64,38,4,83,33,68,70,69,30,86,75,40,1,22,66,31,48,110,71&resultset=catalog&sort=popular&spp=0&suppressSpellcheck=false'
+    # async default_query = f'https://search.wb.ru/exactmatch/ru/common/v4/search?appType=1&couponsGeo=12,3,18,15,21&curr=rub&dest=-1257786&emp=0&lang=ru&locale=ru&pricemarginCoeff=1.0&query={keyword}&reg=0&regions=80,64,38,4,83,33,68,70,69,30,86,75,40,1,22,66,31,48,110,71&resultset=catalog&sort=popular&spp=0&suppressSpellcheck=false'
     nm_parameter = ';'.join(wb_ids)
     # Запрос для Москвы
     if city == "Москва":
@@ -567,7 +559,7 @@ class wb_queries:
     if "Санкт" in city:
       query = f'https://card.wb.ru/cards/list?spp=0&regions=80,64,38,4,83,33,68,70,69,30,86,40,1,22,66,31,48&pricemarginCoeff=1.0&reg=0&appType=1&emp=0&locale=ru&lang=ru&curr=rub&couponsGeo=12,7,3,6,5,18,21&dest=-1181032&nm={nm_parameter}'
       
-    res = wb_queries.wb_query(method="get", url=query, user_id=user_id)
+    res = await wb_queries.wb_query(method='GET', url=query, user_id=user_id)
 
     if not res.get('data') or not res['data'].get('products') or not len(res['data']['products']):
       return {}
@@ -577,6 +569,8 @@ class wb_queries:
     for product in products:
       if not product.get('id'):
         continue
+      
+      logger.warn(product)
       result[product['id']] = {
         'id': product['id'],
         'name': product.get('name'),
@@ -584,20 +578,20 @@ class wb_queries:
         'time2': product.get('time2'),
         'subjectId': product.get('subjectId'),
         'subjectParentId': product.get('subjectParentId'),
-        'category_name': wb_queries.get_category_by_id(product.get('subjectId')).get('name'),
+        'category_name': (await wb_queries.get_category_by_id(product.get('subjectId'))).get('name')
       }
 
     return result
   
 
-  def post_get_active(user, campaign):
-    user_wb_tokens = wb_queries.get_base_tokens(user)
+  async def post_get_active(user, campaign):
+    user_wb_tokens = await wb_queries.get_base_tokens(user)
     custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
-    req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+    req_params = await wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
 
     print('post_get_active', req_params)
 
-    res = wb_queries.wb_query(method="post", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/get-active', 
+    res = await wb_queries.wb_query(method='POST', url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/get-active', 
       cookies=req_params['cookies'],
       headers=req_params['headers'],
       data=json.dumps({})
@@ -605,7 +599,7 @@ class wb_queries:
 
     return res
 
-  def very_try_get_campaign_info(user, campaign, tries=5, time_sleep=2):
+  async def very_try_get_campaign_info(user, campaign, tries=5, time_sleep=2):
 
     result = None
     triesDone = 0
@@ -614,7 +608,7 @@ class wb_queries:
       triesDone = triesDone + 1
       time.sleep(time_sleep)
       logger.info(f'very_try_get_campaign_info campaign {campaign.campaign_id} user {user.id}')
-      result = wb_queries.get_campaign_info(user, campaign, False)
+      result = await wb_queries.get_campaign_info(user, campaign, False)
 
       if type(result) != type({}) and 'Некорректный поставщик' in str(result.text):
         print('*OFF_CAMP Некорректный поставщик*')
