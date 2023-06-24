@@ -142,53 +142,13 @@ class wb_queries:
       if not introspect_result or not 'sessionID' in introspect_result or not 'userID' in introspect_result:
         print(f'{datetime.now()} \t reset_base_tokens \t introspect error! \t {introspect_result}')
         raise Exception('Неверный токен!')
-<<<<<<< HEAD
-      
-      cmp_token = db_queries.get_user_wb_cmp_token(user.telegram_user_id)    
-      cookies['WBToken'] = auth_result['Set-Cookie'].replace('WBToken=', '').split(";")[0]
-            
-      if cmp_token != cookies['WBToken']:
-        db_queries.set_user_wb_cmp_token(telegram_user_id=user.telegram_user_id, wb_cmp_token=cookies['WBToken'])
-        # if token_cmp:
-        #   raise Exception("Ошибка установки нового токена")
-    
-    logger.warn("COOKIES")
-    logger.warn(cookies)
-      
-    introspect_result = wb_queries.wb_query(method='get', url='https://cmp.wildberries.ru/passport/api/v2/auth/introspect', cookies=cookies, headers=headers, user_id=user.id)
-    
-    logger.warn(introspect_result)
-    
-    # introspect_result = introspect.json()
-    #   logger_token.info('introspect_result', introspect_result)
-    
-    if not introspect_result or not 'sessionID' in introspect_result or not 'userID' in introspect_result:
-      print(f'{datetime.now()} \t reset_base_tokens \t introspect error! \t {introspect_result}')
-      raise Exception('Неверный токен!')
-
-    user_wb_tokens['wb_cmp_token']  = introspect_result['sessionID']
-    user_wb_tokens['wb_user_id']    = introspect_result['userID']
-=======
->>>>>>> stage
 
       user_wb_tokens['wb_cmp_token']  = introspect_result['sessionID']
       user_wb_tokens['wb_user_id']    = introspect_result['userID']
 
-<<<<<<< HEAD
-    logger.warn("REQ")
-    logger.warn(headers)
-    logger.warn(cookies)
-    
-    supplier_result = wb_queries.wb_query(method="get", url='https://cmp.wildberries.ru/backend/api/v3/supplier', cookies=cookies, headers=headers, user_id=user.id)
-    logger.warn(supplier_result['supplier']['id'])
-    user_wb_tokens['wb_supplier_id'] = supplier_result['supplier']['id']
-    logger.warn(user_wb_tokens)
-    cache_worker.set_user_wb_tokens(user.id, user_wb_tokens)
-=======
       cookies['WBToken']              = introspect_result['sessionID']
       headers['X-User-Id']            = str(introspect_result['userID'])
       logger.warn(introspect_result)
->>>>>>> stage
 
       supplier_result = await wb_queries.wb_query(method='GET', url='https://cmp.wildberries.ru/backend/api/v3/supplier', cookies=cookies, headers=headers)
       user_wb_tokens['wb_supplier_id'] = supplier_result['supplier']['id']
