@@ -43,12 +43,13 @@ class wb_queries:
     return user_wb_tokens
   
 
-  def wb_query(method, url, cookies=None, headers=None, data=None, user_id=None, timeout=3, request=False):
+  def wb_query(method, url, cookies=None, headers=None, data=None, user_id=None, timeout=5, request=False):
     result = None
     result = {}
     try:
       logger.warn(f"{method} url={url}, cookies={cookies}, headers={headers}, data={data}, timeout={timeout}")
       result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
+      
       if result.raise_for_status:
         if result.status_code == 401 and user_id:
             # token_update = cache_worker.get_user_session(user_id)['update_v3_main_token']
@@ -58,8 +59,10 @@ class wb_queries:
           user = db_queries.get_user_by_telegram_user_id(user_id)
           wb_queries.reset_base_tokens(user)
           result = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout)
-          if result.raise_for_status:
-            raise Exception('Неверный токен!' + ' update_v3_main_token' + " user_id: " + str(user_id))
+        
+        if result.raise_for_status and result.status_code == 401:
+          raise Exception('Неверный токен!' + ' update_v3_main_token' + " user_id: " + str(user_id))
+        
       attemps = 1
       while ((result.raise_for_status and result.status_code != 200) and attemps != 3):
         logger.warn(f"In while {attemps}")
@@ -70,17 +73,18 @@ class wb_queries:
           
       if data == "{}":
         return result.headers
+
       logger.warn(f"result {result.headers}")
       logger.warn(f"result {result}")
       logger.warn(f"result status code")
       logger.warn(result.status_code)
-      if not request:
-        try:
-          result = result.json()
-        except Exception as e:
-          logger.error('result.json() error')
-          if (result.status_code != 200):
-            raise e
+
+      try:
+        result = result.json()
+      except Exception as e:
+        logger.error('result.json() error')
+        if (result.status_code != 200):
+          raise e
           
     except Exception as e:
       traceback.print_exc()

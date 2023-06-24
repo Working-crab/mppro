@@ -160,13 +160,13 @@ async def message_handler(message):
         )
         return
     
-      # else:
-      #   await queue_message_async(
-      #     destination_id = message.chat.id,
-      #     message = 'Произошла ошибка при обращению к Wildberries, попробуйте позже'
-      #   )
-      
-      #   return
+      else:
+        await queue_message_async(
+          topic = 'telegram_message_sender',
+          destination_id = message.chat.id,
+          message = 'Произошла ошибка при обращению к Wildberries, попробуйте позже'
+        )
+        return
     
     
     set_user_session_step(message, 'База')
@@ -1105,10 +1105,10 @@ async def adv_settings_switch_status(message):
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
   
-  try:
-    status = wb_queries.get_campaign_info(campaign_user, campaign)
-  except:
-    return await bot.send_message(message.chat.id, f"Произошла ошибка при получении *Статуса* на стороне WB, попробуйте позже", parse_mode="MarkdownV2")
+  # try:
+  status = wb_queries.get_campaign_info(campaign_user, campaign)
+  # except:
+  #   return await bot.send_message(message.chat.id, f"Произошла ошибка при получении *Статуса* на стороне WB, попробуйте позже", parse_mode="MarkdownV2")
   
   budget = wb_queries.get_budget(campaign_user, campaign)
   status_parse = status_parser(status['status'])
