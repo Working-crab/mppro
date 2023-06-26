@@ -334,7 +334,19 @@ class db_queries:
             return session.query(Action_history.action.distinct())
 
 
-            
+
+    def get_last_actions():
+        with Session(engine) as session:
+            return session.query(Action_history).order_by(Action_history.id.desc()).limit(3)
+
+
+
+    # def get_last_errors():
+    #     with Session(engine) as session:
+    #         return session.query(Action_history).where(Action_history.id==1).order_by(Action_history.id.desc()).limit(3)
+
+
+
     def get_stat_words(campaing_id=None, status=None, types=None):
         with Session(engine) as session:
             if types == "Change":
