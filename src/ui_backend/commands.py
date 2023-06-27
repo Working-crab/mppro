@@ -8,7 +8,10 @@ from telebot.types import LabeledPrice
 from ui_backend.config import *
 from yookassa import Payment
 import uuid
+from ui_backend.config import WEBHOOK_URL
 
+from common.appLogger import appLogger
+logger = appLogger.getLogger(__name__)
 
 
 # Команды бота -------------------------------------------------------------------------------------------------------
@@ -24,7 +27,7 @@ async def start(message):
         # )
 
         await bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}, вы зарегистрировались в *{await bot.get_me().username}*', parse_mode='Markdown', reply_markup=markup_inline)
-        await bot.send_message(message.chat.id, f'Так как вы только зарегистрировались, предлагаем Вам *Trial* подписку на нашего бота', parse_mode='Markdown', reply_markup=reply_markup_trial(trial=False))
+        await bot.send_message(message.chat.id, f'Так как вы только зарегистрировались, предлагаем Вам *Старт* подписку на нашего бота', parse_mode='Markdown', reply_markup=reply_markup_trial(trial=False))
     else:
         await bot.send_message(message.chat.id, f'Вы уже зарегистрированы')
         
@@ -32,51 +35,48 @@ async def start(message):
         await bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}', reply_markup=markup_inline)
 
 
-# Обработка Trial подписки ----------------------------------------------------------------------------------------------------
+# Обработка Старт подписки ----------------------------------------------------------------------------------------------------
 @bot.callback_query_handler(func=lambda x: re.match('Trial', x.data))
 async def trial(call):
     if call.data == "Trial_Yes":
         await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text="Активируем Вам подписку, а пока можете посмотреть что она предоставляет: Информация\nИли /trial - Информация", reply_markup=reply_markup_trial(trial=True))
-        db_queries.update_sub(user_id=call.message.chat.id, sub_name='Trial', total=0)
+        db_queries.update_sub(user_id=call.message.chat.id, sub_name='Старт', total=0)
     if call.data == "Trial_No":
         await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text=f'Хорошо, но если вы всё же захотите активировать подписку, введите команду /trial', parse_mode='Markdown')
     if call.data == "Trial_info":
-        await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text='`Trial` подписка предоставляет: "Функционал"', parse_mode='Markdown')
+        await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text='`Старт` подписка предоставляет: "Функционал"', parse_mode='Markdown')
 
 
 # Обработка Оплаты ----------------------------------------------------------------------------------------------------
-@bot.callback_query_handler(func=lambda x: re.match('Оплата', x.data))
+@bot.callback_query_handler(func=lambda x: re.match('payment', x.data))
 async def payment_func(call):
     #Обработка кнопок покупки подписки
-    if "Telegram" in call.data:
+    if "telegram" in call.data:
         try:    
-            sub_name = call.data.replace('Оплата Telegram ', '')
-            sub = db_queries.get_sub_name(sub_name=sub_name)
-            product_price = [LabeledPrice(label=sub.title, amount=sub.price * 100)]
-            await bot.send_invoice(call.message.chat.id,
-                            title=sub.title,
-                            description=sub.description,
-                            invoice_payload=sub.title,
-                            provider_token=PAYMENT_TOKEN,
-                            currency='rub',
-                            prices=product_price,
-                            start_parameter='one-month-sub',
-                            is_flexible=False,
-                            )
+            purchase = call.data.split(':')[2]
+            if purchase == "subscription":
+                sub_name = call.data.split(':')[3]
+                sub = db_queries.get_sub_name(sub_name=sub_name)
+                product_price = [LabeledPrice(label=sub.title, amount=sub.price * 100)]
+                await bot.send_invoice(call.message.chat.id,
+                                title=sub.title,
+                                description=sub.description,
+                                invoice_payload=sub.title,
+                                provider_token=PAYMENT_TOKEN,
+                                currency='rub',
+                                prices=product_price,
+                                start_parameter='one-month-sub',
+                                is_flexible=False,
+                                )
         except Exception as e:
             await bot.send_message(call.message.chat.id, e)
     
-    if "Сайт" in call.data:
+    if "site" in call.data:
         try:
-            sub_name = call.data.replace('Оплата Сайт ', '')
-            sub = db_queries.get_sub_name(sub_name=sub_name)
-            # product_price = [LabeledPrice(label=sub.title, amount=sub.price * 100)]
-            # user = db_queries.get_user_by_telegram_user_id(message.chat.id)
-            
-            idempotence_key = str(uuid.uuid4())
-            payment = Payment.create({
+            price = 0
+            payment_dict = {
                 "amount": {
-                    "value": sub.price,
+                    "value": price,
                     "currency": "RUB"
                 },
                 "payment_method_data": {
@@ -84,17 +84,40 @@ async def payment_func(call):
                 },
                 "confirmation": {
                 "type": "redirect",
-                "return_url": f"https://t.me/mp_pro_bot"
+                "return_url": f"{WEBHOOK_URL}"
                 },
                 "capture": True,
-                "metadata": {
+                }
+            
+            idempotence_key = str(uuid.uuid4())
+            purchase = call.data.split(':')[2]
+            if purchase == "subscription":
+                sub_name = call.data.split(":")[3]
+                sub = db_queries.get_sub_name(sub_name=sub_name)
+                price = sub.price
+                payment_dict['amount']['value'] = price
+                payment_dict['metadata'] = {
                     'telegram_user_id': f'{call.message.chat.id}',
-                    'subscription_name': f'{sub.title}'},
-                }, idempotence_key)
-        
-        
+                    'subscription_name': f'{sub.title}',
+                    }
+                # product_price = [LabeledPrice(label=sub.title, amount=sub.price * 100)]
+                # user = db_queries.get_user_by_telegram_user_id(message.chat.id)
+            elif purchase == "requests":
+                amount, price = call.data.split(":")[3:]
+                
+                payment_dict['amount']['value'] = price
+                payment_dict['metadata'] = {
+                    'telegram_user_id': f'{call.message.chat.id}',
+                    'requests_amount': f'{amount}',
+                    }
+            
+            idempotence_key = str(uuid.uuid4())
+            
+            payment = Payment.create(payment_dict, idempotence_key)
+            
             confirmation_url = payment.confirmation.confirmation_url
             await bot.send_message(call.message.chat.id, confirmation_url)
+                
         except Exception as e:
             await bot.send_message(call.message.chat.id, e)
             
@@ -112,18 +135,18 @@ async def payment_func(call):
 @bot.message_handler(commands=['trial'])
 async def trial(message):
     user = db_queries.get_user_by_telegram_user_id(message.chat.id)
-    transaction = db_queries.get_transaction(user_id=user.id, transaction_title="Trial")
+    transaction = db_queries.get_transaction(user_id=user.id, transaction_title="Старт")
     if user.subscriptions_id == None:
         if transaction:
-            await bot.send_message(message.chat.id, f'У вас уже была активирована Пробная подписка', parse_mode='Markdown')
+            await bot.send_message(message.chat.id, f'У вас уже была активирована Стартовая подписка', parse_mode='Markdown')
         else:
-            await bot.send_message(message.chat.id, f'Информация о пробной подписке\nКнопка *Согласиться* активирует Вам подписку', reply_markup=reply_markup_trial(trial=False), parse_mode='Markdown')
+            await bot.send_message(message.chat.id, f'Информация о Стартовой подписке\nКнопка *Согласиться* активирует Вам подписку', reply_markup=reply_markup_trial(trial=False), parse_mode='Markdown')
     else:    
         sub = db_queries.get_sub(sub_id=user.subscriptions_id)
-        if sub.title != 'Trial':
-            await bot.send_message(message.chat.id, f'У вас сейчас не пробная подписка', parse_mode='Markdown')
-        elif sub.title == 'Trial':
-            await bot.send_message(message.chat.id, f'Нажмите на `Информация` чтобы узнать, что дает пробная подписка', reply_markup=reply_markup_trial(trial=True), parse_mode='Markdown')
+        if sub.title != 'Старт':
+            await bot.send_message(message.chat.id, f'У вас сейчас не Стартовая подписка', parse_mode='Markdown')
+        elif sub.title == 'Старт':
+            await bot.send_message(message.chat.id, f'Нажмите на `Информация` чтобы узнать, что дает Стартовая подписка', reply_markup=reply_markup_trial(trial=True), parse_mode='Markdown')
 
 
 
@@ -147,7 +170,7 @@ async def buy_subscription(message):
         sub_list = db_queries.get_all_sub()
         if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
             for sub in sub_list:
-                await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
+                await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
     except Exception as e:
         await bot.send_message(message.chat.id, e)
 

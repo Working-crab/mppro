@@ -54,11 +54,12 @@ def universal_reply_markup(search=False):
   btn_search = types.KeyboardButton(text='🔎 Поиск 🔎')
   btn_card = types.KeyboardButton(text='Карточка товара')
   btn_list_adverts = types.KeyboardButton(text='📑 Список рекламных компаний 📑')
-  btn_my_sub = types.KeyboardButton(text='💻 Моя подписка 💻')
+  # btn_my_sub = types.KeyboardButton(text='🎟️ Моя подписка 🎟️')
+  btn_paid_service = types.KeyboardButton(text='⭐ Платные услуги ⭐')
   btn_additionally = types.KeyboardButton(text='⚙️ Дополнительные опции ⚙️')
 
   markup_inline.add(btn_search, btn_list_adverts, btn_card)
-  markup_inline.add(btn_additionally, btn_my_sub)
+  markup_inline.add(btn_additionally, btn_paid_service)
   
   if search:
     btn_choose_city = types.KeyboardButton(text='Выбрать город 🏙️')
@@ -68,6 +69,29 @@ def universal_reply_markup(search=False):
   # if cache_worker.get_user_dev_mode(user_id=user_id) != None:
   #   btn_get_logs = types.KeyboardButton(text='Показать логи человека')
   #   markup_inline.add(btn_get_logs)
+    
+  return markup_inline
+
+
+def paid_service_reply_markup():
+  markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
+
+  btn_my_sub = types.KeyboardButton(text='🎟️ Моя подписка 🎟️')
+  btn_requests = types.KeyboardButton(text='🔢 Мои запросы 🔢')
+  btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
+
+  markup_inline.add(btn_my_sub, btn_requests)
+  markup_inline.add(btn_back)
+  
+  return markup_inline
+
+
+def paid_requests_inline_markup():
+  markup_inline = types.InlineKeyboardMarkup()
+
+  markup_inline.add(types.InlineKeyboardButton(text='10 запросов за 100 рублей', callback_data=f'paid_service:requests:10')),
+  markup_inline.add(types.InlineKeyboardButton(text='50 запросов за 500 рублей', callback_data=f'paid_service:requests:50')),
+  markup_inline.add(types.InlineKeyboardButton(text='100 запросов за 990 рублей', callback_data=f'paid_service:requests:100')),
     
   return markup_inline
 
@@ -166,11 +190,11 @@ def management_tokens_reply_markup():
   markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
   btn_wbtoken = types.KeyboardButton(text='WBToken')
-  btn_wildauthnewV3 = types.KeyboardButton(text='WildAuthNewV3')
+  # btn_wildauthnewV3 = types.KeyboardButton(text='WildAuthNewV3')
   btn_x_supplier_id = types.KeyboardButton(text='x_supplier_id')
   btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
-
-  markup_inline.add(btn_wbtoken, btn_x_supplier_id, btn_wildauthnewV3)
+# btn_wildauthnewV3
+  markup_inline.add(btn_wbtoken, btn_x_supplier_id)
   markup_inline.add(btn_back)
     
   return markup_inline
@@ -247,11 +271,11 @@ def reply_markup_trial(trial):
     return markup
 
 
-def reply_markup_payment(user_data):
+def reply_markup_payment(purchase, user_data):
     markup = types.InlineKeyboardMarkup()
     markup.add(
-        # types.InlineKeyboardButton(text='Оплата через telegram', callback_data=f"Оплата Telegram {user_data}"),
-        types.InlineKeyboardButton(text='Оплата через сайт', callback_data=f"Оплата Сайт {user_data}"),
+        # types.InlineKeyboardButton(text='Оплата через telegram', callback_data=f"payment:telegram:{purchase}:{user_data}"),
+        types.InlineKeyboardButton(text='Оплата через сайт', callback_data=f"payment:site:{purchase}:{user_data}"),
     )
     return markup
 
@@ -264,6 +288,16 @@ def status_parser(status_id):
     11: 'Приостановлено',
   }
   return status_dict.get(status_id, 'Не найден')
+
+
+def format_requests_count(count):
+    if count == 1:
+        return f"{count} запрос"
+    elif 2 <= count <= 4:
+        return f"{count} запроса"
+    else:
+        return f"{count} запросов"
+
   
 
 def status_parser_priority_map(status_id):
@@ -373,6 +407,7 @@ def advert_info_message_maker(adverts, page_number, page_size, user):
       budget = wb_queries.get_budget(user, campaign)
       budget = budget.get("Бюджет компании")
     except Exception as e:
+      budget = None
       logger.info(e)
 
     if budget is not None:
@@ -398,7 +433,7 @@ def advert_info_message_maker(adverts, page_number, page_size, user):
 
     add_delete_str += f"\t Настроить РК: /adv\_settings\_{advert['id']}\n"
 
-    add_delete_str += f"\t Получить график аналитики: /user\_analitics\_grafic\_{advert['id']}\n"
+    # add_delete_str += f"\t Получить график аналитики: /user\_analitics\_grafic\_{advert['id']}\n"
 
     campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{advert['id']}"
     
@@ -514,7 +549,8 @@ def get_search_result_message(keyword, city=None):
 def check_sub(required_subs):
     def decorator(func):
         @wraps(func)
-        async def wrapper(message):
+        async def wrapper(*args, **kwargs):
+          message = args[0]
           user_id = message.from_user.id
           user = db_queries.get_user_by_telegram_user_id(user_id)
           
@@ -526,7 +562,7 @@ def check_sub(required_subs):
             sub_name = sub.title  
           
             if sub is not None and sub_name in required_subs:
-                return await func(message, sub_name)
+                return await func(*args, sub_name=sub_name, **kwargs)
             elif sub is not None and sub_name not in required_subs:
               await bot.send_message(user_id, "У вас недостаточно прав для выполнения данной команды, купите подписку по лучше")
               return None

@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import Integer, func, select, update, desc, cast
 from sqlalchemy.sql.expression import bindparam
+from os import environ
 import traceback
 
 from .models import GPT_Transaction, Stat_words, User, Advert, Subscription, Transaction, Action_history, User_analitics, User_logs
@@ -11,6 +12,9 @@ from .engine import engine
 
 from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
+
+statuses = ['default', 'info', 'success', 'failure']
+initiators = ['default', 'ui_backend', 'bot_message_sender', 'wb_routines', 'user_automation']
 
 class db_queries:
     
@@ -23,6 +27,17 @@ class db_queries:
             )
             session.add(user)
             session.commit()
+            
+            
+    def create_api_user(email, password):
+        with Session(engine) as session:
+            user = User(
+                email = email,
+                password = password
+            )
+            session.add(user)
+            session.commit()
+            return True
 
 
     def add_user_analitcs(user_id, campaign_id, max_bid_company, max_budget_company, current_bet, economy, date_time):
@@ -50,7 +65,11 @@ class db_queries:
     def get_user_by_telegram_user_id(telegram_user_id):
         with Session(engine) as session:
             return session.query(User).filter(User.telegram_user_id == telegram_user_id).first()
-
+        
+        
+    def get_user_by_email(email):
+        with Session(engine) as session:
+            return session.query(User).filter(User.email == email).first()
 
 
     def set_user_wb_cmp_token(telegram_user_id, wb_cmp_token):
@@ -194,19 +213,16 @@ class db_queries:
        
     def get_all_sub():
         with Session(engine) as session:
-            return session.query(Subscription).filter(Subscription.title != 'Trial')
-            
+            return session.query(Subscription).filter(Subscription.title != 'Старт').order_by(Subscription.price)
+        
 
         
     def update_sub(user_id, sub_name, total):
         with Session(engine) as session:
             user = session.query(User).filter(User.telegram_user_id == user_id).first()
-            sub = session.query(Subscription).filter(Subscription.title == sub_name).first()
-            user.sub_start_date = datetime.now()
-            user.sub_end_date = datetime.now() + timedelta(days=30)
             
             if user:
-                sub = session.query(Subscription).filter(Subscription.title == sub_name).first()
+                sub = session.query(Subscription).filter(Subscription.title == str(sub_name)).first()
                 user.sub_start_date = datetime.now()
                 user.sub_end_date = datetime.now() + timedelta(days=30)
                 user.subscriptions_id = sub.id
@@ -219,10 +235,16 @@ class db_queries:
                     subscription_id = sub.id,
                 )
                 
+                if sub.requests_get is None:
+                    requests_get = 0
+                else:
+                    requests_get = sub.requests_get
+                
                 token_transaction = GPT_Transaction(
                     user_id = user.id,
                     type = "Активация подписки",
-                    amount = sub.tokens_get
+                    request_amount = requests_get,
+                    token_amount = 700 * requests_get
                 )
                 
                 session.add(transaction)
@@ -266,7 +288,11 @@ class db_queries:
         return 'Not_working'
     
     
-    def add_action_history(action, action_description, telegram_user_id=None, user_id=None):
+    def add_action_history(action, action_description, telegram_user_id=None, user_id=None, status=None, initiator=None):
+
+        if not initiator:
+            initiator = environ.get('MONITORING_INITIATOR')
+
         with Session(engine) as session:
 
             if not user_id and not telegram_user_id:
@@ -288,6 +314,8 @@ class db_queries:
                 user_id = query_user_id,
                 description = action_description,
                 action = action,
+                status = status if status in statuses else statuses[0],
+                initiator = initiator if initiator in initiators else initiators[0],
             )
             session.add(action)
             session.commit()
@@ -387,27 +415,36 @@ class db_queries:
                 return False
             
             
+    def remove_wb_v3_main_token(user_id):
+        with Session(engine) as session:
+            user = session.query(User).filter(User.id == user_id).first()
+            user.wb_v3_main_token = None
+            session.commit()
+            
+            
     def get_user_tokens(user_id):
         with Session(engine) as session:
             if session.query(GPT_Transaction).filter(GPT_Transaction.user_id == user_id).first() is not None:
-                tokens = session.query(func.sum(cast(GPT_Transaction.amount, Integer))).filter(GPT_Transaction.user_id == user_id).scalar()
+                tokens = session.query(func.sum(cast(GPT_Transaction.token_amount, Integer))).filter(GPT_Transaction.user_id == user_id).scalar()
                 return tokens
             else:
                 return 0
         
         
-    def edit_user_tokens_transaction(user_id, amount, type):
+    def edit_user_transaction(user_id, type, token_amount, request_amount):
         with Session(engine) as session:
+            user = session.query(User).filter(User.telegram_user_id == user_id).first()
+            
             add_tokens = GPT_Transaction(
-                user_id = user_id,
+                user_id = user.id,
                 type = type,
-                amount = amount
+                token_amount = token_amount,
+                request_amount = request_amount
             )
             session.add(add_tokens)
             session.commit()
             return True
 
-    
     def get_user_analitics_data(
     user_id, 
     campaign_id
@@ -432,4 +469,13 @@ class db_queries:
         )
         session.add(user_logs)
         session.commit()
-        return True
+        return True       
+
+
+    def get_user_gpt_requests(user_id):
+        with Session(engine) as session:
+            if session.query(GPT_Transaction).filter(GPT_Transaction.user_id == user_id).first() is not None:
+                gtp_requests = session.query(func.sum(cast(GPT_Transaction.request_amount, Integer))).filter(GPT_Transaction.user_id == user_id).scalar()
+                return gtp_requests
+            else:
+                return 0

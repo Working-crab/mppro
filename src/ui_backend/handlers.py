@@ -1,8 +1,9 @@
+import asyncio
 import re
 from unittest import mock
 from user_analitics.graphic_analitic import graphics_analitics
 from ui_backend.app import bot
-from ui_backend.common import (edit_token_reply_markup, management_tokens_reply_markup, status_parser, 
+from ui_backend.common import (edit_token_reply_markup, format_requests_count, management_tokens_reply_markup, paid_requests_inline_markup, paid_service_reply_markup, status_parser, 
                                switch_status_reply_markup, 
                                universal_reply_markup, 
                                paginate_buttons, 
@@ -17,7 +18,8 @@ from ui_backend.common import (edit_token_reply_markup, management_tokens_reply_
                                action_history_filter_reply_markup, 
                                adv_settings_words_reply_markup, 
                                fixed_word_switch,
-                               check_sub)
+                               check_sub, 
+                               paid_requests_inline_markup)
 from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
@@ -27,6 +29,7 @@ from kafka_dir.general_publisher import queue_message_async
 import copy
 from gpt_common.gpt_queries import gpt_queries
 import json
+import uuid
 
 import io
 
@@ -39,23 +42,23 @@ logger = appLogger.getLogger(__name__)
 
 #Пример для создания истории действий
 #db_queries.add_action_history(user_id=message.chat.id, action=f"Какое-то событие")
-
+INCREASE = 10
 # all messages handler
 @bot.message_handler(func=lambda m: True)
 async def message_handler(message):
 
+  log_uuid = uuid.uuid4()
+
   try:
-    logger.info('message from')
-    logger.info(message.chat.id)
-    logger.info('message text')
-    logger.info(message.text)
-
     telegram_user_id = message.from_user.id
-
     user_session = cache_worker.get_user_session(telegram_user_id)
 
-    logger.debug('user_session')
-    logger.debug(user_session)
+    db_queries.add_action_history(
+      telegram_user_id=telegram_user_id,
+      action="message",
+      action_description=f"message uuid: '{log_uuid}' message from: '{message.chat.id}' message text: '{message.text}'",
+      status="info"
+    )
     
     logger.warn(user_session)
 
@@ -73,9 +76,6 @@ async def message_handler(message):
         user_action = possible_actions[key]
         break
 
-    logger.debug('user_action')
-    logger.debug(user_action)
-
     user_action_default = possible_actions.get('default')
     if user_action:
       await user_action(message)
@@ -88,16 +88,42 @@ async def message_handler(message):
 
     update_user_session(message)
 
+    db_queries.add_action_history(
+      telegram_user_id=telegram_user_id,
+      action="message",
+      action_description=f"message uuid: '{log_uuid}' message from: '{message.chat.id}' message text: '{message.text}' user action: '{user_action}'",
+      status="success"
+    )
+
 
   except Exception as e:
     traceback.print_exc()
     logger.error(e)
     logger.warn(f"EXCEPTION {str(e)}")
+
+    db_queries.add_action_history(
+      telegram_user_id=telegram_user_id,
+      action="message",
+      action_description=f"message uuid: '{log_uuid}' message from: '{message.chat.id}' message text: '{message.text}' message error: '{str(e)}'",
+      status="failure"
+    )
+
+    set_user_session_step(message, 'База')
+    update_user_session(message)
+
     if str(e) == 'Неверный токен!':
       await queue_message_async(
         topic = 'telegram_message_sender',
         destination_id = message.chat.id,
         message = 'Произошла ошибка валидации токена! Возможно срок его действия истек, попробуйте перезагрузить токен!'
+      )
+      return
+        
+    if "Read timed out" in str(e):
+      await queue_message_async(
+        topic = 'telegram_message_sender',
+        destination_id = message.chat.id,
+        message = 'WB сейчас перегружен, попробуйте еще раз позже'
       )
       return
     
@@ -118,6 +144,14 @@ async def message_handler(message):
         )
         return
       
+      if "'User' object has no attribute 'update_v3_main_token'" in str(e):
+        await queue_message_async(
+        topic = 'telegram_message_sender',
+        destination_id = message.chat.id,
+        message = 'Произошла ошибка валидации токена! Попробуйте загрузить токен еще раз!'
+        )
+        return
+      
       if "x_supplier_id Отсутствует!" in str(e):
         await queue_message_async(
           topic = 'telegram_message_sender',
@@ -126,18 +160,31 @@ async def message_handler(message):
         )
         return
       
+      if "EOF" in str(e):
+        await queue_message_async(
+          topic = 'telegram_message_sender',
+          destination_id = message.chat.id,
+          message = 'Произошла ошибка на стороне WB, попробуйте еще раз'
+        )
+        return      
+      # or "wb_cmp_token" in str(e)
+      if "update_v3_main_token" in str(e) or "wb_cmp_token" in str(e):
+        db_queries.remove_wb_v3_main_token(str(e).split(":")[1])
+        await queue_message_async(
+          topic = 'telegram_message_sender',
+          destination_id = message.chat.id,
+          message = 'Произошла ошибка с WildAuthNewV3 Token, токен был сброшен'
+        )
+        return
     
-      # else:
-      #   await queue_message_async(
-      #     destination_id = message.chat.id,
-      #     message = 'Произошла ошибка при обращению к Wildberries, попробуйте позже'
-      #   )
-      
-      #   return
+      else:
+        await queue_message_async(
+          topic = 'telegram_message_sender',
+          destination_id = message.chat.id,
+          message = 'Произошла ошибка при обращению к Wildberries, попробуйте позже'
+        )
+        return
     
-    
-    set_user_session_step(message, 'База')
-    update_user_session(message)
 
     await queue_message_async(
       topic = 'telegram_message_sender',
@@ -169,7 +216,7 @@ async def search_next_step_handler(message, after_city_choose=False):
     city = "Москва"
   
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
-  item_dicts = wb_queries.search_adverts_by_keyword(keyword, telegram_user_id)
+  item_dicts = await wb_queries.search_adverts_by_keyword(keyword, telegram_user_id)
   result_message = ''
   position_ids = []
   
@@ -194,7 +241,7 @@ async def search_next_step_handler(message, after_city_choose=False):
 
 
   result_message = f'Текущие рекламные ставки по запросу: *{keyword}*\nГород доставки: *{city}*\n\n'
-  adverts_info = wb_queries.get_products_info_by_wb_ids(position_ids, city, telegram_user_id)
+  adverts_info = await wb_queries.get_products_info_by_wb_ids(position_ids, city, telegram_user_id)
 
   for item_idex in range(len(item_dicts)):
 
@@ -208,7 +255,7 @@ async def search_next_step_handler(message, after_city_choose=False):
     if advert_info:
       product_name = escape_telegram_specials(advert_info.get('name')[:30]) if advert_info.get('name')[:30] else product_id
       product_time = f'{advert_info.get("time2")}ч' if advert_info.get('time2') else ''
-      product_category_name = advert_info.get('category_name') if advert_info.get('category_name') else ''
+      product_category_name = escape_telegram_specials(advert_info.get('category_name')) if advert_info.get('category_name') else ''
       message_string = f'{position_index} \t \\({pos}\\) \t *{price}₽*, \t {product_category_name} \t {product_time} \t [{product_name}](https://www.wildberries.ru/catalog/{product_id}/detail.aspx)'
     else:
       message_string += ' возможно нет в наличии'
@@ -265,7 +312,7 @@ async def management_tokens(message):
 async def token_cmp_handler(message):
   try:
     user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-    user_wb_tokens = wb_queries.get_base_tokens(user, check=True)
+    user_wb_tokens = await wb_queries.get_base_tokens(user, check=True)
   except Exception as e:
     logger.warn(e)
     await bot.send_message(message.chat.id, f'WBToken *Не найден* либо *Просрочен*\nНапишите новый токен, если хотите добавить/исправить токен', parse_mode="MarkdownV2", reply_markup=edit_token_reply_markup())
@@ -307,7 +354,7 @@ async def set_token_cmp_handler(message):
   user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
 
   try:
-    wb_queries.reset_base_tokens(user, token_cmp=clear_token)
+    await wb_queries.reset_base_tokens(user, token_cmp=clear_token)
   except Exception as e:
     if str(e) == 'Неверный токен!':
       await bot.send_message(message.chat.id, 'Неверный токен\!', reply_markup=universal_reply_markup())
@@ -323,7 +370,7 @@ async def set_token_cmp_handler(message):
 async def wb_v3_main_token_handler(message):
   try:
     user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-    user_wild_auth_v3_token = wb_queries.get_base_tokens(user, check=True)
+    user_wild_auth_v3_token = await wb_queries.get_base_tokens(user, check=True)
   except Exception as e:
     logger.warn(e)
     await bot.send_message(message.chat.id, f'WildAuthNewV3 *Не найден* либо *Просрочен*\nНапишите новый токен, если хотите добавить/исправить токен', parse_mode="MarkdownV2", reply_markup=edit_token_reply_markup())
@@ -343,14 +390,13 @@ async def set_wb_v3_main_token_handler(message):
 
   logger.warn(clear_token)
   try:
-    wb_queries.reset_base_tokens(user, token_cmp=None, token_main_v3=clear_token)
+    await wb_queries.reset_base_tokens(user, token_cmp=None, token_main_v3=clear_token)
   except Exception as e:
     if str(e) == 'Неверный токен!':
       await bot.send_message(message.chat.id, 'Неверный токен\!', reply_markup=universal_reply_markup())
       return
     raise e
 
-  message.user_session['update_v3_main_token'] = str(datetime.now())
   db_queries.set_user_wb_v3_main_token(telegram_user_id=message.from_user.id, wb_v3_main_token=clear_token)
   await bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
   db_queries.add_action_history(user_id=user.id, action="Токен", action_description=f"Был установлен V3 Main Token: '{clear_token}'")
@@ -368,13 +414,13 @@ async def list_adverts_handler(message):
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
 
   user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  user_wb_tokens = wb_queries.get_base_tokens(user)
-  req_params = wb_queries.get_base_request_params(user_wb_tokens)
+  user_wb_tokens = await wb_queries.get_base_tokens(user)
+  req_params = await wb_queries.get_base_request_params(user_wb_tokens)
   
   page_number = 1
   
-  # user_atrevds_data = wb_queries.get_user_atrevds(req_params, page_number)  try:
-  user_atrevds_data = wb_queries.get_user_atrevds(req_params, user_id=message.from_user.id)
+  # user_atrevds_data = await wb_queries.get_user_atrevds(req_params, page_number)  try:
+  user_atrevds_data = await wb_queries.get_user_atrevds(req_params, user_id=message.from_user.id)
 
   
   page_size = 6
@@ -399,11 +445,11 @@ async def kek(data):
   type_of_callback, page_number, user_id = data.data.split(':') # parameters = [type_of_callback, page_number, user_id]
   page_number = int(page_number)
   user = db_queries.get_user_by_telegram_user_id(user_id)
-  user_wb_tokens = wb_queries.get_base_tokens(user)
-  req_params = wb_queries.get_base_request_params(user_wb_tokens)
+  user_wb_tokens = await wb_queries.get_base_tokens(user)
+  req_params = await wb_queries.get_base_request_params(user_wb_tokens)
   
-  # user_atrevds_data = wb_queries.get_user_atrevds(req_params, page_number=1)
-  user_atrevds_data = wb_queries.get_user_atrevds(req_params)
+  # user_atrevds_data = await wb_queries.get_user_atrevds(req_params, page_number=1)
+  user_atrevds_data = await wb_queries.get_user_atrevds(req_params)
 
   page_size = 6
   result_msg = advert_info_message_maker(user_atrevds_data['adverts'], page_number=page_number, page_size=page_size, user=user)
@@ -629,8 +675,17 @@ async def action_page(data):
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # --- правка ставки компании --------------------------------------------------------------------------------------------
-
-async def send_message_for_advert_bid(message, adv_id):
+@check_sub(['Старт', 'Победитель', 'Мастер', 'Чемпион'])
+async def send_message_for_advert_bid(message, adv_id, sub_name):
+  user = db_queries.get_user_by_telegram_user_id(message.chat.id)
+  adverts_count = db_queries.get_user_adverts(user.id)
+  my_sub = db_queries.get_sub(user.subscriptions_id)
+  
+  logger.warn(adverts_count)
+  
+  if len(adverts_count) > my_sub.tracking_advertising:
+    return await bot.send_message(message.chat.id, "К сожалению, вы не можете отслеживать больше РК", parse_mode = 'MarkdownV2')
+  
   campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{adv_id}"
   result_msg = f'Укажите максимальную ставку для РК с id [{adv_id}]({campaign_link}) в рублях' #f"\t ID: [{advert['id']}]({campaign_link}) Статус: {stat}\n"
   await bot.send_message(message.chat.id, result_msg, parse_mode = 'MarkdownV2') 
@@ -686,7 +741,7 @@ async def adv_settings(message):
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
   
-  fixed = wb_queries.get_fixed(campaign_user, campaign)
+  fixed = await wb_queries.get_fixed(campaign_user, campaign)
   
   message.user_session['adv_fixed'] = fixed['fixed']
   
@@ -722,7 +777,7 @@ async def adv_settings_get_plus_word(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   if len(words['fixed']) == 0:
     check_new = True
@@ -782,13 +837,13 @@ async def add_plus_word_next_step_handler(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   pluse_word = [word.lower() for word in words['pluses']]
   pluse_word.append(keyword.lower())
   
   try:
-    wb_queries.add_word(campaign_user, campaign, plus_word=pluse_word)
+    await wb_queries.add_word(campaign_user, campaign, plus_word=pluse_word)
     await bot.send_message(message.chat.id, f"Слово {keyword.lower()} было добавлено")
   except:
     await bot.send_message(message.chat.id, f"На стороне WB произошла ошибка")
@@ -819,7 +874,7 @@ async def adv_settings_get_minus_word(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   if len(words['fixed']) == 0:
     check_new = True
@@ -894,13 +949,13 @@ async def add_minus_word_next_step_handler(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   minus_word = [word.lower() for word in words['minuses']]
   minus_word.append(keyword.lower())
   
   try:
-    wb_queries.add_word(campaign_user, campaign, excluded_word=minus_word)
+    await wb_queries.add_word(campaign_user, campaign, excluded_word=minus_word)
     await bot.send_message(message.chat.id, f"Слово {keyword.lower()} было добавлено")
   except:
     await bot.send_message(message.chat.id, f"На стороне WB произошла ошибка")
@@ -920,7 +975,7 @@ async def delete_plus_word_next_step_handler(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   pluse_word = []
   check = False
@@ -933,7 +988,7 @@ async def delete_plus_word_next_step_handler(message):
   
   try:
     if check:
-      wb_queries.add_word(campaign_user, campaign, plus_word=pluse_word)
+      await wb_queries.add_word(campaign_user, campaign, plus_word=pluse_word)
       await bot.send_message(message.chat.id, f"Слово/фраза {keyword.lower()} было удалено")
     else:
       await bot.send_message(message.chat.id, f"Не удалось найти слово/фразу в списке")  
@@ -955,7 +1010,7 @@ async def delete_minus_word_next_step_handler(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   minus_word = []
   check = False
@@ -968,7 +1023,7 @@ async def delete_minus_word_next_step_handler(message):
   
   try:
     if check:
-      wb_queries.add_word(campaign_user, campaign, excluded_word=minus_word)
+      await wb_queries.add_word(campaign_user, campaign, excluded_word=minus_word)
       await bot.send_message(message.chat.id, f"Слово/фраза {keyword.lower()} было удалено")
     else:
       await bot.send_message(message.chat.id, f"Не удалось найти слово/фразу в списке")  
@@ -983,7 +1038,7 @@ async def adv_settings_switch_fixed_word(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   if words['fixed_status']:
     await bot.send_message(message.chat.id, f"Фиксированные фразы на данный момент: *Включены*", parse_mode="MarkdownV2", reply_markup=fixed_word_switch(fixed_status=True))
@@ -1000,7 +1055,7 @@ async def adv_settings_switch_on_word(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
   chat_id_proccessing = proccesing.chat.id
   message_id_proccessing = proccesing.message_id
@@ -1012,8 +1067,8 @@ async def adv_settings_switch_on_word(message):
     await bot.send_message(message.chat.id, f"Фиксированные фразы будут *включены* автоматически, когда появяться \"Ключевые слова\", автоматически, если компания отслеживается", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
   else:
     try:
-      switch = wb_queries.switch_word(user=campaign_user, campaign=campaign, switch="true")
-      words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+      switch = await wb_queries.switch_word(user=campaign_user, campaign=campaign, switch="true")
+      words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
       await bot.delete_message(chat_id_proccessing, message_id_proccessing)
       if words['fixed_status']:
         await bot.send_message(message.chat.id, f"Фиксированные фразы были *Включены*", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
@@ -1031,7 +1086,7 @@ async def adv_settings_switch_off_word(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
   chat_id_proccessing = proccesing.chat.id
@@ -1043,8 +1098,8 @@ async def adv_settings_switch_off_word(message):
     await bot.send_message(message.chat.id, f"Фиксированные фразы будут *выключены* автоматически, когда появяться \"Ключеваые слова\", автоматически, если компания отслеживается", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
   else:
     try:
-      switch = wb_queries.switch_word(user=campaign_user, campaign=campaign, switch="false")
-      words = wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+      switch = await wb_queries.switch_word(user=campaign_user, campaign=campaign, switch="false")
+      words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
       await bot.delete_message(chat_id_proccessing, message_id_proccessing)
       if not words['fixed_status']:
         await bot.send_message(message.chat.id, f"Фиксированные фразы были *Выключены*", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
@@ -1064,12 +1119,12 @@ async def adv_settings_switch_status(message):
   campaign.campaign_id = adv_id
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
   
-  try:
-    status = wb_queries.get_campaign_info(campaign_user, campaign)
-  except:
-    return await bot.send_message(message.chat.id, f"Произошла ошибка при получении *Статуса* на стороне WB, попробуйте позже", parse_mode="MarkdownV2")
+  # try:
+  status = await wb_queries.get_campaign_info(campaign_user, campaign)
+  # except:
+  #   return await bot.send_message(message.chat.id, f"Произошла ошибка при получении *Статуса* на стороне WB, попробуйте позже", parse_mode="MarkdownV2")
   
-  budget = wb_queries.get_budget(campaign_user, campaign)
+  budget = await wb_queries.get_budget(campaign_user, campaign)
   status_parse = status_parser(status['status'])
   
   chat_id_proccessing = proccesing.chat.id
@@ -1095,7 +1150,7 @@ async def change_status(data):
   user_id = data.message.chat.id
   campaign_user = db_queries.get_user_by_telegram_user_id(user_id)
   
-  wb_queries.switch_status(campaign_user, campaign, status=change_to)
+  await wb_queries.switch_status(campaign_user, campaign, status=change_to)
   
   if change_to == "pause":
     await bot.edit_message_text("Статус был успешно изменён на *Приостановлено*", data.message.chat.id, data.message.id, parse_mode="MarkdownV2")
@@ -1110,7 +1165,8 @@ async def adv_settings_add_budget(message):
   campaign.campaign_id = adv_id
   
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  budget = wb_queries.get_budget(campaign_user, campaign)['Бюджет компании']
+  budget = await wb_queries.get_budget(campaign_user, campaign)
+  budget = budget['Бюджет компании']
   
   await bot.send_message(message.chat.id, f'Текущий бюджет: {budget} ₽\nid рекламной компании: [{adv_id}](https://cmp.wildberries.ru/campaigns/list/all/edit/search/{adv_id})\nВведите сумму пополенения бюджета или нажмите "Назад"', parse_mode="MarkdownV2")
   set_user_session_step(message, 'add_budget')
@@ -1127,19 +1183,24 @@ async def add_budget_next_step_handler(message):
   campaign.campaign_id = adv_id
   
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  budget = wb_queries.get_budget(campaign_user, campaign)['Бюджет компании']
+  budget = await wb_queries.get_budget(campaign_user, campaign)
+  budget = budget['Бюджет компании']
+  await asyncio.sleep(2)
   
-  if amount <= 99:
-    return await bot.send_message(message.chat.id, f'Невозможно пополнить бюджет компании менее, чем на 100 ₽', parse_mode="MarkdownV2")
+  if amount <= 499:
+    return await bot.send_message(message.chat.id, f'Невозможно пополнить бюджет компании менее, чем на 499 ₽', parse_mode="MarkdownV2")
   if amount % 50 != 0:
     return await bot.send_message(message.chat.id, f'Невозможно пополнить бюджет компании, сумма не кратна 50', parse_mode="MarkdownV2")
   
   try:
-    check = wb_queries.add_budget(campaign_user, campaign, amount)
+    check = await wb_queries.add_budget(campaign_user, campaign, amount)
+    logger.warn("After check")
     if check.raise_for_status and check.status_code == 429:
       return await bot.send_message(message.chat.id, f'Не удалось пополнить бюджет рекламной компании, попробуйте еще раз', parse_mode="MarkdownV2")
     else:  
-      budget2 = wb_queries.get_budget(campaign_user, campaign)['Бюджет компании']
+      budget2 = await wb_queries.get_budget(campaign_user, campaign)['Бюджет компании']
+      budget2 = budget2['Бюджет компании']
+      logger.warn("After budget")
       if budget2 == None:
         return await bot.send_message(message.chat.id, f'WB не вернул бюджет, попробуйте посмотреть изменение бюджета, нажав повторно кнопку \"Пополнить бюджет\"', parse_mode="MarkdownV2")
       else:
@@ -1152,53 +1213,80 @@ async def add_budget_next_step_handler(message):
     
 
 
-# Подписка -----------------------------------------------------------------------------------------------------------------------
+# Платные услуги -----------------------------------------------------------------------------------------------------------------------
+
+async def show_paid_services(message):
+  await bot.send_message(message.chat.id, "Здравствуйте, здесь Вы можете купить *подписку* или *запросы* для ChatGPT", parse_mode="MarkdownV2", reply_markup=paid_service_reply_markup())
+  set_user_session_step(message, 'paid_service')
+  
+  
+async def show_my_requests(message):
+  set_user_session_step(message, 'paid_service')
+  user = db_queries.get_user_by_telegram_user_id(message.chat.id)
+  gpt_requests = db_queries.get_user_gpt_requests(user_id=user.id)
+  
+  gpt_requests = 0 if gpt_requests == None else gpt_requests
+    # цена запроса с огр на длинну 255 символов(которые вводит юзер) + * кол во на 2 + * 100 умножить(свободный)
+  await bot.send_message(message.chat.id, f'На данный момент у вас: {format_requests_count(gpt_requests)}, нажав на кнопку под сообщением, вы можете купить определенное количество запросов', reply_markup=paid_requests_inline_markup())
+    
+
+@bot.callback_query_handler(func=lambda x: re.match('paid_service:', x.data))
+async def paid_service(data):
+  user = db_queries.get_user_by_telegram_user_id(data.message.chat.id)
+  
+  action, action_type, amount =  data.data.split(":")
+  amount = int(amount)
+  if amount == 100:
+    price = amount * INCREASE * 0.9
+  else:
+    price = amount * INCREASE
+  
+  if action_type == "requests":
+    await bot.send_message(data.message.chat.id, f'Вы выбрали покупку запросов\nКоличество: {amount}\n Цена: {price} ₽', reply_markup=reply_markup_payment(purchase=action_type, user_data=f"{amount}:{price}"))
+  
 
 async def show_my_sub(message):
+  set_user_session_step(message, 'paid_service')
   user = db_queries.get_user_by_telegram_user_id(message.chat.id)
   my_sub = db_queries.get_sub(sub_id=user.subscriptions_id)
   if user.subscriptions_id:
-    await bot.send_message(message.chat.id, 'Подключен: `{}`\nОписание: `{}`\nСрок действия с `{}` по `{}`'.format(my_sub.title, my_sub.description, user.sub_start_date.strftime('%d/%m/%Y'), user.sub_end_date.strftime('%d/%m/%Y')), reply_markup=universal_reply_markup())
-    if not "Advanced" in my_sub.title:
-      await bot.send_message(message.chat.id, 'Вы можете обновиться на более крутую подписку', reply_markup=universal_reply_markup())
-      sub_list = db_queries.get_all_sub()
-      # if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
-      if PAYMENT_TOKEN.split(':')[1] == 'TEST':
-        for sub in sub_list:
-          if sub.title == my_sub.title:
-            continue
-          await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
-          # await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\n   Хотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
+    await bot.send_message(message.chat.id, 'Подключен: `{}`\nОписание: `{}`\nСрок действия с `{}` по `{}`'.format(my_sub.title, my_sub.description, user.sub_start_date.strftime('%d/%m/%Y'), user.sub_end_date.strftime('%d/%m/%Y')), reply_markup=paid_service_reply_markup())
+    #TODO do another systeam
+    sub_list = db_queries.get_all_sub()
+    if sub_list[-1].title != my_sub.title:
+      await bot.send_message(message.chat.id, 'Вы можете обновиться на более крутую подписку', reply_markup=paid_service_reply_markup())
+      
+      for sub in sub_list:
+        if sub.title == my_sub.title:
+          continue
+        await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
   else:
     await bot.send_message(message.chat.id, 'У вас не подключено никаких платных подписок\nНиже предоставлены варианты для покупки: ')
     sub_list = db_queries.get_all_sub()
-    # if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
-    if PAYMENT_TOKEN.split(':')[1] == 'TEST':
-      for sub in sub_list:
-        await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
-        # await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(user_data=f"{sub.title}"))
+    for sub in sub_list:
+      await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
 
 # --------------------------------------------------------------------------------------------------------------------------------
 
 # --- card product --------------------------------------------------------------------------------------------
 
-@check_sub(['Trial', 'Standart🔥', 'Advanced'])
+@check_sub(['Старт', 'Победитель', 'Мастер', 'Чемпион'])
 async def card_product(message, sub_name):
   user = db_queries.get_user_by_telegram_user_id(message.chat.id)
-  tokens = db_queries.get_user_tokens(user_id=user.id)
-  if tokens > 650:
+  gtp_requests = db_queries.get_user_gpt_requests(user_id=user.id)
+  
+  if gtp_requests >= 1:
     # цена запроса с огр на длинну 255 символов(которые вводит юзер) + * кол во на 2 + * 100 умножить(свободный)
-    await bot.send_message(message.chat.id, f'На данный момент у вас: {round(tokens / 650, 2)} средних запросов\nВведите ключевые слова для описание товара', reply_markup=edit_token_reply_markup())
+    await bot.send_message(message.chat.id, f'На данный момент у вас: {gtp_requests} запросов\nВведите ключевые слова для описание товара', reply_markup=edit_token_reply_markup())
     set_user_session_step(message, 'card_product')
   else:
     # await bot.send_message(message.chat.id, f'На данный момент у вас "{tokens}" токенов, этого не хватает для создания карточки товара.\nМинимум 100', reply_markup=universal_reply_markup())
-    await bot.send_message(message.chat.id, f'На данный момент у вас "{round(tokens / 650, 2)}" средних запросов, этого не хватает для создания карточки товара.', reply_markup=universal_reply_markup())
+    await bot.send_message(message.chat.id, f'На данный момент у вас "{gtp_requests}" запросов, этого не достаточно для создания карточки товара.', reply_markup=universal_reply_markup())
     set_user_session_step(message, 'База')
 
 
 async def card_product_next_step_handler(message):
   user = db_queries.get_user_by_telegram_user_id(message.chat.id)
-  tokens = db_queries.get_user_tokens(user_id=user.id)
   
   keyword = message.text
   
@@ -1247,7 +1335,7 @@ step_map = {
     'user_analitics_grafic': user_analitics_grafic,
     'Помощь': help,
     'Поиск': search_adverts,
-    'Моя подписка': show_my_sub,
+    'Платные услуги': show_paid_services,
     'Список рекламных компаний': list_adverts,
     'Выбрать город': choose_city,
     'Выбор:': choose_city_handler,
@@ -1357,5 +1445,10 @@ step_map = {
   'add_budget': {
     'default': add_budget_next_step_handler,
     'Назад': menu_back_word,
+  },
+  'paid_service': {
+    'Моя подписка': show_my_sub,
+    'Мои запросы': show_my_requests,
+    'Назад': menu_back
   }
 }
