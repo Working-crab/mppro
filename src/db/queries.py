@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import Integer, func, select, update, desc, cast
 from sqlalchemy.sql.expression import bindparam
+from os import environ
 import traceback
 
 from .models import GPT_Transaction, Stat_words, User, Advert, Subscription, Transaction, Action_history, User_analitics
@@ -11,6 +12,9 @@ from .engine import engine
 
 from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
+
+statuses = ['default', 'info', 'success', 'failure']
+initiators = ['default', 'ui_backend', 'bot_message_sender', 'wb_routines', 'user_automation']
 
 class db_queries:
     
@@ -284,7 +288,11 @@ class db_queries:
         return 'Not_working'
     
     
-    def add_action_history(action, action_description, telegram_user_id=None, user_id=None):
+    def add_action_history(action, action_description, telegram_user_id=None, user_id=None, status=None, initiator=None):
+
+        if not initiator:
+            initiator = environ.get('MONITORING_INITIATOR')
+
         with Session(engine) as session:
 
             if not user_id and not telegram_user_id:
@@ -306,6 +314,8 @@ class db_queries:
                 user_id = query_user_id,
                 description = action_description,
                 action = action,
+                status = status if status in statuses else statuses[0],
+                initiator = initiator if initiator in initiators else initiators[0],
             )
             session.add(action)
             session.commit()

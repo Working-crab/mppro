@@ -135,8 +135,11 @@ class Action_history(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     action = Column(String, nullable=False)
-    description = Column(String, nullable=False)
+    description = Column(String, nullable=True)
     date_time = Column(DateTime(timezone=True), server_default=func.now())
+
+    status = Column(String, nullable=False, default="")
+    initiator = Column(String, nullable=False, default="default")
 
     user = relationship('User', back_populates='action_history')
 
