@@ -18,24 +18,29 @@ class User(Base):
     x_supplier_id = Column(String(2048))
 
     time_created = Column(DateTime(timezone=True), server_default=func.now())
-    time_updated = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
-    subscriptions_id = Column(Integer, ForeignKey('subscriptions.id'), nullable=True)
+    time_updated = Column(DateTime(timezone=True),
+                          server_default=func.now(), onupdate=func.now())
+
+    subscriptions_id = Column(Integer, ForeignKey(
+        'subscriptions.id'), nullable=True)
 
     subscriptions = relationship("Subscription", back_populates="user")
     transactions = relationship("Transaction", back_populates="user")
-    user_budget_analitics_logs = relationship("User_budget_analitics_logs", back_populates="user")
+    user_budget_analitics_logs = relationship(
+        "User_budget_analitics_logs", back_populates="user")
     action_history = relationship("Action_history", back_populates="user")
-       
+
     sub_start_date = Column(DateTime(timezone=True))
     sub_end_date = Column(DateTime(timezone=True))
 
     adverts = relationship("Advert")
     user_analitics = relationship("User_analitics")
+    user_logs = relationship("User_logs")
     gpt_transactions = relationship("GPT_Transaction")
 
     def __repr__(self):
         return f"User(id={self.id!r}, username={self.telegram_username!r})"
+
 
 class Advert(Base):
     __tablename__ = "adverts"
@@ -46,12 +51,14 @@ class Advert(Base):
     place = Column(String, nullable=False)
     campaign_id = Column(Integer, nullable=False, default=0)
     status = Column(String, nullable=False)
-    
+
     time_created = Column(DateTime(timezone=True), server_default=func.now())
-    time_updated = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    time_updated = Column(DateTime(timezone=True),
+                          server_default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="adverts")
-    user_budget_analitics_logs = relationship('User_budget_analitics_logs', back_populates='adverts')
+    user_budget_analitics_logs = relationship(
+        'User_budget_analitics_logs', back_populates='adverts')
 
     def __repr__(self):
         return f"Advert(id={self.id!r}, max_bid={self.max_bid!r}, user_id={self.user_id!r}, place={self.place!r})"
@@ -59,7 +66,7 @@ class Advert(Base):
 
 class Subscription(Base):
     __tablename__ = "subscriptions"
-    
+
     id = Column(Integer, primary_key=True)
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
@@ -71,30 +78,32 @@ class Subscription(Base):
 
     def __repr__(self):
         return f"Subscription(id={self.id!r}, title={self.title!r}, price={self.price!r}, user_id={self.user_id!r})"
-    
-    
+
+
 class Transaction(Base):
     __tablename__ = "transactions"
-    
+
     id = Column(Integer, primary_key=True)
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
     total = Column(Integer, nullable=False)
     time_created = Column(DateTime(timezone=True), server_default=func.now())
-    
+
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    subscription_id = Column(Integer, ForeignKey('subscriptions.id'), nullable=False)
+    subscription_id = Column(Integer, ForeignKey(
+        'subscriptions.id'), nullable=False)
 
     user = relationship('User', back_populates='transactions')
     subscriptions = relationship('Subscription', back_populates='transactions')
 
     def __repr__(self):
-        return f"Transaction(id={self.id!r}, title={self.title!r}, total={self.total!r}, user_id={self.user_id!r}, subscription_id={self.subscription_id!r})"
-    
-    
+        return f"Transaction(id={self.id!r}, title={self.title!r}, total={self.total!r}, user_id={self.user_id!r}, "\
+               f"subscription_id={self.subscription_id!r})"
+
+
 class GPT_Transaction(Base):
     __tablename__ = "gpt_transactions"
-    
+
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     type = Column(String, nullable=False)
@@ -108,7 +117,7 @@ class GPT_Transaction(Base):
 
 class User_budget_analitics_logs(Base):
     __tablename__ = "user_budget_analitics_logs"
-    
+
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     campaign_id = Column(Integer, ForeignKey("adverts.id"), nullable=False)
@@ -118,15 +127,16 @@ class User_budget_analitics_logs(Base):
     up_money = Column(Integer, default=0)
 
     user = relationship('User', back_populates='user_budget_analitics_logs')
-    adverts = relationship('Advert', back_populates='user_budget_analitics_logs')
+    adverts = relationship(
+        'Advert', back_populates='user_budget_analitics_logs')
 
     def __repr__(self):
         return f"User_budget_analitics_logs(id={self.id!r}, user_id={self.user_id!r}, campaign_id={self.campaign_id!r})"
-    
-    
+
+
 class Action_history(Base):
     __tablename__ = "action_history"
-    
+
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     action = Column(String, nullable=False)
@@ -136,28 +146,30 @@ class Action_history(Base):
     user = relationship('User', back_populates='action_history')
 
     def __repr__(self):
-        return f"Action_history(id={self.id!r}, user_id={self.user_id!r}, action={self.action!r}, description={self.description!r})"
-    
-    
+        return f"Action_history(id={self.id!r}, user_id={self.user_id!r},"\
+               f" action={self.action!r}, description={self.description!r})"
+
+
 class Stat_words(Base):
     __tablename__ = "stat_words"
-    
+
     id = Column(Integer, primary_key=True)
     status = Column(String, nullable=False)
     campaing_id = Column(Integer, nullable=False)
     word = Column(String, nullable=False)
     type = Column(String, nullable=False)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
-    
+
     # adverts = relationship('Advert', back_populates='stat_words')
 
     def __repr__(self):
-        return f"Stat_words(id={self.id!r}, status={self.status!r}, campaing_id={self.campaing_id!r}, word={self.word!r}, type={self.type!r}, timestamp={self.timestamp!r})"
+        return f"Stat_words(id={self.id!r}, status={self.status!r}, campaing_id={self.campaing_id!r}, "\
+               f"word={self.word!r}, type={self.type!r}, timestamp={self.timestamp!r})"
 
 
 class User_analitics(Base):
     __tablename__ = "user_analitics"
-    
+
     id = Column(Integer, primary_key=True)
     campaign_id = Column(Integer, nullable=False)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
@@ -170,4 +182,22 @@ class User_analitics(Base):
     user = relationship('User', back_populates='user_analitics')
 
     def __repr__(self):
-        return f"User_analitics(id={self.id!r}, campaign_id ={self.campaign_id!r}, user_id ={self.user_id!r}, max_bid_company ={self.max_bid_company!r}, max_budget_company={self.max_budget_company!r}, current_bet={self.current_bet!r}, economy={self.economy!r}, date_time={self.date_time!r})"
+        return f"User_analitics(id={self.id!r}, campaign_id ={self.campaign_id!r}, user_id ={self.user_id!r},"\
+               f" max_bid_company ={self.max_bid_company!r}, max_budget_company={self.max_budget_company!r}, "\
+               f"current_bet={self.current_bet!r}, economy={self.economy!r}, date_time={self.date_time!r})"
+
+
+class User_logs(Base):
+    __tablename__ = "user_logs"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    date_time = Column(DateTime(timezone=True), nullable=False)
+    error_message = Column(String, nullable=False)
+    error_type = Column(String, nullable=False)
+    
+    user = relationship('User', back_populates='user_logs')
+
+    def __repr__(self):
+        return f"User_logs(id={self.id!r}, user_id ={self.user_id!r}, date_time={self.date_time!r}, "\
+               f"error_message={self.error_message!r})"

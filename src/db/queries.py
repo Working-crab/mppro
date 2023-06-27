@@ -5,7 +5,7 @@ from sqlalchemy import Integer, func, select, update, desc, cast
 from sqlalchemy.sql.expression import bindparam
 import traceback
 
-from .models import GPT_Transaction, Stat_words, User, Advert, Subscription, Transaction, Action_history, User_analitics
+from .models import GPT_Transaction, Stat_words, User, Advert, Subscription, Transaction, Action_history, User_analitics, User_logs
 from .engine import engine
 
 
@@ -415,4 +415,21 @@ class db_queries:
         with Session(engine) as session:
             return session.query(User_analitics).filter( 
                 (User_analitics.user_id == user_id) and (User_analitics.campaign_id == campaign_id) ).all()
-        return 'User_analitcs data doesn`t exist'        
+        return 'User_analitcs data doesn`t exist'
+
+
+    def add_user_logs(
+    user_id,
+    date_time,
+    error_message,
+    error_type
+    ):
+        user_logs = User_logs(
+            user_id = user_id,
+            date_time = date_time,
+            error_message = error_message,
+            error_type = error_type
+        )
+        session.add(user_logs)
+        session.commit()
+        return True

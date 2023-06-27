@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import os
+import numpy as np
 
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
@@ -22,15 +23,20 @@ class graphics_analitics:
             spent_money.append(obj.current_bet)
             up_money.append(obj.economy)
 
-        plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%d.%m.%Y'))
-        plt.gca().xaxis.set_major_locator(mdates.DayLocator())
         #формирование графика
         df = pd.DataFrame({
                     'Максимальная ставка': max_bid,
                     'Потрачено на рекламу': spent_money,
                     'Экономия': up_money
                 }, index=index_ox)
-        axes = df.plot.bar(rot=0, subplots=True, figsize=(11, 11))
+                
+        plot_df = df.groupby(df.index.date).sum()
+
+        axes = plot_df.plot.bar(rot=0, subplots=True, figsize=(11, 11))
+        plt.gca().set_xticks(
+            np.arange(len(plot_df.index)),
+            list(map(lambda x: x.strftime('%d.%m.%Y'), plot_df.index))
+        )
         plt.savefig(f"user_analitics_image/{campaign_id}.png")     
         return f"user_analitics_image/{campaign_id}.png"
     
