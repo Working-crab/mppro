@@ -11,8 +11,11 @@
     <div class="errors-list-content scroll-box">
       <div :class="`errors-card ${index % 2 === 0 ? 'bac-color-grey' : ''}`" v-for="error, index in errors" :key="error.id">
         <span class="action-text-table">{{ error.action }}</span>
-        <span class="date-text-table">{{ error.date }}</span>
-        <span class="user-text-table">{{ error.user }}</span>
+        <div class="date-container">
+          <time class="date">{{ mainDate(error.date_time) }}</time>
+          <time class="hours">{{ hoursDate(error.date_time) }}</time>
+        </div>
+        <span class="user-text-table">{{ error.user_id }}</span>
       </div>
     </div>
 
@@ -20,15 +23,23 @@
 </template>
 
 <script>
+import moment from 'moment';
+moment.locale('Ru')
+
 export default {
   props:{
     errors: {
       type: Array,
       default: () => []
     }
-  },
-  data() {
-    return {
+  },methods: {
+    mainDate(date){
+      let day = moment(date).format('DD.MM.YY')
+      return day
+    },
+    hoursDate(date){
+      let day = moment(date).format('h:mm:ss')
+      return day
     }
   },
 }
@@ -77,37 +88,37 @@ export default {
   font-weight: 600;
 }
 .action-text{
-  width: 310px;
+  width: 233px;
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   align-items: center;
-  padding-left: 20px;
+  /* padding-left: 20px; */
 }
 .date-text{
-  width: 150px;
+  width: 233px;
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   align-items: center;
-  padding-left: 20px;
+  /* padding-left: 20px; */
 }
 .user-text{
   width: 233px;
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   align-items: center;
-  padding-left: 20px;
+  /* padding-left: 20px; */
 }
 
-
 .action-text-table{
-  width: 310px;
+  width: 233px;
   display: flex;
   justify-content: center;
   align-items: center;
 }
-.date-text-table{
-  width: 150px;
+.date-container{
+  width: 233px;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
 }
@@ -116,6 +127,21 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+.date-container{
+  width: 233px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.date{
+
+}
+.hours{
+  font-size: 15px;
 }
 
 .bac-color-grey{

@@ -17,8 +17,8 @@ export const useLastErrors = defineStore('lastErrors', {
   actions: {
     async fetchLastErrors() {
       try {
-        const result = await axios.get('http://127.0.0.1:8002/testFront/')
-        this.subscription = result.data.subs
+        const result = await axios.get('http://127.0.0.1:8002/last_errors/')
+        this.lastErrors = result.data.last_errors
 
       } 
       catch (error) {

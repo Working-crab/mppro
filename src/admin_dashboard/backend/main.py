@@ -24,10 +24,10 @@ def get_last_actions():
   list_last_actions["__root__"].reverse()
   return {'last_actions': list_last_actions['__root__']}
 
-# @app.get("/last_errors")
-# def get_last_actions():
-#   last_actions = db_queries.get_last_actions()
-#   last_actions_q = list(last_actions)
-#   list_subs = ActionList.from_orm(last_actions_q).dict()
-#   list_subs["__root__"].reverse()
-#   return {'last_actions': list_subs['__root__']}
+@app.get("/last_errors")
+def get_last_actions():
+  last_errors = db_queries.get_last_errors()
+  last_errors_q = list(last_errors)
+  list_last_errors = ActionList.from_orm(last_errors_q).dict()
+  list_last_errors["__root__"].reverse()
+  return {'last_errors': list_last_errors['__root__']}

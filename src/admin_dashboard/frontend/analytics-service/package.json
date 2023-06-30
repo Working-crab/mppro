@@ -12,7 +12,8 @@
     "core-js": "^3.8.3",
     "moment": "^2.29.4",
     "pinia": "^2.1.4",
-    "vue": "^3.2.13"
+    "vue": "^3.2.13",
+    "vue-moment": "^4.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",

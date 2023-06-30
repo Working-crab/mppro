@@ -351,9 +351,9 @@ class db_queries:
 
 
 
-    # def get_last_errors():
-    #     with Session(engine) as session:
-    #         return session.query(Action_history).where(Action_history.id==1).order_by(Action_history.id.desc()).limit(3)
+    def get_last_errors():
+        with Session(engine) as session:
+            return session.query(Action_history).where(Action_history.status=='failure').order_by(Action_history.id.desc()).limit(3)
 
 
 

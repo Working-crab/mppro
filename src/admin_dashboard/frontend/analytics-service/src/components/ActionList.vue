@@ -11,13 +11,12 @@
     <div class="errors-list-content scroll-box">
       <div :class="`errors-card ${index % 2 === 0 ? 'bac-color-grey' : ''}`" v-for="action, index in actions" :key="action.id">
         <span class="action-text-table">{{ action.action }}</span>
-        <div class="date-container date-text-table">
-          <date class="date">{{ mainDate(action.date_time)  }}</date>
-          <date class="hours">{{ hoursDate(action.date_time)  }}</date>
+        <div class="date-container">
+          <time class="date">{{ mainDate(action.date_time) }}</time>
+          <time class="hours">{{ hoursDate(action.date_time) }}</time>
         </div>
         
         <span class="user-text-table">{{ action.user_id }}</span>
-        <!-- {{ action }} -->
       </div>
     </div>
 
@@ -44,7 +43,10 @@ export default {
       let day = moment(date).format('h:mm:ss')
       return day
     }
-  }
+  },
+  mounted() {
+    // console.log(this.$.provides.moment1())
+  },
 }
 </script>
 

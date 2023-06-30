@@ -1,19 +1,16 @@
 <template>
   <div class="page-container">
-    <h1>Дашборд для админов по аналитеке сервисов</h1>
+    <h1>Дашборд для админов для аналитеки сервисов</h1>
     <h4>Сегодня: {{ getDate() }} | Время обновления дешборда: {{ DateDashboard }}</h4>
     <!-- <div class="sub-container">
       <h4 v-for="sub in subs" :key="sub.id">{{sub.title}}({{sub.description}}) price: {{ sub.price }}</h4>
     </div> -->
     <div class="flex">
       <service-workload :infoAboutServices="infoAboutServices"></service-workload>
-      <ErrorsList :errors="errors"></ErrorsList>
-      <ActionList :actions="lastActionsStore.lastActions"></ActionList>
+      <ErrorsList :errors="lastErrorssStore?.lastErrors"></ErrorsList>
+      <ActionList :actions="lastActionsStore?.lastActions"></ActionList>
       <ServicesStatus :errors="serviceStaus"></ServicesStatus>
     </div>
-    
-
-    
   </div>
 </template>
 
@@ -23,13 +20,15 @@ import ErrorsList from './components/ErrorsList.vue'
 import ActionList from './components/ActionList.vue'
 import ServicesStatus from './components/ServicesStatus.vue'
 import { useLastActions } from '@/stores/lastActions'
+import { useLastErrors } from '@/stores/lastErrors'
+
 
 
 export default {
   setup(){
     const lastActionsStore = useLastActions()
-
-    return {lastActionsStore}
+    const lastErrorssStore = useLastErrors()
+    return {lastActionsStore, lastErrorssStore}
   },
   name: 'App',
   components: {
@@ -41,32 +40,6 @@ export default {
   data() {
     return {
       DateDashboard: '',
-      errors: [
-        {
-          id: 1,
-          action: 'Получение рекламных ставок',
-          date: '10.04.2023',
-          user: 'Вася Пупкин'
-        },
-        {
-          id: 2,
-          action: 'Получение рекламных кампаний',
-          date: '10.04.2023',
-          user: 'Полный Алексей'
-        },
-        {
-          id: 3,
-          action: 'Установка токенов',
-          date: '10.04.2023',
-          user: 'Вася Пупкин Пупкин Пупкин'
-        },
-        // {
-        //   id: 4,
-        //   action: 'Установка токенов',
-        //   date: '10.04.2023',
-        //   user: 'Вася Пупкин'
-        // },
-      ],
       infoAboutServices:[
         {
           id: 1,
@@ -134,6 +107,7 @@ export default {
   },
   async mounted(){
     await this.lastActionsStore.fetchLastActions()
+    await this.lastErrorssStore.fetchLastErrors()
     this.getDateDashboard()
   },
   computed:{
