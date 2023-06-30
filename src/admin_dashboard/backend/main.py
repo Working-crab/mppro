@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from db.queries import db_queries
-from admin_dashboard.backend.serializer_models import Action, ActionList
+from admin_dashboard.backend.serializers import Action, ActionList
 
 app = FastAPI(openapi_url=None) # openapi_url=None fix on the end TODO
 
@@ -15,16 +15,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-
-# @app.get("/testFront")
-# def get_subscription():
-#   subs = db_queries.get_all_sub()
-#   subs_q = list(subs)
-#   list_subs = SubList.from_orm(subs_q).dict()
-#   return {'subs': list_subs['__root__']}
-
+ 
 @app.get("/last_actons")
 def get_last_actions():
   last_actions = db_queries.get_last_actions()
