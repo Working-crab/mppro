@@ -45,6 +45,7 @@ class Action(BaseModel):
   id: int
   user_id: int
   action: str
+  status: str
   description: str
   date_time: datetime
 
