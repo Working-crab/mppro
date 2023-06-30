@@ -12,8 +12,9 @@ const defaults = {
   log_file: 'logs/pm2/default.log',
   cwd: '',
   env: {
-    PYTHONPATH: 'src/'
-  }
+    PYTHONPATH: 'src/',
+    MONITORING_INITIATOR: 'default',
+  },
 }
 
 module.exports = {
@@ -21,10 +22,15 @@ module.exports = {
     {
       ...defaults,
       autorestart: true,
-      name: 'mp_pro_ui_telega_1',
+      cron_restart: '*/5 * * * *',
+      name: 'ui_backend',
       script: 'venv/bin/python3 -m uvicorn ui_backend.main:app --reload',
-      log_file: 'logs/pm2/mp_pro_ui_telega_1.log',
+      log_file: 'logs/pm2/ui_backend.log',
       interpreter: undefined,
+      env: {
+        PYTHONPATH: 'src/',
+        MONITORING_INITIATOR: 'ui_backend',
+      },
     },
     // {
     //   ...defaults,
@@ -39,6 +45,10 @@ module.exports = {
       name: 'bot_message_sender',
       script: 'src/ui_backend/bot_message_sender/bot_message_sender.py',
       log_file: 'logs/pm2/bot_message_sender.log',
+      env: {
+        PYTHONPATH: 'src/',
+        MONITORING_INITIATOR: 'bot_message_sender',
+      },
     },
     {
       ...defaults,
@@ -46,13 +56,21 @@ module.exports = {
       script: 'src/wb_routines/main.py',
       log_file: 'logs/pm2/wb_routines.log',
       cron_restart: '0 0 * * *', // once per day
+      env: {
+        PYTHONPATH: 'src/',
+        MONITORING_INITIATOR: 'wb_routines',
+      },
     },
     {
       ...defaults,
-      name: 'mp_pro_user_automation',
+      name: 'user_automation',
       script: 'src/user_automation/main.py',
       log_file: 'logs/pm2/user_automation.log',
       cron_restart: '*/10 * * * *', // once per 10 minutes
+      env: {
+        PYTHONPATH: 'src/',
+        MONITORING_INITIATOR: 'user_automation',
+      },
     },
     // { TODO: Refactor
     //   ...defaults,

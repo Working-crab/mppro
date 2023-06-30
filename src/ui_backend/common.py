@@ -433,7 +433,7 @@ def advert_info_message_maker(adverts, page_number, page_size, user):
 
     add_delete_str += f"\t Настроить РК: /adv\_settings\_{advert['id']}\n"
 
-    add_delete_str += f"\t Получить график аналитики: /user\_analitics\_grafic\_{advert['id']}\n"
+    # add_delete_str += f"\t Получить график аналитики: /user\_analitics\_grafic\_{advert['id']}\n"
 
     campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{advert['id']}"
     

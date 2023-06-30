@@ -34,8 +34,8 @@ class wb_queries:
     # else:
     #   user_wb_tokens['wb_v3_main_token'] = ""
               
-    # if user.x_supplier_id:
-    #   user_wb_tokens['x_supplier_id'] = user.x_supplier_id
+    if user.x_supplier_id:
+      user_wb_tokens['x_supplier_id'] = user.x_supplier_id
     # if not user_wb_tokens['wb_user_id'] or not user_wb_tokens['wb_supplier_id']:
     #   user_wb_tokens = await wb_queries.reset_base_tokens(user)
       
@@ -47,24 +47,26 @@ class wb_queries:
 
 
   async def wb_query(method, url, cookies=None, headers=None, data=None, user_id=None, timeout=3, req=False):
-      result = None
       result = {}
       try:
         logger.warn(f"{method} url={url}, cookies={cookies}, headers={headers}, data={data}, timeout={timeout}")
         async with aiohttp.ClientSession() as session:
+          response = None
           for attempt in range(3):
             async with session.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout) as response:
-                            
-              if response.status == 401:
+              if response.status != 200:
                 logger.warn(f"In while {attempt}")
-                await asyncio.sleep(2)
+                await asyncio.sleep(3)
                 logger.warn(response.status)
               elif response.status == 200:
-                output = await response.json()
+                try:
+                  if not req:
+                    output = await response.json()
+                except Exception as e:
+                    logger.error('result.json() error')
+                    if (response.status != 200):
+                      raise e
                 break
-          
-          if response.status == 401:
-            raise Exception('Неверный токен!')
           
           if data == "{}":
             return response.headers
@@ -75,7 +77,7 @@ class wb_queries:
           
           try:
             if not req:
-              output = await response.json()
+              result = await response.json()
           except Exception as e:
             logger.error('result.json() error')
             if (response.status != 200):
@@ -92,7 +94,7 @@ class wb_queries:
         raise Exception("wb_query error " + str(e) + " user_id:" + str(user_id))
 
       logger.debug(f'user_id: {user_id} url: {url} \t headers: {str(headers)} \t result: {str(result)}')    
-      return output
+      return result
 
 
   async def reset_base_tokens(user, token_cmp=None, token_main_v3=None):
@@ -102,6 +104,9 @@ class wb_queries:
       user_wb_tokens['wb_v3_main_token'] = ""
       
       user_wb_tokens['wb_cmp_token'] = user.wb_cmp_token
+      
+      if user.x_supplier_id:
+        user_wb_tokens['x_supplier_id'] = user.x_supplier_id
       
       if token_cmp:
         user_wb_tokens['wb_cmp_token'] = token_cmp
@@ -115,7 +120,7 @@ class wb_queries:
 
       cookies = {
         'WBToken': user_wb_tokens['wb_cmp_token'],
-        'WILDAUTHNEW_V3': user_wb_tokens['wb_v3_main_token'],
+        'x-supplier-id-external': user_wb_tokens['x_supplier_id'],
       }
 
       headers = {
@@ -446,7 +451,7 @@ class wb_queries:
     return {
       'cookies': {
         'WBToken': user_wb_tokens['wb_cmp_token'],
-        # 'x-supplier-id-external': user_wb_tokens['x_supplier_id'],
+        'x-supplier-id-external': user_wb_tokens['x_supplier_id'],
       },
       'headers': {
         'Referer': referer,

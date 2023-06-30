@@ -1,3 +1,4 @@
+import asyncio
 import re
 from unittest import mock
 from user_analitics.graphic_analitic import graphics_analitics
@@ -28,6 +29,7 @@ from kafka_dir.general_publisher import queue_message_async
 import copy
 from gpt_common.gpt_queries import gpt_queries
 import json
+import uuid
 
 import io
 
@@ -45,18 +47,18 @@ INCREASE = 10
 @bot.message_handler(func=lambda m: True)
 async def message_handler(message):
 
+  log_uuid = uuid.uuid4()
+
   try:
-    logger.info('message from')
-    logger.info(message.chat.id)
-    logger.info('message text')
-    logger.info(message.text)
-
     telegram_user_id = message.from_user.id
-
     user_session = cache_worker.get_user_session(telegram_user_id)
 
-    logger.debug('user_session')
-    logger.debug(user_session)
+    db_queries.add_action_history(
+      telegram_user_id=telegram_user_id,
+      action="message",
+      action_description=f"message uuid: '{log_uuid}' message from: '{message.chat.id}' message text: '{message.text}'",
+      status="info"
+    )
     
     logger.warn(user_session)
 
@@ -74,9 +76,6 @@ async def message_handler(message):
         user_action = possible_actions[key]
         break
 
-    logger.debug('user_action')
-    logger.debug(user_action)
-
     user_action_default = possible_actions.get('default')
     if user_action:
       await user_action(message)
@@ -89,11 +88,29 @@ async def message_handler(message):
 
     update_user_session(message)
 
+    db_queries.add_action_history(
+      telegram_user_id=telegram_user_id,
+      action="message",
+      action_description=f"message uuid: '{log_uuid}' message from: '{message.chat.id}' message text: '{message.text}' user action: '{user_action}'",
+      status="success"
+    )
+
 
   except Exception as e:
     traceback.print_exc()
     logger.error(e)
     logger.warn(f"EXCEPTION {str(e)}")
+
+    db_queries.add_action_history(
+      telegram_user_id=telegram_user_id,
+      action="message",
+      action_description=f"message uuid: '{log_uuid}' message from: '{message.chat.id}' message text: '{message.text}' message error: '{str(e)}'",
+      status="failure"
+    )
+
+    set_user_session_step(message, 'База')
+    update_user_session(message)
+
     if str(e) == 'Неверный токен!':
       await queue_message_async(
         topic = 'telegram_message_sender',
@@ -168,9 +185,6 @@ async def message_handler(message):
         )
         return
     
-    
-    set_user_session_step(message, 'База')
-    update_user_session(message)
 
     await queue_message_async(
       topic = 'telegram_message_sender',
@@ -1106,7 +1120,7 @@ async def adv_settings_switch_status(message):
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
   
   # try:
-  status = wb_queries.get_campaign_info(campaign_user, campaign)
+  status = await wb_queries.get_campaign_info(campaign_user, campaign)
   # except:
   #   return await bot.send_message(message.chat.id, f"Произошла ошибка при получении *Статуса* на стороне WB, попробуйте позже", parse_mode="MarkdownV2")
   
@@ -1151,7 +1165,8 @@ async def adv_settings_add_budget(message):
   campaign.campaign_id = adv_id
   
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  budget = await wb_queries.get_budget(campaign_user, campaign)['Бюджет компании']
+  budget = await wb_queries.get_budget(campaign_user, campaign)
+  budget = budget['Бюджет компании']
   
   await bot.send_message(message.chat.id, f'Текущий бюджет: {budget} ₽\nid рекламной компании: [{adv_id}](https://cmp.wildberries.ru/campaigns/list/all/edit/search/{adv_id})\nВведите сумму пополенения бюджета или нажмите "Назад"', parse_mode="MarkdownV2")
   set_user_session_step(message, 'add_budget')
@@ -1168,10 +1183,12 @@ async def add_budget_next_step_handler(message):
   campaign.campaign_id = adv_id
   
   campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  budget = await wb_queries.get_budget(campaign_user, campaign)['Бюджет компании']
+  budget = await wb_queries.get_budget(campaign_user, campaign)
+  budget = budget['Бюджет компании']
+  await asyncio.sleep(2)
   
-  if amount <= 99:
-    return await bot.send_message(message.chat.id, f'Невозможно пополнить бюджет компании менее, чем на 100 ₽', parse_mode="MarkdownV2")
+  if amount <= 499:
+    return await bot.send_message(message.chat.id, f'Невозможно пополнить бюджет компании менее, чем на 499 ₽', parse_mode="MarkdownV2")
   if amount % 50 != 0:
     return await bot.send_message(message.chat.id, f'Невозможно пополнить бюджет компании, сумма не кратна 50', parse_mode="MarkdownV2")
   
@@ -1182,6 +1199,7 @@ async def add_budget_next_step_handler(message):
       return await bot.send_message(message.chat.id, f'Не удалось пополнить бюджет рекламной компании, попробуйте еще раз', parse_mode="MarkdownV2")
     else:  
       budget2 = await wb_queries.get_budget(campaign_user, campaign)['Бюджет компании']
+      budget2 = budget2['Бюджет компании']
       logger.warn("After budget")
       if budget2 == None:
         return await bot.send_message(message.chat.id, f'WB не вернул бюджет, попробуйте посмотреть изменение бюджета, нажав повторно кнопку \"Пополнить бюджет\"', parse_mode="MarkdownV2")
