@@ -1,6 +1,6 @@
 <template>
   <div class="component-container errors-list">
-    <div class="component-header">Сторонние сервисы</div>
+    <div class="component-header">Успешность работы сторонних сервисов</div>
 
     <div class="table-header">
       <span class="action-text">Имя сервиса</span>

@@ -11,7 +11,11 @@
     <div class="errors-list-content scroll-box">
       <div :class="`errors-card ${index % 2 === 0 ? 'bac-color-grey' : ''}`" v-for="action, index in actions" :key="action.id">
         <span class="action-text-table">{{ action.action }}</span>
-        <span class="date-text-table">{{ customFormatData(action.date_time)  }}</span>
+        <div class="date-container date-text-table">
+          <date class="date">{{ mainDate(action.date_time)  }}</date>
+          <date class="hours">{{ hoursDate(action.date_time)  }}</date>
+        </div>
+        
         <span class="user-text-table">{{ action.user_id }}</span>
         <!-- {{ action }} -->
       </div>
@@ -22,6 +26,7 @@
 
 <script>
 import moment from 'moment';
+moment.locale('Ru')
 
 export default {
   props:{
@@ -31,9 +36,12 @@ export default {
     }
   },
   methods:{
-    customFormatData(date){
-      moment.locale('Ru')
-      var day = moment(date).format('MMMM YYYY, h:mm:ss a')
+    mainDate(date){
+      let day = moment(date).format('DD.MM.YY')
+      return day
+    },
+    hoursDate(date){
+      let day = moment(date).format('h:mm:ss')
       return day
     }
   }
@@ -59,7 +67,7 @@ export default {
   background-color: rgba(0,133,242,.1);
 }
 .errors-list-content{
-  height: calc(100% - 57px);
+  height: calc(100% - 98px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -76,49 +84,56 @@ export default {
 .table-header{
   display: flex;
   text-align: center;
-  justify-content: center;
+  justify-content: space-around;
   margin-bottom: 10px;
   font-weight: 600;
 }
 .action-text{
-  width: 310px;
+  width: 233px;
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   align-items: center;
-  padding-left: 20px;
+  /* padding-left: 20px; */
 }
 .date-text{
-  width: 250px;
+  width: 233px;
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   align-items: center;
-  padding-left: 20px;
+  /* padding-left: 20px; */
 }
 .user-text{
-  width: 133px;
+  width: 233px;
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   align-items: center;
-  padding-left: 20px;
+  /* padding-left: 20px; */
 }
 
 .action-text-table{
-  width: 310px;
+  width: 233px;
   display: flex;
   justify-content: center;
   align-items: center;
 }
-.date-text-table{
-  width: 200px;
+.date-container{
+  width: 233px;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
 }
 .user-text-table{
-  width: 183px;
+  width: 233px;
   display: flex;
   justify-content: center;
   align-items: center;
+}
+.date{
+
+}
+.hours{
+  font-size: 15px;
 }
 
 .bac-color-grey{

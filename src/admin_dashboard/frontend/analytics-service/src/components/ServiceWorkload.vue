@@ -1,6 +1,6 @@
 <template>
   <div class="component-container service-workload">
-    <div class="component-header">Последние ошибки</div>
+    <div class="component-header">Успешность работы сервисов</div>
 
     <div class="service-table-header">
       <span class="service-name" style="text-align: center;">Имя сервиса</span>
