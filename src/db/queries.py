@@ -361,7 +361,7 @@ class db_queries:
         succsses = {'err': 0, 'all_t': 0}
         with Session(engine) as session:
             succsses['all_t'] = session.query(Action_history).where(Action_history.initiator==initiator).count()
-            succsses['err'] = session.query(Action_history).where(Action_history.initiator==initiator and Action_history.status=='failure').count()
+            succsses['err'] = session.query(Action_history).where(Action_history.initiator==initiator, Action_history.status=='failure').count()
         return succsses
 
 

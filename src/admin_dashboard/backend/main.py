@@ -34,7 +34,7 @@ def get_last_actions():
 
 @app.get("/info_own_services")
 def get_services_successullnes():
-  services_names = ['ui_backend', 'bot_message_sender', 'wb_routines', 'user_automation']
+  services_names = ['default', 'ui_backend', 'bot_message_sender', 'wb_routines', 'user_automation']
   services_successullnes = []
   for service_name in services_names:
     service = {}
@@ -43,7 +43,7 @@ def get_services_successullnes():
     if query['err'] == 0:
       service[service_name] = 100
     else:
-      service[service_name] = round(query['all_t'] / query['err']) * 100
+      service[service_name] = round((1 - (query['err'] / query['all_t'])), 2) * 100
     services_successullnes.append(service)
 
   return {'own_services': services_successullnes}
