@@ -9,7 +9,12 @@ export const useOwnServices = defineStore('ownServices', {
 
 
   getters: {
-    subsFromGetter: (state) => state.subs,
+    mappedOwnServices: (state) => {
+      return state.ownServices.map((value) => {
+        const tuple = Object.entries(value)[0]
+        return {serviceName: tuple[0], serviceSuccsess: tuple[1]}
+      })
+    },
   },
 
 
@@ -17,8 +22,8 @@ export const useOwnServices = defineStore('ownServices', {
   actions: {
     async fetchOwnServices() {
       try {
-        const result = await axios.get('http://127.0.0.1:8002/testFront/')
-        this.subscription = result.data.subs
+        const result = await axios.get('http://127.0.0.1:8002/info_own_services/')
+        this.ownServices = result.data.own_services
 
       } 
       catch (error) {

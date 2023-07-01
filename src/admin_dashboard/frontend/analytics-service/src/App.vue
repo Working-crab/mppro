@@ -6,7 +6,7 @@
       <h4 v-for="sub in subs" :key="sub.id">{{sub.title}}({{sub.description}}) price: {{ sub.price }}</h4>
     </div> -->
     <div class="flex">
-      <service-workload :infoAboutServices="infoAboutServices"></service-workload>
+      <service-workload :infoAboutServices="ownServicesStore?.mappedOwnServices"></service-workload>
       <ErrorsList :errors="lastErrorssStore?.lastErrors"></ErrorsList>
       <ActionList :actions="lastActionsStore?.lastActions"></ActionList>
       <ServicesStatus :errors="serviceStaus"></ServicesStatus>
@@ -21,6 +21,8 @@ import ActionList from './components/ActionList.vue'
 import ServicesStatus from './components/ServicesStatus.vue'
 import { useLastActions } from '@/stores/lastActions'
 import { useLastErrors } from '@/stores/lastErrors'
+import { useOwnServices } from './stores/ownServices'
+
 
 
 
@@ -28,7 +30,9 @@ export default {
   setup(){
     const lastActionsStore = useLastActions()
     const lastErrorssStore = useLastErrors()
-    return {lastActionsStore, lastErrorssStore}
+    const ownServicesStore  = useOwnServices()
+
+    return {lastActionsStore, lastErrorssStore, ownServicesStore}
   },
   name: 'App',
   components: {
@@ -40,33 +44,6 @@ export default {
   data() {
     return {
       DateDashboard: '',
-      infoAboutServices:[
-        {
-          id: 1,
-          serviceName: 'Service 1',
-          workload: '100%'
-        },
-        {
-          id: 2,
-          serviceName: 'Service 2 ti petux no ti lox obelsa blox',
-          workload: '95%'
-        },
-        {
-          id: 3,
-          serviceName: 'Service 3',
-          workload: '84%'
-        },
-        {
-          id: 4,
-          serviceName: 'Service 4',
-          workload: '76%'
-        },
-        {
-          id: 5,
-          serviceName: 'Service 5',
-          workload: '76%'
-        },
-      ],
       serviceStaus: [
         {
           id: 1,
@@ -108,11 +85,12 @@ export default {
   async mounted(){
     await this.lastActionsStore.fetchLastActions()
     await this.lastErrorssStore.fetchLastErrors()
+    await this.ownServicesStore.fetchOwnServices()
     this.getDateDashboard()
   },
   computed:{
     subs(){
-      return this.OwnServicesStore.subscription
+      return this.ownServicesStore.subscription
     },
   }
 }

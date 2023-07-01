@@ -10,7 +10,7 @@
     <div class="service-list-content scroll-box">
       <div class="service-card" v-for="service in infoAboutServices" :key="service.id">
         <span class="service-table-name">{{ service.serviceName }}</span>
-        <span :class="`service-table-load ${serviceWorkloadStainer(service.workload)}`">{{ service.workload }}</span>
+        <span :class="`service-table-load ${serviceWorkloadStainer(service.serviceSuccsess)}`">{{ service.serviceSuccsess }}%</span>
       </div>
     </div>    
 
@@ -32,7 +32,7 @@ export default {
   },
   methods:{
     serviceWorkloadStainer(serviceWorkload){
-      let value = Number(serviceWorkload.replace('%', ''))
+      let value = serviceWorkload
       if(value > 90){
         return 'greate'
       }
@@ -83,7 +83,7 @@ export default {
   /* border-top: 1px solid black; */
 }
 .service-list-content{
-  height: calc(100% - 34px);
+  height: calc(100% - 92px);
 }
 
 .service-name{

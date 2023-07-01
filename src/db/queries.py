@@ -354,6 +354,15 @@ class db_queries:
     def get_last_errors():
         with Session(engine) as session:
             return session.query(Action_history).where(Action_history.status=='failure').order_by(Action_history.id.desc()).limit(3)
+        
+
+
+    def get_initiator_succsess_count(initiator):
+        succsses = {'err': 0, 'all_t': 0}
+        with Session(engine) as session:
+            succsses['all_t'] = session.query(Action_history).where(Action_history.initiator==initiator).count()
+            succsses['err'] = session.query(Action_history).where(Action_history.initiator==initiator and Action_history.status=='failure').count()
+        return succsses
 
 
 

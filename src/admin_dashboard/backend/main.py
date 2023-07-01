@@ -31,3 +31,19 @@ def get_last_actions():
   list_last_errors = ActionList.from_orm(last_errors_q).dict()
   list_last_errors["__root__"].reverse()
   return {'last_errors': list_last_errors['__root__']}
+
+@app.get("/info_own_services")
+def get_services_successullnes():
+  services_names = ['ui_backend', 'bot_message_sender', 'wb_routines', 'user_automation']
+  services_successullnes = []
+  for service_name in services_names:
+    service = {}
+    query = db_queries.get_initiator_succsess_count(service_name)
+    
+    if query['err'] == 0:
+      service[service_name] = 100
+    else:
+      service[service_name] = round(query['all_t'] / query['err']) * 100
+    services_successullnes.append(service)
+
+  return {'own_services': services_successullnes}
