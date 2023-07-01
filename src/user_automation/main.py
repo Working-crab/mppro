@@ -1,4 +1,5 @@
 
 from user_automation.campaign_automation import campaign_automation
+import asyncio
 
-campaign_automation.start()
+asyncio.run(campaign_automation.start())
