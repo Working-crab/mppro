@@ -437,7 +437,7 @@ def advert_info_message_maker(adverts, page_number, page_size, user):
 
     campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{advert['id']}"
     
-    result_msg += f"*Имя компании: {advert['campaignName']}*\n"
+    result_msg += f"*Имя компании: {escape_telegram_specials(advert['campaignName'])}*\n"
     result_msg += f"\t ID: [{advert['id']}]({campaign_link}) Статус: {stat}\n"
 
     result_msg += budget_string

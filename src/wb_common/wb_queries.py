@@ -52,8 +52,10 @@ class wb_queries:
         logger.warn(f"{method} url={url}, cookies={cookies}, headers={headers}, data={data}, timeout={timeout}")
         async with aiohttp.ClientSession() as session:
           response = None
+          output = {}
           for attempt in range(3):
             async with session.request(method=method, url=url, cookies=cookies, headers=headers, data=data, timeout=timeout) as response:
+              
               if response.status != 200:
                 logger.warn(f"In while {attempt}")
                 await asyncio.sleep(3)
@@ -67,21 +69,25 @@ class wb_queries:
                     if (response.status != 200):
                       raise e
                 break
+              if data == "{}":
+                return response.headers
+              
+          if response.status == 401:
+            raise Exception('Неверный токен!')
           
-          if data == "{}":
-            return response.headers
+          
           logger.warn(f"result {response.headers}")
           logger.warn(f"result {response}")
           logger.warn(f"result status code")
           logger.warn(response.status)
           
-          try:
-            if not req:
-              result = await response.json()
-          except Exception as e:
-            logger.error('result.json() error')
-            if (response.status != 200):
-              raise e
+          # try:
+          #   if not req:
+          #     result = await response.json()
+          # except Exception as e:
+          #   logger.error('result.json() error')
+          #   if (response.status != 200):
+          #     raise e
 
       except Exception as e:
         logger.debug({
@@ -94,7 +100,7 @@ class wb_queries:
         raise Exception("wb_query error " + str(e) + " user_id:" + str(user_id))
 
       logger.debug(f'user_id: {user_id} url: {url} \t headers: {str(headers)} \t result: {str(result)}')    
-      return result
+      return output
 
 
   async def reset_base_tokens(user, token_cmp=None, token_main_v3=None):
@@ -128,7 +134,7 @@ class wb_queries:
         'User-Agent': CONSTS['User-Agent'],
       }
 
-      logger_token.warn('cookies, headers', cookies, headers)
+      # logger_token.warn('cookies, headers', cookies, headers)
               
       if user_wb_tokens['wb_v3_main_token'] or (token_main_v3 and token_cmp == None):
         auth_result = await wb_queries.wb_query(method='POST', url='https://cmp.wildberries.ru/passport/api/v2/auth/wild_v3_upgrade', cookies={'WILDAUTHNEW_V3': user_wb_tokens['wb_v3_main_token']}, data="{}", user_id=user.id)
