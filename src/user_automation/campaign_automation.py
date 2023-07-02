@@ -1,4 +1,5 @@
 
+import asyncio
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
 import time
@@ -22,8 +23,7 @@ class campaign_automation:
       return False
     
     for advert in adverts:
-      logger.warn(advert)
-      time.sleep(1)
+      await asyncio.sleep(1)
       print('=== campaign automation ===')
       # print(campaign.campaign_id, campaign)
 
@@ -53,11 +53,10 @@ class campaign_automation:
     if campaign_info['status'] != 9: # check only active campaigns
       return False
 
-    campaign_pluse_words = await wb_queries.get_stat_words(campaign_user, campaign)
-
     check_word = campaign_info['campaign_key_word']
 
     # TODO adjust pluse logics
+    # campaign_pluse_words = await wb_queries.get_stat_words(campaign_user, campaign)
     # if campaign_pluse_words['main_pluse_word']:
     #   check_word = campaign_pluse_words['main_pluse_word']
 
