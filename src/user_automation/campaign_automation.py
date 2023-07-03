@@ -30,7 +30,7 @@ class campaign_automation:
       try:
         await campaign_automation.check_campaign(advert)
         await campaign_automation.check_stat_word(advert)
-        user_analitics.start_logs_analitcs(advert.user_id, advert.campaign_id)
+        await user_analitics.start_logs_analitcs(advert.user_id, advert.campaign_id)
       except Exception as e:
         traceback.print_exc()
         logger.error(f'Exception: {e}.')
@@ -42,12 +42,16 @@ class campaign_automation:
 
     campaign_info = None
 
-    campaign_info = await wb_queries.very_try_get_campaign_info(campaign_user, campaign, 5)
+    # campaign_info = await wb_queries.very_try_get_campaign_info(campaign_user, campaign, 5)
+    campaign_info = await wb_queries.get_campaign_info(campaign_user, campaign, False)
 
     # auto stop checking if not valid
+    logger.warn('logger.warn(campaign_info)')
     logger.warn(campaign_info)
     if campaign_info.get('status') == 'OFF_CAMP':  
-      db_queries.add_user_advert(campaign.user_id, campaign.campaign_id, None, 'OFF', None)
+      db_queries.add_user_advert(campaign_user, campaign.campaign_id, None, 'OFF', None)      
+      db_queries.add_action_history(user_id=campaign.user_id, action="campaign_off", action_description=campaign.campaign_id)
+      logger.warn("OFF")
       return False
 
     if campaign_info['status'] != 9: # check only active campaigns
@@ -77,7 +81,8 @@ class campaign_automation:
 
     old_bid = campaign_info["campaign_bid"]
 
-    logger.info(f'check_campaign id: {campaign.id} \t new_bid: {new_bid} \t old_bid: {old_bid}')
+    db_queries.add_action_history(user_id=campaign.user_id, action="campaign_scan", action_description=f'check_campaign id: {campaign.id} \t new_bid: {new_bid} \t old_bid: {old_bid}')
+
 
     if new_bid != old_bid and bid_p_id != campaign.campaign_id:
 
@@ -85,6 +90,7 @@ class campaign_automation:
       await wb_queries.set_campaign_bid(campaign_user, campaign, campaign_info, new_bid, old_bid, approximate_place)
       await wb_queries.get_campaign_info(campaign_user, campaign, False)
       await wb_queries.post_get_active(campaign_user, campaign)
+      
 
     pass
 

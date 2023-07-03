@@ -112,8 +112,9 @@ class db_queries:
 
     def add_user_advert(user,  campaign_id,  max_bid=None, status='ON', place=None):
         with Session(engine) as session:
-
-            advert = session.query(Advert).filter(Advert.user_id == user.id, Advert.campaign_id == int(campaign_id)).first()
+            
+            campaign_id_int = int(campaign_id)
+            advert = session.query(Advert).filter(Advert.user_id == user.id, Advert.campaign_id == campaign_id).first()
 
             if not advert:
                 advert_budget = max_bid

@@ -193,7 +193,7 @@ class wb_queries:
     return result
 
 
-  async def get_campaign_info(user, campaign, send_exeption=True):
+  async def get_campaign_info(user, campaign, send_exeption=False):
     user_wb_tokens = await wb_queries.get_base_tokens(user)
     custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
     req_params = await wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
@@ -205,13 +205,26 @@ class wb_queries:
     )
     campaign_key_word = ''
     logger.warn("get_campaign_info")
-
+    logger.warn(r)
+    
+    logger.warn("After R")
+    logger.warn(campaign.campaign_id)
+    
+    if r == {}:
+      logger.warn("ELSE")
+      # db_queries.add_user_advert(user, campaign.campaign_id, None, 'OFF', None)
+      # db_queries.add_action_history(user_id=campaign.user_id, action="campaign_off", action_description=campaign.campaign_id)
+      return {'status':'OFF_CAMP'}
+    
     if 'place' in r and len(r['place']) > 0:
       campaign_key_word = r['place'][0]['keyWord']
     elif send_exeption:
       raise Exception('Вайлдберриес не отправил get_campaign_info')
-    else:
-      return r
+    # else:
+    #   logger.warn("ELSE")
+    #   db_queries.add_user_advert(user, campaign.campaign_id, None, 'OFF', None)
+    #   db_queries.add_action_history(user_id=campaign.user_id, action="campaign_off", action_description=campaign.campaign_id)
+      
 
     res = {
       'campaign_id': campaign.campaign_id,
@@ -577,13 +590,17 @@ class wb_queries:
 
     while (not result or triesDone>=tries):
       triesDone = triesDone + 1
-      time.sleep(time_sleep)
+      await asyncio.sleep(time_sleep)
       logger.info(f'very_try_get_campaign_info campaign {campaign.campaign_id} user {user.id}')
       result = await wb_queries.get_campaign_info(user, campaign, False)
-
-      if type(result) != type({}) and 'Некорректный поставщик' in str(result.text):
-        print('*OFF_CAMP Некорректный поставщик*')
-        return {'status': 'OFF_CAMP'}
+      
+      logger.warn("Here")
+      logger.warn(result)
+            
+      
+      # if type(result) != type({}) and 'Некорректный поставщик' in str(result.text):
+      #   print('*OFF_CAMP Некорректный поставщик*')
+      #   return {'status': 'OFF_CAMP'}
 
     if not result.get('status'):
       raise Exception(f'Вайлдберриес не отправил very_try_get_campaign_info {tries} tries') 
