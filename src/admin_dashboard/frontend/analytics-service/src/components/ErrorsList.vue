@@ -25,25 +25,20 @@
       </div>
     </div>
 
-    <v-dialog
-      v-model="dialog"
-      width="auto"
-    >
+    <v-dialog v-model="dialog" width="auto">
       <v-card>
         <v-card-title>
           Детали ошибки
         </v-card-title>
-
         <v-card-text>
           <h4>User ID: {{errorDetail.user_id}}</h4>
+          <h4>User telegram name {{ userStore.user.telegram_username }}</h4>
           <h4>Action: {{errorDetail.action}}</h4>
           <p class="mt-2"> <span class="font-weight-bold">Detail:</span> {{ errorDetail.description }}</p>
         </v-card-text>
-
         <v-card-actions>
           <v-btn color="primary" block @click="dialog = false">Закрыть</v-btn>
         </v-card-actions>
-
       </v-card>
     </v-dialog>
 
@@ -54,7 +49,14 @@
 import moment from 'moment';
 moment.locale('Ru')
 
+import { useUser } from '@/stores/user'
+
 export default {
+  setup(){
+    const userStore = useUser()
+
+    return {userStore}
+  },
   props:{
     errors: {
       type: Array,
@@ -82,9 +84,10 @@ export default {
     deleteGray(e){
       e.target.classList.remove('gray')
     },
-    openDialog(errorDetail){
+    async openDialog(errorDetail){
       this.errorDetail = errorDetail
       this.dialog = true
+      await this.userStore.fetchUser(errorDetail.user_id)
     }
   },
 }

@@ -24,7 +24,7 @@ import ActionList from './components/ActionList.vue'
 import ServicesStatus from './components/ServicesStatus.vue'
 import { useLastActions } from '@/stores/lastActions'
 import { useLastErrors } from '@/stores/lastErrors'
-import { useOwnServices } from './stores/ownServices'
+import { useOwnServices } from '@/stores/ownServices'
 
 
 
