@@ -32,7 +32,7 @@
         </v-card-title>
         <v-card-text>
           <h4>User ID: {{errorDetail.user_id}}</h4>
-          <h4>User telegram name {{ userStore.user.telegram_username }}</h4>
+          <h4>User telegram name: {{ userStore.user.telegram_username }}</h4>
           <h4>Action: {{errorDetail.action}}</h4>
           <p class="mt-2"> <span class="font-weight-bold">Detail:</span> {{ errorDetail.description }}</p>
         </v-card-text>
