@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <div class="header-container">
-      <h1>Дашборд для админов для аналитеки сервисов</h1>
+      <h1>Дашборд для админов для аналитики сервисов</h1>
       <h4>Сегодня: {{ getDate() }} | Время обновления дешборда: {{ DateDashboard }}</h4>
     </div>
    
