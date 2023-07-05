@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from db.queries import db_queries
-from admin_dashboard.backend.serializers import Action, ActionList
+from admin_dashboard.backend.serializers import Action, ActionList, User
 
 app = FastAPI(openapi_url=None) # openapi_url=None fix on the end TODO
 
@@ -47,3 +47,10 @@ def get_services_successullnes():
     services_successullnes.append(service)
 
   return {'own_services': services_successullnes}
+
+
+@app.get("/user/{user_id}")
+def get_user_by_id(user_id):
+  user_orm = db_queries.get_user_by_id(user_id)
+  user = User.from_orm(user_orm).dict()
+  return {'user': user}
