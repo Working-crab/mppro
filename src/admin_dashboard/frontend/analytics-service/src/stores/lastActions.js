@@ -15,7 +15,6 @@ export const useLastActions = defineStore('lastActions', {
       try {
         const result = await axios.get('http://127.0.0.1:8002/last_actons/')
         this.lastActions = result.data.last_actions
-
       } 
       catch (error) {
         console.error(error)

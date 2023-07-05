@@ -9,7 +9,18 @@ export const useLastErrors = defineStore('lastErrors', {
 
 
   getters: {
-    lastErrorsFromGetter: (state) => state.subs,
+    lastErrorsMapped: (state) => state.lastErrors.map((value) => {
+      const arr = value.description.split('Description:')//Attention: mutaiting value
+      if (arr.length > 1) {
+        value.detail = arr[0]
+        value.description = arr[1]
+        return value
+      }
+      else {
+        value.detail = arr[0]
+        return value
+      }
+    }),
   },
 
   

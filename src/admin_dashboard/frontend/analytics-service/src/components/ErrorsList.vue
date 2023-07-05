@@ -34,14 +34,14 @@
           <h4>User ID: {{errorDetail.user_id}}</h4>
           <h4>User telegram name: {{ userStore.user.telegram_username }}</h4>
           <h4>Action: {{errorDetail.action}}</h4>
-          <p class="mt-2"> <span class="font-weight-bold">Detail:</span> {{ errorDetail.description }}</p>
+          <p class="mt-2"><span class="font-weight-bold">Description: </span>{{ errorDetail.description }}</p>
+          <p class="mt-2"><span class="font-weight-bold">Detail: </span>{{ errorDetail.detail }}</p>
         </v-card-text>
         <v-card-actions>
           <v-btn color="primary" block @click="dialog = false">Закрыть</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
-
   </div>
 </template>
 
@@ -54,7 +54,6 @@ import { useUser } from '@/stores/user'
 export default {
   setup(){
     const userStore = useUser()
-
     return {userStore}
   },
   props:{

@@ -10,7 +10,7 @@
     </div> -->
     <div class="flex-keks">
       <service-workload :infoAboutServices="ownServicesStore?.mappedOwnServices"></service-workload>
-      <ErrorsList :errors="lastErrorssStore?.lastErrors"></ErrorsList>
+      <ErrorsList :errors="lastErrorssStore?.lastErrorsMapped"></ErrorsList>
       <ActionList :actions="lastActionsStore?.lastActions"></ActionList>
       <ServicesStatus :errors="serviceStaus"></ServicesStatus>
     </div>
