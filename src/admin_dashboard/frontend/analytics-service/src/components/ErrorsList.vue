@@ -5,11 +5,17 @@
     <div class="table-header">
       <span class="action-text">Действие</span>
       <span class="date-text">Дата</span>
-      <span class="user-text">Юзер</span>
+      <span class="user-text">ID Пользователя</span>
     </div>
 
     <div class="errors-list-content scroll-box">
-      <div :class="`errors-card ${index % 2 === 0 ? 'bac-color-grey' : ''}`" v-for="error, index in errors" :key="error.id">
+      <div 
+        :class="`errors-card ${index % 2 === 0 ? 'bac-color-grey' : ''}`" 
+        @click="openDialog(error)"
+        @mouseenter="mackeGray($event)"
+        @mouseleave="deleteGray($event)"
+        v-for="error, index in errors" :key="error.id"
+      >
         <span class="action-text-table">{{ error.action }}</span>
         <div class="date-container">
           <time class="date">{{ mainDate(error.date_time) }}</time>
@@ -18,6 +24,28 @@
         <span class="user-text-table">{{ error.user_id }}</span>
       </div>
     </div>
+
+    <v-dialog
+      v-model="dialog"
+      width="auto"
+    >
+      <v-card>
+        <v-card-title>
+          Детали ошибки
+        </v-card-title>
+
+        <v-card-text>
+          <h4>User ID: {{errorDetail.user_id}}</h4>
+          <h4>Action: {{errorDetail.action}}</h4>
+          <p class="mt-2"> <span class="font-weight-bold">Detail:</span> {{ errorDetail.description }}</p>
+        </v-card-text>
+
+        <v-card-actions>
+          <v-btn color="primary" block @click="dialog = false">Закрыть</v-btn>
+        </v-card-actions>
+
+      </v-card>
+    </v-dialog>
 
   </div>
 </template>
@@ -32,7 +60,14 @@ export default {
       type: Array,
       default: () => []
     }
-  },methods: {
+  },
+  data() {
+    return {
+      dialog: false,
+      errorDetail: {}
+    }
+  },
+  methods: {
     mainDate(date){
       let day = moment(date).format('DD.MM.YY')
       return day
@@ -40,6 +75,16 @@ export default {
     hoursDate(date){
       let day = moment(date).format('h:mm:ss')
       return day
+    },
+    mackeGray(e){
+      e.target.classList.add('gray')
+    },
+    deleteGray(e){
+      e.target.classList.remove('gray')
+    },
+    openDialog(errorDetail){
+      this.errorDetail = errorDetail
+      this.dialog = true
     }
   },
 }
@@ -47,8 +92,8 @@ export default {
 
 <style scoped>
 .errors-list{
-  height: 358px;
-  width: 710px;
+  height: 360px;
+  width: 700px;
   margin: 10px;
   box-shadow: 2px 2px 5px black;
   /* border-radius: 5px; */
@@ -65,20 +110,21 @@ export default {
   background-color: rgba(0,133,242,.1);
 }
 .errors-list-content{
-  height: calc(100% - 114px);
+  height: calc(100% - 101px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 24px;
+  margin-top: 10px;
 }
 .errors-card{
   display: flex;
-  padding: 10px 0;
+  margin: 10px 0;
   cursor: pointer;
+  transition: .5s
 }
 .errors-card + .errors-card{
   /* border-top: 1px solid black; */
-  margin: 10px 0;
+  /* margin: 10px 0; */
 }
 
 .table-header{
@@ -146,5 +192,8 @@ export default {
 
 .bac-color-grey{
   background-color: rgb(230 230 230);
+}
+.gray{
+  background-color: gray;
 }
 </style>

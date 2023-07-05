@@ -5,7 +5,7 @@
     <div class="table-header">
       <span class="action-text">Действие</span>
       <span class="date-text">Дата</span>
-      <span class="user-text">Юзер</span>
+      <span class="user-text">ID Пользователя</span>
     </div>
 
     <div class="errors-list-content scroll-box">
@@ -52,8 +52,8 @@ export default {
 
 <style scoped>
 .errors-list{
-  height: 358px;
-  width: 710px;
+  height: 360px;
+  width: 700px;
   margin: 10px;
   box-shadow: 2px 2px 5px black;
   /* border-radius: 5px; */
@@ -76,7 +76,7 @@ export default {
 }
 .errors-card{
   display: flex;
-  padding: 10px 0;
+  margin: 10px 0;
 }
 .errors-card + .errors-card{
   /* border-top: 1px solid black; */

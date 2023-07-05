@@ -1,11 +1,14 @@
 <template>
   <div class="page-container">
-    <h1>Дашборд для админов для аналитеки сервисов</h1>
-    <h4>Сегодня: {{ getDate() }} | Время обновления дешборда: {{ DateDashboard }}</h4>
+    <div class="header-container">
+      <h1>Дашборд для админов для аналитеки сервисов</h1>
+      <h4>Сегодня: {{ getDate() }} | Время обновления дешборда: {{ DateDashboard }}</h4>
+    </div>
+   
     <!-- <div class="sub-container">
       <h4 v-for="sub in subs" :key="sub.id">{{sub.title}}({{sub.description}}) price: {{ sub.price }}</h4>
     </div> -->
-    <div class="flex">
+    <div class="flex-keks">
       <service-workload :infoAboutServices="ownServicesStore?.mappedOwnServices"></service-workload>
       <ErrorsList :errors="lastErrorssStore?.lastErrors"></ErrorsList>
       <ActionList :actions="lastActionsStore?.lastActions"></ActionList>
@@ -96,7 +99,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 #app {
   font-family: 'Montserrat', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -113,5 +116,12 @@ export default {
   box-shadow: 2px 2px 5px black;
   border-radius: 5px;
   padding: 10px;
+}
+.page-container h1 {
+  /* margin: 10px 0; */
+}
+
+.header-container{
+  margin: 10px 0;
 }
 </style>
