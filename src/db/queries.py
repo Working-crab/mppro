@@ -59,25 +59,30 @@ class db_queries:
 
     async def get_user_by_id(user_id):
         async with AsyncSession(engine) as session:
-            return session.execute(User).filter(User.id == user_id).first()
+            result = await session.execute(select(User).where(User.id == user_id))
+            user = result.scalars().one()
+            return user
+            
 
 
 
     async def get_user_by_telegram_user_id(telegram_user_id):
         async with AsyncSession(engine) as session:
             result = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
-            user = result.scalars().first()
+            user = result.scalars().one()
             return user
 
         
     async def get_user_by_email(email):
         async with AsyncSession(engine) as session:
-            return session.execute(User).filter(User.email == email).first()
+            result = await session.execute(select(User).where(User.email == email))
+            return result.scalars().one()
+        
 
 
     async def set_user_wb_cmp_token(telegram_user_id, wb_cmp_token):
         async with AsyncSession(engine) as session:
-            user = select(User).where(User.telegram_user_id == telegram_user_id)
+            user = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
             user = session.scalars(user).one()
             user.wb_cmp_token = wb_cmp_token
             await session.commit()
@@ -85,7 +90,7 @@ class db_queries:
     
     async def set_user_wb_v3_main_token(telegram_user_id, wb_v3_main_token):
           async with AsyncSession(engine) as session:
-              user = select(User).where(User.telegram_user_id == telegram_user_id)
+              user = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
               user = session.scalars(user).one()
               user.wb_v3_main_token = wb_v3_main_token
               await session.commit()
@@ -93,14 +98,14 @@ class db_queries:
               
     async def get_user_wb_cmp_token(telegram_user_id):
         async with AsyncSession(engine) as session:
-            user = select(User).where(User.telegram_user_id == telegram_user_id)
+            user = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
             user = session.scalars(user).one()
             return user.wb_cmp_token
               
     
     async def set_user_x_supplier_id(telegram_user_id, x_supplier_id):
           async with AsyncSession(engine) as session:
-              user = select(User).where(User.telegram_user_id == telegram_user_id)
+              user = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
               user = session.scalars(user).one()
               user.x_supplier_id = x_supplier_id
               await session.commit()
@@ -108,7 +113,7 @@ class db_queries:
     
     async def get_user_x_supplier_id(telegram_user_id):
         async with AsyncSession(engine) as session:
-            user = select(User).where(User.telegram_user_id == telegram_user_id)
+            user = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
             user = session.scalars(user).one()
             return user.x_supplier_id
 
@@ -117,7 +122,9 @@ class db_queries:
         async with AsyncSession(engine) as session:
             
             campaign_id_int = int(campaign_id)
-            advert = session.execute(Advert).filter(Advert.user_id == user.id, Advert.campaign_id == campaign_id).first()
+            advert = session.execute(select(Advert).where(Advert.user_id == user.id, Advert.campaign_id == campaign_id))
+            
+            advert = session.scalars(advert).one()
 
             if not advert:
                 advert_budget = max_bid
@@ -156,13 +163,17 @@ class db_queries:
 
     async def get_user_adverts_by_wb_ids(user_id, wb_ids):
         async with AsyncSession(engine) as session:
-            return session.execute(Advert).filter(Advert.user_id == user_id, Advert.campaign_id.in_(wb_ids)).all()
+            result = await session.execute(select(Advert).where(Advert.user_id == user_id, Advert.campaign_id.in_(wb_ids)))
+            return session.scalars(result).all()
+        
 
 
     async def delete_user_advert(user, campaign_id):
         async with AsyncSession(engine) as session:
 
-            advert = session.execute(Advert).filter(Advert.user_id == user.id, Advert.campaign_id == int(campaign_id)).first()
+            advert = session.execute(select(Advert).where(Advert.user_id == user.id, Advert.campaign_id == int(campaign_id)))
+            
+            advert = session.scalars(advert).one()
 
             if advert:
                 session.delete(advert)
@@ -172,18 +183,18 @@ class db_queries:
                 return False
 
 
-
     async def get_user_adverts(user_id):
         async with AsyncSession(engine) as session:
-            return session.execute(Advert).filter(Advert.user_id == user_id).all()
+            result = await session.execute(select(Advert).where(Advert.user_id == user_id))
+            return session.scalars(result).all()
 
-   
 
     async def get_adverts_chunk():
         async with AsyncSession(engine) as session:
             dateNow = datetime.now()
 
-            campaigns = session.execute(Advert).order_by(Advert.time_updated).filter(Advert.status == 'ON').limit(100).all() # .filter(Advert.time_updated >= date)
+            result = await session.execute(select(Advert).where(Advert.status == 'ON').order_by(Advert.time_updated).limit(100))
+            campaigns = result.scalars().all()
 
             stmt = update(Advert).\
                 where(Advert.id == bindparam('_id')).\
@@ -191,7 +202,7 @@ class db_queries:
                     'time_updated': bindparam('time_updated')
                 })
 
-            session.execute(stmt, 
+            await session.execute(stmt, 
                 [
                 {
                     '_id': campaign.id,
@@ -200,6 +211,8 @@ class db_queries:
                 ]
             )
 
+            await session.commit()
+
             return campaigns
             
 
@@ -207,14 +220,15 @@ class db_queries:
     async def get_sub(sub_id):
         async with AsyncSession(engine) as session:
             result = await session.execute(select(Subscription).where(Subscription.id == sub_id))
-            sub = result.scalars().first()
+            sub = result.scalars().one()
             return sub
         
             
 
     async def get_sub_name(sub_name):
         async with AsyncSession(engine) as session:
-            return session.execute(Subscription).filter(Subscription.title == sub_name).first()
+            result = session.execute(Subscription).filter(Subscription.title == sub_name).first()
+            return session.scalars(result).one()
             
 
        
@@ -227,10 +241,12 @@ class db_queries:
         
     async def update_sub(user_id, sub_name, total):
         async with AsyncSession(engine) as session:
-            user = session.execute(User).filter(User.telegram_user_id == user_id).first()
+            result = await session.execute(select(User).where(User.telegram_user_id == user_id))
+            user = result.scalars().first()
             
             if user:
-                sub = session.execute(Subscription).filter(Subscription.title == str(sub_name)).first()
+                result = await session.execute(select(Subscription).where(Subscription.title == str(sub_name)))
+                sub = result.scalars().first()
                 user.sub_start_date = datetime.now()
                 user.sub_end_date = datetime.now() + timedelta(days=30)
                 user.subscriptions_id = sub.id
@@ -282,8 +298,8 @@ class db_queries:
         
     async def get_transaction(user_id, transaction_title):
         async with AsyncSession(engine) as session:
-            return session.execute(Transaction).filter(Transaction.user_id == user_id, Transaction.title == transaction_title).first()
-
+            result = await session.execute(select(Transaction).where(Transaction.user_id == user_id, Transaction.title == transaction_title))
+            return session.scalars(result).one()
 
 
     async def get_campaign_by_user_id_and_campaign_id(
@@ -291,13 +307,14 @@ class db_queries:
         campaign_id
     ):
         async with AsyncSession(engine) as session:
-            return session.execute(Advert).filter( 
-                (Advert.user_id == user_id) and (Advert.campaign_id == campaign_id) ).first()
+            result = session.execute(select(Advert).where( 
+                (Advert.user_id == user_id) and (Advert.campaign_id == campaign_id) ))
+            return session.scalars(result).one()
+            
         return 'Not_working'
     
     
     async def add_action_history(action, action_description, telegram_user_id=None, user_id=None, status=None, initiator=None):
-
         if not initiator:
             initiator = environ.get('MONITORING_INITIATOR')
 
@@ -308,8 +325,10 @@ class db_queries:
 
             execute_user_id = None
 
-            if telegram_user_id != None:
-                user = session.execute(User).filter(User.telegram_user_id == telegram_user_id).first()
+            if telegram_user_id is not None:
+                result = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
+                user = result.scalars().one()
+                
                 if user:
                     execute_user_id = user.id
             else:
@@ -328,39 +347,50 @@ class db_queries:
             session.add(action)
             await session.commit()
             return True
+
             
 
             
     async def show_action_history(user_id, action='date_time', download=False):
         async with AsyncSession(engine) as session:
-            user = session.execute(User).filter(User.telegram_user_id == user_id).first()
+            user = session.execute(select(User).where(User.telegram_user_id == user_id))
+            user = session.scalars(user).one()
             if action == 'date_time':
                 if download:
-                    return session.execute(Action_history).filter(Action_history.user_id == user.id).order_by(desc(Action_history.date_time))
+                    result = await session.execute(select(Action_history).where(Action_history.user_id == user.id).order_by(desc(Action_history.date_time)))
+                    return session.scalars(result).one()
                 else:
-                    return session.execute(Action_history).filter(Action_history.user_id == user.id).order_by(desc(Action_history.date_time)).limit(20)
+                    result = await session.execute(select(Action_history).where(Action_history.user_id == user.id).order_by(desc(Action_history.date_time))).limit(20)
+                    return session.scalars(result).all() 
             else:
                 if download:
-                    return session.execute(Action_history).filter(Action_history.user_id == user.id).filter(Action_history.action == action).order_by(desc(Action_history.date_time))
+                    result = await session.execute(select(Action_history).where(Action_history.user_id == user.id).filter(Action_history.action == action).order_by(desc(Action_history.date_time)))
+                    return session.scalars(result).all() 
                 else:
-                    return session.execute(Action_history).filter(Action_history.user_id == user.id).filter(Action_history.action == action).order_by(desc(Action_history.date_time)).limit(20)
+                    result = await session.execute(select(Action_history).filter(Action_history.user_id == user.id).filter(Action_history.action == action).order_by(desc(Action_history.date_time))).limit(20)
+                    return session.scalars(result).all() 
 
             
             
     async def get_filter_action_history():
         async with AsyncSession(engine) as session:
-            return session.execute(Action_history.action.distinct())
+            result = await session.execute(select(Action_history.action.distinct()))
+            return session.scalars(result).all()
 
 
             
     async def get_stat_words(campaing_id=None, status=None, types=None):
         async with AsyncSession(engine) as session:
             if types == "Change":
-                return session.execute(Stat_words).filter(Stat_words.type == types).filter(Stat_words.status == status).order_by(desc(Stat_words.timestamp)).first()
+                result = await session.execute(select(Stat_words).where(Stat_words.type == types).where(Stat_words.status == status).order_by(desc(Stat_words.timestamp)))
+                return session.scalars(result).one()
             if types != None:
-                return session.execute(Stat_words).filter(Stat_words.campaing_id == campaing_id).filter(Stat_words.type == types).filter(Stat_words.status == status).order_by(Stat_words.timestamp).all()
+                result = await session.execute(select(Stat_words).where(Stat_words.campaing_id == campaing_id).where(Stat_words.type == types).where(Stat_words.status == status).order_by(Stat_words.timestamp))
+                return session.scalars(result).all()
+            
             if campaing_id != None and status == "Created" and types == None:
-                return session.execute(Stat_words).filter(Stat_words.campaing_id == campaing_id).filter(Stat_words.status == "Created").first()
+                result = await session.execute(select(Stat_words).where(Stat_words.campaing_id == campaing_id).where(Stat_words.status == "Created"))
+                return session.scalars(result).one()
     
 
 
@@ -414,7 +444,8 @@ class db_queries:
             
     async def delete_stat_words(word=None):
         async with AsyncSession(engine) as session:
-            obj = session.execute(Stat_words).filter(Stat_words.word == word).first()
+            obj = session.execute(select(Stat_words).where(Stat_words.word == word))
+            obj = session.scalars(obj).one()
             if obj != None:
                 session.delete(obj)
                 await session.commit()
@@ -425,23 +456,30 @@ class db_queries:
             
     async def remove_wb_v3_main_token(user_id):
         async with AsyncSession(engine) as session:
-            user = session.execute(User).filter(User.id == user_id).first()
+            user = await session.execute(select(User).where(User.id == user_id))
+            user = session.scalars(user).one()
             user.wb_v3_main_token = None
             await session.commit()
             
             
     async def get_user_tokens(user_id):
         async with AsyncSession(engine) as session:
-            if session.execute(GPT_Transaction).filter(GPT_Transaction.user_id == user_id).first() is not None:
-                tokens = session.execute(func.sum(cast(GPT_Transaction.token_amount, Integer))).filter(GPT_Transaction.user_id == user_id).scalar()
+            result = await session.execute(select(GPT_Transaction).where(GPT_Transaction.user_id == user_id))
+            transactions = result.scalars().all()
+
+            if transactions:
+                result = await session.execute(select(func.sum(cast(GPT_Transaction.token_amount, Integer))).where(GPT_Transaction.user_id == user_id))
+                tokens = result.scalar_one()
                 return tokens
             else:
                 return 0
+
         
         
     async def edit_user_transaction(user_id, type, token_amount, request_amount):
         async with AsyncSession(engine) as session:
-            user = session.execute(User).filter(User.telegram_user_id == user_id).first()
+            user = await session.execute(select(User).where(User.telegram_user_id == user_id))
+            user = session.scalars(user).one()
             
             add_tokens = GPT_Transaction(
                 user_id = user.id,
@@ -458,15 +496,21 @@ class db_queries:
     campaign_id
     ):
         async with AsyncSession(engine) as session:
-            return session.execute(User_analitics).filter( 
-                (User_analitics.user_id == user_id) and (User_analitics.campaign_id == campaign_id) ).all()
+            result = await session.execute(select(User_analitics).where( 
+                (User_analitics.user_id == user_id) and (User_analitics.campaign_id == campaign_id) ))
+            return session.scalars(result).all()
+            
         return 'User_analitcs data doesn`t exist'        
    
         
     async def get_user_gpt_requests(user_id):
         async with AsyncSession(engine) as session:
-            if session.execute(GPT_Transaction).filter(GPT_Transaction.user_id == user_id).first() is not None:
-                gtp_requests = session.execute(func.sum(cast(GPT_Transaction.request_amount, Integer))).filter(GPT_Transaction.user_id == user_id).scalar()
+            result = await session.execute(select(GPT_Transaction).where(GPT_Transaction.user_id == user_id))
+            transactions = result.scalars().all()
+
+            if transactions:
+                result = await session.execute(select(func.sum(cast(GPT_Transaction.request_amount, Integer))).where(GPT_Transaction.user_id == user_id))
+                gtp_requests = result.scalar_one()
                 return gtp_requests
             else:
                 return 0

@@ -41,7 +41,7 @@ from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
 
 #Пример для создания истории действий
-#db_queries.add_action_history(user_id=message.chat.id, action=f"Какое-то событие")
+#await db_queries.add_action_history(user_id=message.chat.id, action=f"Какое-то событие")
 INCREASE = 10
 # all messages handler
 @bot.message_handler(func=lambda m: True)
@@ -53,7 +53,7 @@ async def message_handler(message):
     telegram_user_id = message.from_user.id
     user_session = cache_worker.get_user_session(telegram_user_id)
 
-    db_queries.add_action_history(
+    await db_queries.add_action_history(
       telegram_user_id=telegram_user_id,
       action="message",
       action_description=f"message uuid: '{log_uuid}' message from: '{message.chat.id}' message text: '{message.text}'",
@@ -88,7 +88,7 @@ async def message_handler(message):
 
     update_user_session(message)
 
-    db_queries.add_action_history(
+    await db_queries.add_action_history(
       telegram_user_id=telegram_user_id,
       action="message",
       action_description=f"message uuid: '{log_uuid}' message from: '{message.chat.id}' message text: '{message.text}' user action: '{user_action}'",
@@ -101,7 +101,7 @@ async def message_handler(message):
     logger.error(e)
     logger.warn(f"EXCEPTION {str(e)}")
 
-    db_queries.add_action_history(
+    await db_queries.add_action_history(
       telegram_user_id=telegram_user_id,
       action="message",
       action_description=f"message uuid: '{log_uuid}' message from: '{message.chat.id}' message text: '{message.text}' message error: '{str(e)}'",
@@ -169,7 +169,7 @@ async def message_handler(message):
         return      
       # or "wb_cmp_token" in str(e)
       if "update_v3_main_token" in str(e) or "wb_cmp_token" in str(e):
-        db_queries.remove_wb_v3_main_token(str(e).split(":")[1])
+        await db_queries.remove_wb_v3_main_token(str(e).split(":")[1])
         await queue_message_async(
           topic = 'telegram_message_sender',
           destination_id = message.chat.id,
@@ -209,7 +209,7 @@ async def search_next_step_handler(message, after_city_choose=False):
   else:
     keyword = message.text
       
-  db_queries.add_action_history(telegram_user_id=telegram_user_id, action="Поиск", action_description=f"Поиск по запросу: '{keyword}'")
+  await db_queries.add_action_history(telegram_user_id=telegram_user_id, action="Поиск", action_description=f"Поиск по запросу: '{keyword}'")
   
   city = message.user_session.get('search_city')
   if city == None:
@@ -311,7 +311,7 @@ async def management_tokens(message):
 
 async def token_cmp_handler(message):
   try:
-    user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+    user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
     user_wb_tokens = await wb_queries.get_base_tokens(user, check=True)
   except Exception as e:
     logger.warn(e)
@@ -324,7 +324,7 @@ async def token_cmp_handler(message):
   
   
 async def x_supplier_id_handler(message):
-  user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   try:
     x_supplier_id = user.x_supplier_id
   except:
@@ -340,18 +340,18 @@ async def x_supplier_id_handler(message):
 
 async def set_x_supplier_id_handler(message):
   clear_id = message.text.replace('/set_x_supplier_id ', '').strip()
-  user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   
   logger.warn(clear_id)
   await bot.send_message(message.chat.id, f'Ваш id установлен\!')
   
-  db_queries.set_user_x_supplier_id(telegram_user_id=message.from_user.id, x_supplier_id=clear_id)  
-  db_queries.add_action_history(user_id=user.id, action="x_supplier_id", action_description=f"Был установлен x_supplier_id: '{clear_id}'")
+  await db_queries.set_user_x_supplier_id(telegram_user_id=message.from_user.id, x_supplier_id=clear_id)  
+  await db_queries.add_action_history(user_id=user.id, action="x_supplier_id", action_description=f"Был установлен x_supplier_id: '{clear_id}'")
 
 
 async def set_token_cmp_handler(message):
   clear_token = message.text.replace('/set_token_cmp ', '').strip()
-  user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
 
   try:
     await wb_queries.reset_base_tokens(user, token_cmp=clear_token)
@@ -362,14 +362,14 @@ async def set_token_cmp_handler(message):
     raise e
 
 
-  db_queries.set_user_wb_cmp_token(telegram_user_id=message.from_user.id, wb_cmp_token=clear_token)
+  await db_queries.set_user_wb_cmp_token(telegram_user_id=message.from_user.id, wb_cmp_token=clear_token)
   await bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
-  db_queries.add_action_history(user_id=user.id, action="Токен", action_description=f"Был установлен cmp Token: '{clear_token}'")
+  await db_queries.add_action_history(user_id=user.id, action="Токен", action_description=f"Был установлен cmp Token: '{clear_token}'")
   
 
 async def wb_v3_main_token_handler(message):
   try:
-    user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+    user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
     user_wild_auth_v3_token = await wb_queries.get_base_tokens(user, check=True)
   except Exception as e:
     logger.warn(e)
@@ -386,7 +386,7 @@ async def wb_v3_main_token_handler(message):
 
 async def set_wb_v3_main_token_handler(message):
   clear_token = message.text.replace('/set_wb_v3_main_token ', '').strip()
-  user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
 
   logger.warn(clear_token)
   try:
@@ -397,9 +397,9 @@ async def set_wb_v3_main_token_handler(message):
       return
     raise e
 
-  db_queries.set_user_wb_v3_main_token(telegram_user_id=message.from_user.id, wb_v3_main_token=clear_token)
+  await db_queries.set_user_wb_v3_main_token(telegram_user_id=message.from_user.id, wb_v3_main_token=clear_token)
   await bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
-  db_queries.add_action_history(user_id=user.id, action="Токен", action_description=f"Был установлен V3 Main Token: '{clear_token}'")
+  await db_queries.add_action_history(user_id=user.id, action="Токен", action_description=f"Был установлен V3 Main Token: '{clear_token}'")
 
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------
@@ -413,7 +413,7 @@ async def list_adverts_handler(message):
 
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
 
-  user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   user_wb_tokens = await wb_queries.get_base_tokens(user)
   req_params = await wb_queries.get_base_request_params(user_wb_tokens)
   
@@ -444,7 +444,7 @@ async def kek(data):
   await bot.edit_message_text('Вайлдберис старается 🔄', data.message.chat.id, data.message.id, parse_mode='MarkdownV2')
   type_of_callback, page_number, user_id = data.data.split(':') # parameters = [type_of_callback, page_number, user_id]
   page_number = int(page_number)
-  user = db_queries.get_user_by_telegram_user_id(user_id)
+  user = await db_queries.get_user_by_telegram_user_id(user_id)
   user_wb_tokens = await wb_queries.get_base_tokens(user)
   req_params = await wb_queries.get_base_request_params(user_wb_tokens)
   
@@ -479,7 +479,7 @@ async def add_advert_handler(message):
   (индентификатор, бюджет, место которое хочет занять)
   записать это в бд
   """
-  user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
 
   #(индентификатор, бюджет, место которое хочет занять)args*
   message_args = re.sub('/add_advert ', '', message.text).split(sep=' ', maxsplit=4)
@@ -493,7 +493,7 @@ async def add_advert_handler(message):
   place = re.sub('/add_advert ', '', message_args[2])
   status = re.sub('/add_advert ', '', message_args[3])
 
-  add_result = db_queries.add_user_advert(user, status, campaign_id, max_bid, place)
+  add_result = await db_queries.add_user_advert(user, status, campaign_id, max_bid, place)
   
   res_msg = ''
   if add_result == 'UPDATED':
@@ -551,7 +551,7 @@ async def menu_back_token(message):
 async def show_action_history(message):
   page_number = 1
   page_action = 5
-  action_history = db_queries.show_action_history(message.chat.id)
+  action_history = await db_queries.show_action_history(message.chat.id)
   total_count_action = action_history.count()
   
   action = "Нет"
@@ -583,9 +583,9 @@ async def action_page(data):
   action = "Нет"
   if type_of_callback == "action_filter":
     action = cache_worker.get_action_history_filter(data.message.chat.id)
-    action_history = db_queries.show_action_history(data.message.chat.id, action=action)
+    action_history = await db_queries.show_action_history(data.message.chat.id, action=action)
   else:
-    action_history = db_queries.show_action_history(data.message.chat.id)
+    action_history = await db_queries.show_action_history(data.message.chat.id)
   result_message = f'Список Ваших последних действий в боте\nФильтр: {action}\nCтраница: {page_number}\n\n'
   total_count_action = action_history.count()
   
@@ -627,7 +627,7 @@ async def action_page(data):
   
   page_number = 1
   page_action = 5
-  action_history = db_queries.show_action_history(data.message.chat.id, action=action)
+  action_history = await db_queries.show_action_history(data.message.chat.id, action=action)
   total_count_action = action_history.count()
   
   
@@ -657,7 +657,7 @@ async def action_history_download(message):
 async def action_page(data):
   await bot.edit_message_text("Подготовка файла к установке", data.message.chat.id, data.message.id)
   action = data.data.split(':')[2] # parameters = [type_of_callback, page_number, user_id]
-  action_history = db_queries.show_action_history(data.message.chat.id, action=action, download=True)
+  action_history = await db_queries.show_action_history(data.message.chat.id, action=action, download=True)
   
   result_message = ""
   i = 1
@@ -677,9 +677,9 @@ async def action_page(data):
 # --- правка ставки компании --------------------------------------------------------------------------------------------
 @check_sub(['Старт', 'Победитель', 'Мастер', 'Чемпион'])
 async def send_message_for_advert_bid(message, adv_id, sub_name):
-  user = db_queries.get_user_by_telegram_user_id(message.chat.id)
-  adverts_count = db_queries.get_user_adverts(user.id)
-  my_sub = db_queries.get_sub(user.subscriptions_id)
+  user = await db_queries.get_user_by_telegram_user_id(message.chat.id)
+  adverts_count = await db_queries.get_user_adverts(user.id)
+  my_sub = await db_queries.get_sub(user.subscriptions_id)
   
   logger.warn(adverts_count)
   
@@ -720,12 +720,12 @@ async def add_advert(message):
 
 
 async def add_advert_with_define_id(message):
-  user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   adv_id = message.user_session.get('add_adv_id')
   if adv_id == None:
     adv_id = message.user_session.get('adv_settings_id')
   user_number_value = re.sub(r'[^0-9]', '', message.text)
-  db_queries.add_user_advert(user, adv_id, user_number_value, status='ON')
+  await db_queries.add_user_advert(user, adv_id, user_number_value, status='ON')
   await bot.send_message(message.chat.id, f'РК с id {adv_id} отслеживается с максимальной ставкой {user_number_value}')
   message.user_session['add_adv_id'] = None
     
@@ -739,7 +739,7 @@ async def adv_settings(message):
   
   campaign = mock.Mock()
   campaign.campaign_id = adv_id
-  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   
   fixed = await wb_queries.get_fixed(campaign_user, campaign)
   
@@ -763,10 +763,10 @@ async def adv_settings_place(message):
 
 
 async def set_advert_place_with_define_id(message):
-  user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   adv_id = message.user_session.get('adv_settings_id')
   user_number_value = re.sub(r'[^0-9]', '', message.text)
-  db_queries.add_user_advert(user, adv_id, None, status='ON', place=user_number_value)
+  await db_queries.add_user_advert(user, adv_id, None, status='ON', place=user_number_value)
   await bot.send_message(message.chat.id, f'РК с id {adv_id} отслеживается на предпочитаемом месте {user_number_value}')
   message.user_session['add_adv_id'] = None
     
@@ -776,7 +776,7 @@ async def adv_settings_get_plus_word(message):
   campaign = mock.Mock()
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
-  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   if len(words['fixed']) == 0:
@@ -791,7 +791,7 @@ async def adv_settings_get_plus_word(message):
   if check_new:
     result_message = f'Список *Плюс слов*, которые на данный момент не активны и будут добавлены после появления \"Ключевых фраз\", автоматически, если компания отслеживается:\n\n'
     
-    db_words = db_queries.get_stat_words(types="plus", status="Created", campaing_id=adv_id)
+    db_words = await db_queries.get_stat_words(types="plus", status="Created", campaing_id=adv_id)
     for plus_word in db_words:
       result_message += plus_word.word + "\n"  
     
@@ -819,7 +819,7 @@ async def new_add_plus_word_next_step_handler(message):
   adv_id = message.user_session.get('adv_settings_id')  
   pluse_word = keyword.lower()
   
-  db_queries.add_stat_words(types="plus", campaing_id=adv_id, word=pluse_word)
+  await db_queries.add_stat_words(types="plus", campaing_id=adv_id, word=pluse_word)
   await bot.send_message(message.chat.id, f"Слово {keyword.lower()} было добавлено")
     
   set_user_session_step(message, "new_get_word")
@@ -836,7 +836,7 @@ async def add_plus_word_next_step_handler(message):
   campaign = mock.Mock()
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
-  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   pluse_word = [word.lower() for word in words['pluses']]
@@ -859,7 +859,7 @@ async def new_adv_settings_delete_word(message):
 async def new_delete_word_next_step_handler(message):
   keyword = message.text
   
-  deleted = db_queries.delete_stat_words(word=keyword)
+  deleted = await db_queries.delete_stat_words(word=keyword)
   
   if deleted:
     await bot.send_message(message.chat.id, f"Слово/фраза {keyword.lower()} было удалено")
@@ -873,7 +873,7 @@ async def adv_settings_get_minus_word(message):
   campaign = mock.Mock()
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
-  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   if len(words['fixed']) == 0:
@@ -889,7 +889,7 @@ async def adv_settings_get_minus_word(message):
     result_message = "Нет минус слов"
     
   if check_new:
-    db_words = db_queries.get_stat_words(status="Created", campaing_id=adv_id, types="minus")
+    db_words = await db_queries.get_stat_words(status="Created", campaing_id=adv_id, types="minus")
     result_message = f'Список *Минус слов*, которые на данный момент не активны и будут добавлены после появления \"Ключевых фраз\", автоматически, если компания отслеживается:\n\n'
     for minus_word in db_words:
       result_message += minus_word.word + "\n"  
@@ -924,7 +924,7 @@ async def new_add_minus_word_next_step_handler(message):
   minus_word = keyword.lower()
   
   try:
-    db_queries.add_stat_words(types="minus", campaing_id=adv_id, word=minus_word)
+    await db_queries.add_stat_words(types="minus", campaing_id=adv_id, word=minus_word)
     await bot.send_message(message.chat.id, f"Слово {keyword.lower()} было добавлено")
   except:
     await bot.send_message(message.chat.id, f"Произошла ошибка")
@@ -948,7 +948,7 @@ async def add_minus_word_next_step_handler(message):
   campaign = mock.Mock()
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
-  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   minus_word = [word.lower() for word in words['minuses']]
@@ -974,7 +974,7 @@ async def delete_plus_word_next_step_handler(message):
   campaign = mock.Mock()
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
-  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   pluse_word = []
@@ -1009,7 +1009,7 @@ async def delete_minus_word_next_step_handler(message):
   campaign = mock.Mock()
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
-  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   minus_word = []
@@ -1037,7 +1037,7 @@ async def adv_settings_switch_fixed_word(message):
   campaign = mock.Mock()
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
-  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   if words['fixed_status']:
@@ -1054,7 +1054,7 @@ async def adv_settings_switch_on_word(message):
   campaign = mock.Mock()
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
-  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
   chat_id_proccessing = proccesing.chat.id
@@ -1062,7 +1062,7 @@ async def adv_settings_switch_on_word(message):
   
   
   if len(words['fixed']) == 0:
-    switch = db_queries.change_status_stat_words(campaing_id=adv_id, types="Change", words="On")
+    switch = await db_queries.change_status_stat_words(campaing_id=adv_id, types="Change", words="On")
     await bot.delete_message(chat_id_proccessing, message_id_proccessing)
     await bot.send_message(message.chat.id, f"Фиксированные фразы будут *включены* автоматически, когда появяться \"Ключевые слова\", автоматически, если компания отслеживается", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
   else:
@@ -1085,7 +1085,7 @@ async def adv_settings_switch_off_word(message):
   campaign = mock.Mock()
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
-  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
@@ -1093,7 +1093,7 @@ async def adv_settings_switch_off_word(message):
   message_id_proccessing = proccesing.message_id
   
   if len(words['fixed']) == 0:
-    switch = db_queries.change_status_stat_words(campaing_id=adv_id, types="Change", words="Off")
+    switch = await db_queries.change_status_stat_words(campaing_id=adv_id, types="Change", words="Off")
     await bot.delete_message(chat_id_proccessing, message_id_proccessing)
     await bot.send_message(message.chat.id, f"Фиксированные фразы будут *выключены* автоматически, когда появяться \"Ключеваые слова\", автоматически, если компания отслеживается", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
   else:
@@ -1117,7 +1117,7 @@ async def adv_settings_switch_status(message):
   campaign = mock.Mock()
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
-  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   
   # try:
   status = await wb_queries.get_campaign_info(campaign_user, campaign)
@@ -1148,7 +1148,7 @@ async def change_status(data):
   adv_id = data.data.split(':')[3]
   campaign.campaign_id = adv_id
   user_id = data.message.chat.id
-  campaign_user = db_queries.get_user_by_telegram_user_id(user_id)
+  campaign_user = await db_queries.get_user_by_telegram_user_id(user_id)
   
   await wb_queries.switch_status(campaign_user, campaign, status=change_to)
   
@@ -1164,7 +1164,7 @@ async def adv_settings_add_budget(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   
-  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   budget = await wb_queries.get_budget(campaign_user, campaign)
   budget = budget['Бюджет компании']
   
@@ -1182,7 +1182,7 @@ async def add_budget_next_step_handler(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   
-  campaign_user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   budget = await wb_queries.get_budget(campaign_user, campaign)
   budget = budget['Бюджет компании']
   await asyncio.sleep(2)
@@ -1222,8 +1222,8 @@ async def show_paid_services(message):
   
 async def show_my_requests(message):
   set_user_session_step(message, 'paid_service')
-  user = db_queries.get_user_by_telegram_user_id(message.chat.id)
-  gpt_requests = db_queries.get_user_gpt_requests(user_id=user.id)
+  user = await db_queries.get_user_by_telegram_user_id(message.chat.id)
+  gpt_requests = await db_queries.get_user_gpt_requests(user_id=user.id)
   
   gpt_requests = 0 if gpt_requests == None else gpt_requests
     # цена запроса с огр на длинну 255 символов(которые вводит юзер) + * кол во на 2 + * 100 умножить(свободный)
@@ -1232,7 +1232,7 @@ async def show_my_requests(message):
 
 @bot.callback_query_handler(func=lambda x: re.match('paid_service:', x.data))
 async def paid_service(data):
-  user = db_queries.get_user_by_telegram_user_id(data.message.chat.id)
+  user = await db_queries.get_user_by_telegram_user_id(data.message.chat.id)
   
   action, action_type, amount =  data.data.split(":")
   amount = int(amount)
@@ -1272,8 +1272,8 @@ async def show_my_sub(message):
 
 @check_sub(['Старт', 'Победитель', 'Мастер', 'Чемпион'])
 async def card_product(message, sub_name):
-  user = db_queries.get_user_by_telegram_user_id(message.chat.id)
-  gtp_requests = db_queries.get_user_gpt_requests(user_id=user.id)
+  user = await db_queries.get_user_by_telegram_user_id(message.chat.id)
+  gtp_requests = await db_queries.get_user_gpt_requests(user_id=user.id)
   
   if gtp_requests >= 1:
     # цена запроса с огр на длинну 255 символов(которые вводит юзер) + * кол во на 2 + * 100 умножить(свободный)
@@ -1286,7 +1286,7 @@ async def card_product(message, sub_name):
 
 
 async def card_product_next_step_handler(message):
-  user = db_queries.get_user_by_telegram_user_id(message.chat.id)
+  user = await db_queries.get_user_by_telegram_user_id(message.chat.id)
   
   keyword = message.text
   
@@ -1294,7 +1294,7 @@ async def card_product_next_step_handler(message):
     return await bot.send_message(message.chat.id, f'К сожалению, нельзя использовать больше 255 символов, попробуйте еще раз', reply_markup=universal_reply_markup())
   
   proccesing = await bot.send_message(message.chat.id, "Обработка запроса...", reply_markup=universal_reply_markup())
-  user = db_queries.get_user_by_telegram_user_id(message.chat.id)
+  user = await db_queries.get_user_by_telegram_user_id(message.chat.id)
   gpt_text = gpt_queries.get_card_description(user_id=user.id, prompt=keyword)
   # logger.warn(gpt_text)
   
@@ -1318,7 +1318,7 @@ def update_user_session(message):
 
 # --- график с аналитикой для юзера -----------------
 async def user_analitics_grafic(message):
-  user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   user_id = user.id
   try:
     campaign_id = message.text.split('_')[-1]

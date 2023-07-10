@@ -327,7 +327,7 @@ class wb_queries:
       cookies=req_params['cookies'],
       headers=req_params['headers'],
       data=json.dumps(request_body))
-      db_queries.add_action_history(user_id=user.id, action="Добавлено Плюс слово", action_description=f"Было добавлено Плюс слово {plus_word[-1]} в компанию с id {campaign.campaign_id}")
+      await db_queries.add_action_history(user_id=user.id, action="Добавлено Плюс слово", action_description=f"Было добавлено Плюс слово {plus_word[-1]} в компанию с id {campaign.campaign_id}")
     else:
       # excluded_word = [excluded.lower() for excluded in excluded_word]
       request_body = {
@@ -337,7 +337,7 @@ class wb_queries:
       cookies=req_params['cookies'],
       headers=req_params['headers'],
       data=json.dumps(request_body))
-      db_queries.add_action_history(user_id=user.id, action="Добавлено Минус слово", action_description=f"Было добавлено Минус слово {excluded_word[-1]} в компанию с id {campaign.campaign_id}")
+      await db_queries.add_action_history(user_id=user.id, action="Добавлено Минус слово", action_description=f"Было добавлено Минус слово {excluded_word[-1]} в компанию с id {campaign.campaign_id}")
 
 
     return r
@@ -356,7 +356,7 @@ class wb_queries:
         
     
     # if not r.raise_for_status:
-    db_queries.add_action_history(user_id=user.id, action="Изменен бюджет", action_description=f"Было добавлено {budget} к бюджету в компании с id {campaign.campaign_id}")
+    await db_queries.add_action_history(user_id=user.id, action="Изменен бюджет", action_description=f"Было добавлено {budget} к бюджету в компании с id {campaign.campaign_id}")
 
     # if not tries:
     #   return error
@@ -417,7 +417,7 @@ class wb_queries:
     )
     
     status = "Включены" if switch == "true" else "Выключены"
-    db_queries.add_action_history(user_id=user.id, action=f"Были {status} Фиксированные фразы", action_description=f"Были {status} Фиксированные фразы в компании с id {campaign.campaign_id}")
+    await db_queries.add_action_history(user_id=user.id, action=f"Были {status} Фиксированные фразы", action_description=f"Были {status} Фиксированные фразы в компании с id {campaign.campaign_id}")
 
 
     return r
@@ -462,7 +462,7 @@ class wb_queries:
 
     log_string = f'{datetime.now()} \t check_campaign \t Campaign {campaign.campaign_id} updated! \t New bid: {new_bid} \t Old bid: {old_bid} \t Approximate place: {approximate_place}'
     print(log_string)
-    db_queries.add_action_history(user_id=user.id, action="set_campaign_bid", action_description=log_string)
+    await db_queries.add_action_history(user_id=user.id, action="set_campaign_bid", action_description=log_string)
 
 
     return r

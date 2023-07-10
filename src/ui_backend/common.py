@@ -552,9 +552,9 @@ def check_sub(required_subs):
         async def wrapper(*args, **kwargs):
           message = args[0]
           user_id = message.from_user.id
-          user = db_queries.get_user_by_telegram_user_id(user_id)
+          user = await db_queries.get_user_by_telegram_user_id(user_id)
           
-          sub = db_queries.get_sub(user.subscriptions_id)
+          sub = await db_queries.get_sub(user.subscriptions_id)
           if sub is None:
               await bot.send_message(user_id, "У вас недостаточно прав для выполнения данной команды, купите подписку")
               return None
