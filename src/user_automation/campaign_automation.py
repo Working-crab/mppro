@@ -15,7 +15,7 @@ logger = appLogger.getLogger(__name__)
 class campaign_automation:
 
   async def start():
-    adverts = db_queries.get_adverts_chunk()
+    adverts = await db_queries.get_adverts_chunk()
 
     print('============= campaign automation start =============')
 
@@ -38,7 +38,7 @@ class campaign_automation:
 
   async def check_campaign(campaign):
 
-    campaign_user = db_queries.get_user_by_id(campaign.user_id)
+    campaign_user = await db_queries.get_user_by_id(campaign.user_id)
 
     campaign_info = None
 
@@ -49,8 +49,8 @@ class campaign_automation:
     logger.warn('logger.warn(campaign_info)')
     logger.warn(campaign_info)
     if campaign_info.get('status') == 'OFF_CAMP':  
-      db_queries.add_user_advert(campaign_user, campaign.campaign_id, None, 'OFF', None)      
-      db_queries.add_action_history(user_id=campaign.user_id, action="campaign_off", action_description=campaign.campaign_id)
+      await db_queries.add_user_advert(campaign_user, campaign.campaign_id, None, 'OFF', None)      
+      await db_queries.add_action_history(user_id=campaign.user_id, action="campaign_off", action_description=campaign.campaign_id)
       logger.warn("OFF")
       return False
 
@@ -81,7 +81,7 @@ class campaign_automation:
 
     old_bid = campaign_info["campaign_bid"]
 
-    db_queries.add_action_history(user_id=campaign.user_id, action="campaign_scan", action_description=f'check_campaign id: {campaign.id} \t new_bid: {new_bid} \t old_bid: {old_bid}')
+    await db_queries.add_action_history(user_id=campaign.user_id, action="campaign_scan", action_description=f'check_campaign id: {campaign.id} \t new_bid: {new_bid} \t old_bid: {old_bid}')
 
 
     if new_bid != old_bid and bid_p_id != campaign.campaign_id:
@@ -97,19 +97,19 @@ class campaign_automation:
 
   async def check_stat_word(campaign):
     logger.warn(campaign.campaign_id)
-    db_words = db_queries.get_stat_words(campaing_id=campaign.campaign_id, status="Created")
+    db_words = await db_queries.get_stat_words(campaing_id=campaign.campaign_id, status="Created")
     logger.warn(db_words)
     if not db_words:
       return
-    campaign_user = db_queries.get_user_by_id(campaign.user_id)
+    campaign_user = await db_queries.get_user_by_id(campaign.user_id)
     words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
     logger.warn("before if")
     logger.warn(words)
     if len(words['fixed']) != 0:
       logger.warn("In if")
-      db_words_plus = db_queries.get_stat_words(campaing_id=campaign.campaign_id, status="Created", types="plus")
-      db_words_minus = db_queries.get_stat_words(campaing_id=campaign.campaign_id, status="Created", types="minus")
-      db_switch_fixed = db_queries.get_stat_words(campaing_id=campaign.campaign_id, status="Created", types="Change")
+      db_words_plus = await db_queries.get_stat_words(campaing_id=campaign.campaign_id, status="Created", types="plus")
+      db_words_minus = await db_queries.get_stat_words(campaing_id=campaign.campaign_id, status="Created", types="minus")
+      db_switch_fixed = await db_queries.get_stat_words(campaing_id=campaign.campaign_id, status="Created", types="Change")
       
       if db_switch_fixed:
         if db_switch_fixed.word == "On":
@@ -119,7 +119,7 @@ class campaign_automation:
         
         try:
           await wb_queries.switch_word(user=campaign_user, campaign=campaign, switch=switch)
-          db_queries.change_status_stat_words(campaing_id=campaign.campaign_id, status="Finished", types="Changed")
+          await db_queries.change_status_stat_words(campaing_id=campaign.campaign_id, status="Finished", types="Changed")
         except:
           logger.warn("Error, check_stat_word_plus")
       
@@ -131,7 +131,7 @@ class campaign_automation:
           
         try:
           await wb_queries.add_word(campaign_user, campaign, plus_word=pluse_word)
-          db_queries.change_status_stat_words(campaing_id=campaign.campaign_id, status="Finished", types="plus", words=pluse_word)
+          await db_queries.change_status_stat_words(campaing_id=campaign.campaign_id, status="Finished", types="plus", words=pluse_word)
         except:
           logger.warn("Error, check_stat_word_plus")
         
@@ -144,6 +144,6 @@ class campaign_automation:
         
         try:
           await wb_queries.add_word(campaign_user, campaign, excluded_word=minus_word)
-          db_queries.change_status_stat_words(campaing_id=campaign.campaign_id, status="Finished", types="minus", words=minus_word)
+          await db_queries.change_status_stat_words(campaing_id=campaign.campaign_id, status="Finished", types="minus", words=minus_word)
         except:
           logger.warn("Error, check_stat_word_minus")

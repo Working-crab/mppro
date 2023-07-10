@@ -210,10 +210,10 @@ def edit_token_reply_markup():
   return markup_inline
 
 
-def action_history_filter_reply_markup(action):
+async def action_history_filter_reply_markup(action):
   markup_inline = types.InlineKeyboardMarkup()
   
-  filters = db_queries.get_filter_action_history()
+  filters = await db_queries.get_filter_action_history()
   buttons_array = []
   # logger.info(filters)
   markup_inline.add(types.InlineKeyboardButton(f'Все', callback_data=f'{action}:date_time'))
@@ -349,10 +349,10 @@ def paginate_buttons(action, page_number, total_count_adverts, page_size, user_i
   return inline_keyboard
 
 
-def get_first_place(user_id, campaign):
-  campaign_user = db_queries.get_user_by_telegram_user_id(user_id)
-  campaign_info = wb_queries.get_campaign_info(campaign_user, campaign)
-  campaign_pluse_words = wb_queries.get_stat_words(campaign_user, campaign)
+async def get_first_place(user_id, campaign):
+  campaign_user = await db_queries.get_user_by_telegram_user_id(user_id)
+  campaign_info = await wb_queries.get_campaign_info(campaign_user, campaign)
+  campaign_pluse_words = await wb_queries.get_stat_words(campaign_user, campaign)
 
   check_word = campaign_info['campaign_key_word']
   if campaign_pluse_words['main_pluse_word']:
@@ -380,7 +380,7 @@ def logs_types_reply_markup(user_id, timestamp):
 
     return markup_inline
 
-def advert_info_message_maker(adverts, page_number, page_size, user):
+async def advert_info_message_maker(adverts, page_number, page_size, user):
   adverts = sorted(adverts, key=lambda x: status_parser_priority_map(x['statusId']))
   
   if page_number != 1:
@@ -390,7 +390,7 @@ def advert_info_message_maker(adverts, page_number, page_size, user):
   
 
   lst_adverts_ids = [i['id'] for i in adverts]
-  db_adverts = db_queries.get_user_adverts_by_wb_ids(user.id, lst_adverts_ids)
+  db_adverts = await db_queries.get_user_adverts_by_wb_ids(user.id, lst_adverts_ids)
   id_to_db_adverts = {x.campaign_id: x for x in db_adverts}
   lst_adverts_ids = [i.campaign_id for i in db_adverts]
 
@@ -404,7 +404,7 @@ def advert_info_message_maker(adverts, page_number, page_size, user):
     budget_string = ''
     try:
       # first_place_price = get_first_place(user.telegram_user_id, campaign)
-      budget = wb_queries.get_budget(user, campaign)
+      budget = await wb_queries.get_budget(user, campaign)
       budget = budget.get("Бюджет компании")
     except Exception as e:
       budget = None
@@ -493,10 +493,10 @@ def campaign_query_info_maker(lst_adverts_ids, user, message_id) -> dict:
     list_with_need_query.append(obj)
   return list_with_need_query
 
-def wrapper_get_budget(user_id, campaign_id):
+async def wrapper_get_budget(user_id, campaign_id):
   campaign = mock.Mock()
   campaign.campaign_id = campaign_id
-  user = db_queries.get_user_by_id(user_id)
+  user = await db_queries.get_user_by_id(user_id)
 
   wb_queries.get_budget(user, campaign)
 
@@ -504,12 +504,12 @@ def get_first_place(user_id, campaign_id):
   get_first_place(user_id, campaign_id)
 
 
-def get_search_result_message(keyword, city=None):
+async def get_search_result_message(keyword, city=None):
 
   if city == None:
     city = "Москва"
   
-  item_dicts = wb_queries.search_adverts_by_keyword(keyword)
+  item_dicts = await wb_queries.search_adverts_by_keyword(keyword)
   result_message = ''
   position_ids = []
 
@@ -522,7 +522,7 @@ def get_search_result_message(keyword, city=None):
     result_message += f'*{item_idex + 1}*  \\({pos}\\)   *{price}₽*,  [{p_id}](https://www.wildberries.ru/catalog/{p_id}/detail.aspx) 🔄 \n'
   
   result_message = f'Текущие рекламные ставки по запросу: *{keyword}*\nГород доставки: *{city}*\n\n'
-  adverts_info = wb_queries.get_products_info_by_wb_ids(position_ids, city)
+  adverts_info = await wb_queries.get_products_info_by_wb_ids(position_ids, city)
 
   for item_idex in range(len(item_dicts)):
 
@@ -547,7 +547,7 @@ def get_search_result_message(keyword, city=None):
 
 
 def check_sub(required_subs):
-    def decorator(func):
+    async def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
           message = args[0]
