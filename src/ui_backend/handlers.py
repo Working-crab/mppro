@@ -1247,12 +1247,12 @@ async def paid_service(data):
 
 async def show_my_sub(message):
   set_user_session_step(message, 'paid_service')
-  user = db_queries.get_user_by_telegram_user_id(message.chat.id)
-  my_sub = db_queries.get_sub(sub_id=user.subscriptions_id)
+  user = await db_queries.get_user_by_telegram_user_id(message.chat.id)
+  my_sub = await db_queries.get_sub(sub_id=user.subscriptions_id)
   if user.subscriptions_id:
     await bot.send_message(message.chat.id, 'Подключен: `{}`\nОписание: `{}`\nСрок действия с `{}` по `{}`'.format(my_sub.title, my_sub.description, user.sub_start_date.strftime('%d/%m/%Y'), user.sub_end_date.strftime('%d/%m/%Y')), reply_markup=paid_service_reply_markup())
     #TODO do another systeam
-    sub_list = db_queries.get_all_sub()
+    sub_list = await db_queries.get_all_sub()
     if sub_list[-1].title != my_sub.title:
       await bot.send_message(message.chat.id, 'Вы можете обновиться на более крутую подписку', reply_markup=paid_service_reply_markup())
       
@@ -1262,7 +1262,7 @@ async def show_my_sub(message):
         await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
   else:
     await bot.send_message(message.chat.id, 'У вас не подключено никаких платных подписок\nНиже предоставлены варианты для покупки: ')
-    sub_list = db_queries.get_all_sub()
+    sub_list = await db_queries.get_all_sub()
     for sub in sub_list:
       await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
 

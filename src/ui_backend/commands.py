@@ -168,9 +168,8 @@ async def delete_user_advert(message):
 async def buy_subscription(message):
     try:
         sub_list = db_queries.get_all_sub()
-        if PAYMENT_TOKEN.split(':')[1] == 'LIVE':
-            for sub in sub_list:
-                await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
+        for sub in sub_list:
+            await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
     except Exception as e:
         await bot.send_message(message.chat.id, e)
 

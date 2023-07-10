@@ -36,6 +36,8 @@ class wb_queries:
               
     if user.x_supplier_id:
       user_wb_tokens['x_supplier_id'] = user.x_supplier_id
+    else:
+      user_wb_tokens['x_supplier_id'] = ""
     # if not user_wb_tokens['wb_user_id'] or not user_wb_tokens['wb_supplier_id']:
     #   user_wb_tokens = await wb_queries.reset_base_tokens(user)
       

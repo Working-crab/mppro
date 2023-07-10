@@ -8,6 +8,8 @@ from typing import Optional
 from telebot import types
 from fastapi.responses import RedirectResponse
 
+from db.engine import create_tables
+
 import asyncio
 from typing import Union, Dict, Any
 from ui_backend.config import bot, WEBHOOK_URL
@@ -27,6 +29,7 @@ async def on_startup():
     webhook_info = await bot.get_webhook_info()
     if webhook_info.url != WEBHOOK_URL:
         await bot.set_webhook(url=WEBHOOK_URL)
+        await create_tables()
 
 @app.post('/')
 async def webhook(update: Dict[str, Any]):
