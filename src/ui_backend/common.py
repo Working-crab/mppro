@@ -536,7 +536,7 @@ async def get_search_result_message(keyword, city=None):
     if advert_info:
       product_name = escape_telegram_specials(advert_info.get('name')[:30]) if advert_info.get('name')[:30] else product_id
       product_time = f'{advert_info.get("time2")}ч' if advert_info.get('time2') else ''
-      product_category_name = advert_info.get('category_name') if advert_info.get('category_name') else ''
+      product_category_name = escape_telegram_specials(advert_info.get('category_name')) if advert_info.get('category_name') else ''
       message_string = f'{position_index} \t \\({pos}\\) \t *{price}₽*, \t {product_category_name} \t {product_time} \t [{product_name}](https://www.wildberries.ru/catalog/{product_id}/detail.aspx)'
     else:
       message_string += ' возможно нет в наличии'
@@ -547,7 +547,7 @@ async def get_search_result_message(keyword, city=None):
 
 
 def check_sub(required_subs):
-    async def decorator(func):
+    def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
           message = args[0]

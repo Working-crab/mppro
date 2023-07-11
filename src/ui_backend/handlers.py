@@ -425,7 +425,7 @@ async def list_adverts_handler(message):
   
   page_size = 6
   logger.info(len(user_atrevds_data['adverts']))
-  result_msg = advert_info_message_maker(user_atrevds_data['adverts'], page_number=page_number, page_size=page_size, user=user)
+  result_msg = await advert_info_message_maker(user_atrevds_data['adverts'], page_number=page_number, page_size=page_size, user=user)
 
   total_count_adverts = user_atrevds_data['total_count']
   action = "page"
@@ -434,6 +434,8 @@ async def list_adverts_handler(message):
   chat_id_proccessing = proccesing.chat.id
   message_id_proccessing = proccesing.message_id
   await bot.delete_message(chat_id_proccessing, message_id_proccessing)
+  
+  # result_msg = result_msg.replace('>', '\\>')
 
   await bot.send_message(message.chat.id, result_msg, reply_markup=inline_keyboard, parse_mode='MarkdownV2')
 
@@ -1274,6 +1276,8 @@ async def show_my_sub(message):
 async def card_product(message, sub_name):
   user = await db_queries.get_user_by_telegram_user_id(message.chat.id)
   gtp_requests = await db_queries.get_user_gpt_requests(user_id=user.id)
+  
+  logger.warn(f"HERE {gtp_requests}")
   
   if gtp_requests >= 1:
     # цена запроса с огр на длинну 255 символов(которые вводит юзер) + * кол во на 2 + * 100 умножить(свободный)

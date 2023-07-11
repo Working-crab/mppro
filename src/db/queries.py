@@ -82,39 +82,47 @@ class db_queries:
 
     async def set_user_wb_cmp_token(telegram_user_id, wb_cmp_token):
         async with AsyncSession(engine) as session:
-            user = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
-            user = session.scalars(user).one()
-            user.wb_cmp_token = wb_cmp_token
-            await session.commit()
+            result = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
+            # logger.warn("HERE", result)
+            user = result.scalars().first()
+            
+            if user is not None:
+                user.wb_cmp_token = wb_cmp_token
+                await session.commit()
+            else:
+                print(f"User with telegram_user_id {telegram_user_id} not found")
     
     
     async def set_user_wb_v3_main_token(telegram_user_id, wb_v3_main_token):
-          async with AsyncSession(engine) as session:
-              user = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
-              user = session.scalars(user).one()
-              user.wb_v3_main_token = wb_v3_main_token
-              await session.commit()
+        async with AsyncSession(engine) as session:
+            stmt = (
+                update(User).
+                where(User.telegram_user_id == telegram_user_id).
+                values(wb_v3_main_token=wb_v3_main_token)
+        )
+            await session.execute(stmt)
+            await session.commit()
               
               
     async def get_user_wb_cmp_token(telegram_user_id):
         async with AsyncSession(engine) as session:
-            user = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
-            user = session.scalars(user).one()
+            result = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
+            user = (await session.scalars(result)).one()
             return user.wb_cmp_token
               
     
     async def set_user_x_supplier_id(telegram_user_id, x_supplier_id):
           async with AsyncSession(engine) as session:
-              user = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
-              user = session.scalars(user).one()
+              result = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
+              user = (await session.scalars(result)).one()
               user.x_supplier_id = x_supplier_id
               await session.commit()
               
     
     async def get_user_x_supplier_id(telegram_user_id):
         async with AsyncSession(engine) as session:
-            user = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
-            user = session.scalars(user).one()
+            result = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
+            user = (await session.scalars(result)).one()
             return user.x_supplier_id
 
 
@@ -124,7 +132,7 @@ class db_queries:
             campaign_id_int = int(campaign_id)
             advert = session.execute(select(Advert).where(Advert.user_id == user.id, Advert.campaign_id == campaign_id))
             
-            advert = session.scalars(advert).one()
+            advert = advert.scalars().one()
 
             if not advert:
                 advert_budget = max_bid
@@ -160,12 +168,11 @@ class db_queries:
                 return 'UPDATED'
 
 
-
     async def get_user_adverts_by_wb_ids(user_id, wb_ids):
         async with AsyncSession(engine) as session:
             result = await session.execute(select(Advert).where(Advert.user_id == user_id, Advert.campaign_id.in_(wb_ids)))
-            return session.scalars(result).all()
-        
+            return result.scalars().all()
+
 
 
     async def delete_user_advert(user, campaign_id):

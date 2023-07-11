@@ -5,8 +5,8 @@ from cache_worker.cache_worker import cache_worker
 
 class wb_categories_setup:
 
-  def start():
-    categories = wb_queries.get_all_categories()
+  async def start():
+    categories = await wb_queries.get_all_categories()
 
     categories_mapped = {}
 
