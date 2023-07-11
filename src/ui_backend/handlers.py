@@ -1276,9 +1276,7 @@ async def show_my_sub(message):
 async def card_product(message, sub_name):
   user = await db_queries.get_user_by_telegram_user_id(message.chat.id)
   gtp_requests = await db_queries.get_user_gpt_requests(user_id=user.id)
-  
-  logger.warn(f"HERE {gtp_requests}")
-  
+    
   if gtp_requests >= 1:
     # цена запроса с огр на длинну 255 символов(которые вводит юзер) + * кол во на 2 + * 100 умножить(свободный)
     await bot.send_message(message.chat.id, f'На данный момент у вас: {gtp_requests} запросов\nВведите ключевые слова для описание товара', reply_markup=edit_token_reply_markup())
@@ -1291,7 +1289,7 @@ async def card_product(message, sub_name):
 
 async def card_product_next_step_handler(message):
   user = await db_queries.get_user_by_telegram_user_id(message.chat.id)
-  
+    
   keyword = message.text
   
   if len(keyword) >= 255:
@@ -1299,7 +1297,7 @@ async def card_product_next_step_handler(message):
   
   proccesing = await bot.send_message(message.chat.id, "Обработка запроса...", reply_markup=universal_reply_markup())
   user = await db_queries.get_user_by_telegram_user_id(message.chat.id)
-  gpt_text = gpt_queries.get_card_description(user_id=user.id, prompt=keyword)
+  gpt_text = await gpt_queries.get_card_description(user_id=user.id, prompt=keyword)
   # logger.warn(gpt_text)
   
   await bot.delete_message(proccesing.chat.id, proccesing.message_id)

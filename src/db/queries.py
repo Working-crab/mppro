@@ -130,9 +130,11 @@ class db_queries:
         async with AsyncSession(engine) as session:
             
             campaign_id_int = int(campaign_id)
-            advert = session.execute(select(Advert).where(Advert.user_id == user.id, Advert.campaign_id == campaign_id))
+            result = await session.execute(select(Advert).where(Advert.user_id == user.id, Advert.campaign_id == campaign_id))
             
-            advert = advert.scalars().one()
+            advert = result.scalars().one()
+            
+            logger.warn("HERE", advert)
 
             if not advert:
                 advert_budget = max_bid
@@ -178,9 +180,9 @@ class db_queries:
     async def delete_user_advert(user, campaign_id):
         async with AsyncSession(engine) as session:
 
-            advert = session.execute(select(Advert).where(Advert.user_id == user.id, Advert.campaign_id == int(campaign_id)))
+            result = session.execute(select(Advert).where(Advert.user_id == user.id, Advert.campaign_id == int(campaign_id)))
             
-            advert = session.scalars(advert).one()
+            advert = result.scalars().one()
 
             if advert:
                 session.delete(advert)
@@ -193,7 +195,7 @@ class db_queries:
     async def get_user_adverts(user_id):
         async with AsyncSession(engine) as session:
             result = await session.execute(select(Advert).where(Advert.user_id == user_id))
-            return session.scalars(result).all()
+            return result.scalars().all()
 
 
     async def get_adverts_chunk():
@@ -485,8 +487,8 @@ class db_queries:
         
     async def edit_user_transaction(user_id, type, token_amount, request_amount):
         async with AsyncSession(engine) as session:
-            user = await session.execute(select(User).where(User.telegram_user_id == user_id))
-            user = session.scalars(user).one()
+            result = await session.execute(select(User).where(User.telegram_user_id == user_id))
+            user = result.scalars().one()
             
             add_tokens = GPT_Transaction(
                 user_id = user.id,
