@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import httpRequester from '../miscellaneous/requester.js'
 
 export const useUser = defineStore('user', {
   state: () => ({ 
@@ -12,7 +12,7 @@ export const useUser = defineStore('user', {
   actions: {
     async fetchUser(userId) {
       try {
-        const result = await axios.get(`http://127.0.0.1:8002/user/${userId}`)
+        const result = await httpRequester.get(`/user/${userId}`)
         this.user = result.data.user
       } 
       catch (error) {

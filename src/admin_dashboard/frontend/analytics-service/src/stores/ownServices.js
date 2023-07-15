@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import httpRequester from '../miscellaneous/requester.js'
 
 export const useOwnServices = defineStore('ownServices', {
   state: () => ({ 
@@ -22,7 +22,7 @@ export const useOwnServices = defineStore('ownServices', {
   actions: {
     async fetchOwnServices() {
       try {
-        const result = await axios.get('http://127.0.0.1:8002/info_own_services/')
+        const result = await httpRequester.get('/info_own_services/')
         this.ownServices = result.data.own_services
 
       } 

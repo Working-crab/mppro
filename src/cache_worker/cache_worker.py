@@ -9,6 +9,7 @@ WB_CONSTANTS = {
     'wb_cmp_token': 'WBToken',
     'wb_v3_main_token': 'wb_v3_main_token',
     'wb_supplier_id': 'x-supplier-id-external',
+    'public_api_token': 'public_api_token',
     'wb_user_id': 'X-User-Id',
     'categories': 'categories'
 }
@@ -27,6 +28,7 @@ class cache_worker:
     wb_v3_main_token    = redis_client.get(make_wb_key(user_id, 'wb_v3_main_token'))
     wb_supplier_id  = redis_client.get(make_wb_key(user_id, 'wb_supplier_id'))
     wb_user_id      = redis_client.get(make_wb_key(user_id, 'wb_user_id'))
+    # public_api_token = redis_client.get(make_wb_key(user_id, 'public_api_token'))
     # x_supplier_id      = redis_client.get(make_wb_key(user_id, 'x_supplier_id'))
 
     result = {
@@ -34,6 +36,7 @@ class cache_worker:
       'wb_supplier_id': wb_supplier_id,
       'wb_user_id': wb_user_id,
       'wb_v3_main_token' : wb_v3_main_token,
+      # 'public_api_token': public_api_token,
       # 'x_supplier_id': x_supplier_id
     }
 

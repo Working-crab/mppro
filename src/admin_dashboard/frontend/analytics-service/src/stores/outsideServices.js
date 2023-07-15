@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import httpRequester from '../miscellaneous/requester.js'
 
 export const useOutsideServices = defineStore('outsideServices', {
   state: () => ({ 
@@ -17,7 +17,7 @@ export const useOutsideServices = defineStore('outsideServices', {
   actions: {
     async fetchOutsideServices() {
       try {
-        const result = await axios.get('http://127.0.0.1:8002/testFront/')
+        const result = await httpRequester.get('/testFront/')
         this.subscription = result.data.subs
 
       } 

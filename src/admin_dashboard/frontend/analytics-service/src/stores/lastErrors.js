@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import httpRequester from '../miscellaneous/requester.js'
 
 export const useLastErrors = defineStore('lastErrors', {
   state: () => ({ 
@@ -28,7 +28,7 @@ export const useLastErrors = defineStore('lastErrors', {
   actions: {
     async fetchLastErrors() {
       try {
-        const result = await axios.get('http://127.0.0.1:8002/last_errors/')
+        const result = await httpRequester.get('/last_errors/')
         this.lastErrors = result.data.last_errors
 
       } 
@@ -40,7 +40,7 @@ export const useLastErrors = defineStore('lastErrors', {
 
     async fetchtErrorTaceback() {
       try {
-        const result = await axios.get('http://127.0.0.1:8002/testFront/')
+        const result = await httpRequester.get('/testFront/')
         this.subscription = result.data.subs
 
       } 

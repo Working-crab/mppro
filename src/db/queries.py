@@ -403,23 +403,29 @@ class db_queries:
 
 
 
-    def get_last_actions():
-        with Session(engine) as session:
-            return session.query(Action_history).order_by(Action_history.id.desc()).limit(3)
+    async def get_action_history_last_actions():
+        async with AsyncSession(engine) as session:
+            result = await session.execute(select(Action_history).order_by(Action_history.id.desc()).limit(3))
+            return result.scalars().all()
 
 
 
-    def get_last_errors():
-        with Session(engine) as session:
-            return session.query(Action_history).where(Action_history.status=='failure').order_by(Action_history.id.desc()).limit(3)
+    async def get_action_history_last_errors():
+        async with AsyncSession(engine) as session:
+            result = await session.execute(select(Action_history).where(Action_history.status=='failure').order_by(Action_history.id.desc()).limit(5))
+            return result.scalars().all()
         
 
 
-    def get_initiator_succsess_count(initiator):
+    async def get_action_history_initiator_succsess_count(initiator):
         succsses = {'err': 0, 'all_t': 0}
-        with Session(engine) as session:
-            succsses['all_t'] = session.query(Action_history).where(Action_history.initiator==initiator).count()
-            succsses['err'] = session.query(Action_history).where(Action_history.initiator==initiator, Action_history.status=='failure').count()
+        async with AsyncSession(engine) as session:
+            result1 = await session.execute(select(func.count(Action_history.id)).where(Action_history.initiator==initiator))
+            succsses['all_t'] = result1.scalars().one()
+
+            result2 = await session.execute(select(func.count(Action_history.id)).where(Action_history.initiator==initiator, Action_history.status=='failure'))
+            succsses['err'] = result2.scalars().one()
+
         return succsses
 
 

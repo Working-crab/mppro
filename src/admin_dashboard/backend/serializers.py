@@ -25,10 +25,10 @@ class User(BaseModel):
   id: int
   telegram_user_id: int
   telegram_chat_id: int
-  telegram_username: str
-  wb_v3_main_token: str
-  wb_cmp_token: str
-  x_supplier_id: str
+  telegram_username: str = None
+  wb_v3_main_token: str = None
+  wb_cmp_token: str = None
+  x_supplier_id: str = None
 
   class Config:
     orm_mode = True

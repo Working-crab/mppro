@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import httpRequester from '../miscellaneous/requester.js'
 
 export const useLastActions = defineStore('lastActions', {
   state: () => ({ 
@@ -13,7 +13,7 @@ export const useLastActions = defineStore('lastActions', {
   actions: {
     async fetchLastActions() {
       try {
-        const result = await axios.get('http://127.0.0.1:8002/last_actons/')
+        const result = await httpRequester.get('/last_actons/')
         this.lastActions = result.data.last_actions
       } 
       catch (error) {

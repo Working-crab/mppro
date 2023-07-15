@@ -1,5 +1,8 @@
 'use strict';
 
+const path = require('path');
+const dir = path.normalize(path.join(path.dirname(module.filename), '..'));
+
 const defaults = {
   name: 'SET ME UP',
   script: 'SET ME UP',
@@ -24,7 +27,7 @@ module.exports = {
       autorestart: true,
       cron_restart: '*/5 * * * *',
       name: 'ui_backend',
-      script: 'venv/bin/python3 -m uvicorn ui_backend.main:app --reload',
+      script: 'venv/bin/python3 -m uvicorn ui_backend.main:app --port 8000',
       log_file: 'logs/pm2/ui_backend.log',
       interpreter: undefined,
       env: {
@@ -72,6 +75,37 @@ module.exports = {
         MONITORING_INITIATOR: 'user_automation',
       },
     },
+
+    // admin_dashboard_monitoring
+    {
+      name: 'admin_dashboard_monitoring_frontend',
+      script: 'serve',
+      exec_mode: 'cluster',
+      instances: 2,
+      wait_ready: true,
+      kill_timeout: 120000,
+      watch: false,
+      cwd: dir,
+      env: {
+        NODE_PATH: path.join(dir, 'src/admin_dashboard/frontend/analytics-service'),
+        PM2_SERVE_PATH: path.join(dir, 'src/admin_dashboard/frontend/analytics-service/dist/'),
+        PM2_SERVE_PORT: 3002,
+        PM2_SERVE_SPA: 'true',
+        PM2_SERVE_HOMEPAGE: '/index.html'
+      },
+    },
+    {
+      ...defaults,
+      name: 'admin_dashboard_monitoring_backend',
+      script: 'venv/bin/python3 -m uvicorn admin_dashboard.backend.main:app --port 8001',
+      log_file: 'logs/pm2/admin_dashboard_monitoring_backend.log',
+      interpreter: undefined,
+      env: {
+        PYTHONPATH: 'src/',
+        MONITORING_INITIATOR: 'admin_dashboard_monitoring_backend',
+      },
+    },
+
     // { TODO: Refactor
     //   ...defaults,
     //   name: 'mq_campaign_info_consumer',

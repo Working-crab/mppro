@@ -21,7 +21,7 @@ CONSTS = {
 }
 
 class wb_queries:
-  async def get_base_tokens(user, check=False):
+  async def get_base_tokens(user, check=None):
     user_wb_tokens = cache_worker.get_user_wb_tokens(user.id)
     
     if user.wb_cmp_token:
@@ -47,7 +47,7 @@ class wb_queries:
     #   user_wb_tokens = await wb_queries.reset_base_tokens(user)
       
     if check:
-      user_wb_tokens = await wb_queries.reset_base_tokens(user)
+      user_wb_tokens = await wb_queries.reset_base_tokens(user, check)
 
     return user_wb_tokens
   
@@ -112,7 +112,7 @@ class wb_queries:
       return output
 
 
-  async def reset_base_tokens(user, token_cmp=None, token_main_v3=None, public_api_token=None):
+  async def reset_base_tokens(user, token_cmp=None, token_main_v3=None, public_api_token=None, check=None):
 
       user_wb_tokens = {}
       user_wb_tokens['wb_cmp_token'] = ""
@@ -153,43 +153,47 @@ class wb_queries:
 
       # logger_token.warn('cookies, headers', cookies, headers)
       logger.warn("user_wb_tokens", user_wb_tokens)
-      if user_wb_tokens['public_api_token']:
-        check = await wb_queries.wb_query(method='get', url='https://advert-api.wb.ru/adv/v0/count', headers=headers)
+      if check == "public_api_token" or public_api_token:
+        if user_wb_tokens['public_api_token'] or (public_api_token and token_cmp == None and token_main_v3 == None):
+          verif = await wb_queries.wb_query(method='get', url='https://advert-api.wb.ru/adv/v0/count', headers=headers)
 
-        if not "all" in check:
-          raise Exception('Ошибка валидации Public API Token!')
-              
-      if user_wb_tokens['wb_v3_main_token'] or (token_main_v3 and token_cmp == None):
+          if not "all" in verif:
+            raise Exception('Ошибка валидации Public API Token!')
+      '''
+      if user_wb_tokens['wb_v3_main_token'] and (token_main_v3 and token_cmp == None and public_api_token == None):
         auth_result = await wb_queries.wb_query(method='POST', url='https://cmp.wildberries.ru/passport/api/v2/auth/wild_v3_upgrade', cookies={'WILDAUTHNEW_V3': user_wb_tokens['wb_v3_main_token']}, data="{}", user_id=user.id)
         
         if not auth_result or not "Set-Cookie" in auth_result:
           raise Exception('Неверный токен!')
         
-        cmp_token = await db_queries.get_user_wb_cmp_token(user.telegram_user_id)    
+        cmp_token = await db_queries.get_user_wb_cmp_token(user.telegram_user_id)
         cookies['WBToken'] = auth_result['Set-Cookie'].replace('WBToken=', '').split(";")[0]
               
         if cmp_token != cookies['WBToken']:
           await db_queries.set_user_wb_cmp_token(telegram_user_id=user.telegram_user_id, wb_cmp_token=cookies['WBToken'])
-    
-      introspect_result = await wb_queries.wb_query(method='GET', url='https://cmp.wildberries.ru/passport/api/v2/auth/introspect', cookies=cookies, headers=headers)
-      
-      if not introspect_result or not 'sessionID' in introspect_result or not 'userID' in introspect_result:
-        print(f'{datetime.now()} \t reset_base_tokens \t introspect error! \t {introspect_result}')
-        raise Exception('Неверный токен!')
+      '''        
+      if check == "cmp_token" or token_cmp:
+        if user_wb_tokens['wb_cmp_token'] or (token_cmp and public_api_token == None and token_main_v3 == None):
+          
+          introspect_result = await wb_queries.wb_query(method='GET', url='https://cmp.wildberries.ru/passport/api/v2/auth/introspect', cookies=cookies, headers=headers)
+        
+          if not introspect_result or not 'sessionID' in introspect_result or not 'userID' in introspect_result:
+            print(f'{datetime.now()} \t reset_base_tokens \t introspect error! \t {introspect_result}')
+            raise Exception('Неверный токен!')
 
-      user_wb_tokens['wb_cmp_token']  = introspect_result['sessionID']
-      user_wb_tokens['wb_user_id']    = introspect_result['userID']
+          user_wb_tokens['wb_cmp_token']  = introspect_result['sessionID']
+          user_wb_tokens['wb_user_id']    = introspect_result['userID']
 
-      cookies['WBToken']              = introspect_result['sessionID']
-      headers['X-User-Id']            = str(introspect_result['userID'])
-      logger.warn(introspect_result)
+          cookies['WBToken']              = introspect_result['sessionID']
+          headers['X-User-Id']            = str(introspect_result['userID'])
+          logger.warn(introspect_result)
 
-      supplier_result = await wb_queries.wb_query(method='GET', url='https://cmp.wildberries.ru/backend/api/v3/supplier', cookies=cookies, headers=headers)
-      user_wb_tokens['wb_supplier_id'] = supplier_result['supplier']['id']
-      
-      cache_worker.set_user_wb_tokens(user.id, user_wb_tokens)
+          supplier_result = await wb_queries.wb_query(method='GET', url='https://cmp.wildberries.ru/backend/api/v3/supplier', cookies=cookies, headers=headers)
+          user_wb_tokens['wb_supplier_id'] = supplier_result['supplier']['id']
+          
+          cache_worker.set_user_wb_tokens(user.id, user_wb_tokens)
 
-      logger_token.info(f'\t reset_base_tokens \t User id: {user.id} \t New tokens: {str(user_wb_tokens)}')
+          logger_token.info(f'\t reset_base_tokens \t User id: {user.id} \t New tokens: {str(user_wb_tokens)}')
 
       return user_wb_tokens
 

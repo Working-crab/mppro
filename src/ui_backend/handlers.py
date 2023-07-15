@@ -312,7 +312,7 @@ async def management_tokens(message):
 async def token_cmp_handler(message):
   try:
     user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
-    user_wb_tokens = await wb_queries.get_base_tokens(user, check=True)
+    user_wb_tokens = await wb_queries.get_base_tokens(user, check="cmp_token")
   except Exception as e:
     logger.warn(e)
     await bot.send_message(message.chat.id, f'WBToken *Не найден* либо *Просрочен*\nНапишите новый токен, если хотите добавить/исправить токен', parse_mode="MarkdownV2", reply_markup=edit_token_reply_markup())
@@ -366,7 +366,7 @@ async def set_token_cmp_handler(message):
   await bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
   await db_queries.add_action_history(user_id=user.id, action="Токен", action_description=f"Был установлен cmp Token: '{clear_token}'")
   
-
+'''
 async def wb_v3_main_token_handler(message):
   try:
     user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
@@ -400,12 +400,12 @@ async def set_wb_v3_main_token_handler(message):
   await db_queries.set_user_wb_v3_main_token(telegram_user_id=message.from_user.id, wb_v3_main_token=clear_token)
   await bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
   await db_queries.add_action_history(user_id=user.id, action="Токен", action_description=f"Был установлен V3 Main Token: '{clear_token}'")
-
+'''
 
 async def public_api_token_handler(message):
   try:
     user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
-    user_public_api_token = await wb_queries.get_base_tokens(user, check=True)
+    user_public_api_token = await wb_queries.get_base_tokens(user, check='public_api_token')
   except Exception as e:
     logger.warn(e)
     await bot.send_message(message.chat.id, f'Public API Token *Не найден* либо *Просрочен*\nНапишите новый токен, если хотите добавить/исправить токен', parse_mode="MarkdownV2", reply_markup=edit_token_reply_markup())
@@ -425,7 +425,7 @@ async def set_public_api_token(message):
 
   logger.warn(clear_token)
   try:
-    await wb_queries.reset_base_tokens(user, token_cmp=None, token_main_v3=None, public_api_token=clear_token)
+    await wb_queries.reset_base_tokens(user, public_api_token=clear_token)
   except Exception as e:
     if str(e) == 'Неверный токен!':
       await bot.send_message(message.chat.id, 'Неверный токен\!', reply_markup=universal_reply_markup())
@@ -1405,7 +1405,7 @@ step_map = {
   },
   'Manage_tokens': {
     'WBToken': token_cmp_handler,
-    'WildAuthNewV3': wb_v3_main_token_handler,
+    # 'WildAuthNewV3': wb_v3_main_token_handler,
     'x_supplier_id': x_supplier_id_handler,
     'PublicAPIToken': public_api_token_handler,
     'Назад' : menu_back_token,
@@ -1414,10 +1414,10 @@ step_map = {
     'default': set_token_cmp_handler,
     'Назад' : menu_back_selected_token,
   },
-  'Wb_v3_main_token_edit': {
-    'default': set_wb_v3_main_token_handler,
-    'Назад' : menu_back_selected_token,
-  },
+  # 'Wb_v3_main_token_edit': {
+  #   'default': set_wb_v3_main_token_handler,
+  #   'Назад' : menu_back_selected_token,
+  # },
   'public_api_token_edit': {
     'default': set_public_api_token,
     'Назад': menu_back_selected_token,
