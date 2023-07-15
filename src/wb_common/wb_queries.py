@@ -38,6 +38,11 @@ class wb_queries:
       user_wb_tokens['x_supplier_id'] = user.x_supplier_id
     else:
       user_wb_tokens['x_supplier_id'] = ""
+      
+    if user.public_api_token:
+      user_wb_tokens['public_api_token'] = user.public_api_token
+    else:
+      user_wb_tokens['public_api_token'] = ""
     # if not user_wb_tokens['wb_user_id'] or not user_wb_tokens['wb_supplier_id']:
     #   user_wb_tokens = await wb_queries.reset_base_tokens(user)
       
@@ -107,11 +112,12 @@ class wb_queries:
       return output
 
 
-  async def reset_base_tokens(user, token_cmp=None, token_main_v3=None):
+  async def reset_base_tokens(user, token_cmp=None, token_main_v3=None, public_api_token=None):
 
       user_wb_tokens = {}
       user_wb_tokens['wb_cmp_token'] = ""
       user_wb_tokens['wb_v3_main_token'] = ""
+      user_wb_tokens['public_api_token'] = ""
       
       user_wb_tokens['wb_cmp_token'] = user.wb_cmp_token
       
@@ -123,6 +129,12 @@ class wb_queries:
         
       if token_main_v3:
         user_wb_tokens['wb_v3_main_token'] = token_main_v3
+        
+      if user.public_api_token != None or user.public_api_token != "":
+        user_wb_tokens['public_api_token'] = user.public_api_token
+        
+      if public_api_token:
+        user_wb_tokens['public_api_token'] = public_api_token
         
       logger.warn(user_wb_tokens['wb_v3_main_token'])  
 
@@ -136,9 +148,16 @@ class wb_queries:
       headers = {
         'Referer': CONSTS['Referer_async default'],
         'User-Agent': CONSTS['User-Agent'],
+        'Authorization': user_wb_tokens['public_api_token'],
       }
 
       # logger_token.warn('cookies, headers', cookies, headers)
+      logger.warn("user_wb_tokens", user_wb_tokens)
+      if user_wb_tokens['public_api_token']:
+        check = await wb_queries.wb_query(method='get', url='https://advert-api.wb.ru/adv/v0/count', headers=headers)
+
+        if not "all" in check:
+          raise Exception('Ошибка валидации Public API Token!')
               
       if user_wb_tokens['wb_v3_main_token'] or (token_main_v3 and token_cmp == None):
         auth_result = await wb_queries.wb_query(method='POST', url='https://cmp.wildberries.ru/passport/api/v2/auth/wild_v3_upgrade', cookies={'WILDAUTHNEW_V3': user_wb_tokens['wb_v3_main_token']}, data="{}", user_id=user.id)

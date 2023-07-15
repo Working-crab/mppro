@@ -18,6 +18,7 @@ class User(Base):
     wb_v3_main_token = Column(String(2048))
     wb_cmp_token = Column(String(2048))
     x_supplier_id = Column(String(2048))
+    public_api_token = Column(String(2048))
 
     time_created = Column(DateTime(timezone=True), server_default=func.now())
     time_updated = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

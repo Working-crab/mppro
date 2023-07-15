@@ -402,6 +402,42 @@ async def set_wb_v3_main_token_handler(message):
   await db_queries.add_action_history(user_id=user.id, action="Токен", action_description=f"Был установлен V3 Main Token: '{clear_token}'")
 
 
+async def public_api_token_handler(message):
+  try:
+    user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
+    user_public_api_token = await wb_queries.get_base_tokens(user, check=True)
+  except Exception as e:
+    logger.warn(e)
+    await bot.send_message(message.chat.id, f'Public API Token *Не найден* либо *Просрочен*\nНапишите новый токен, если хотите добавить/исправить токен', parse_mode="MarkdownV2", reply_markup=edit_token_reply_markup())
+    return set_user_session_step(message, 'public_api_token_edit')
+  
+  if user_public_api_token["public_api_token"] == None or user_public_api_token["public_api_token"] == "":
+    await bot.send_message(message.chat.id, f'Public API Token *Не найден* либо *Просрочен*\nНапишите новый токен, если хотите добавить/исправить токен', parse_mode="MarkdownV2", reply_markup=edit_token_reply_markup())
+    return set_user_session_step(message, 'public_api_token_edit')
+  else:
+    await bot.send_message(message.chat.id, f'Public API Token: {user_public_api_token["public_api_token"]}\nНа данный момент он Активен\nНапишите новый токен, если хотите изменить', reply_markup=edit_token_reply_markup())
+  set_user_session_step(message, 'public_api_token_edit')
+    
+
+async def set_public_api_token(message):
+  clear_token = message.text.replace('/set_public_api_token ', '').strip()
+  user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
+
+  logger.warn(clear_token)
+  try:
+    await wb_queries.reset_base_tokens(user, token_cmp=None, token_main_v3=None, public_api_token=clear_token)
+  except Exception as e:
+    if str(e) == 'Неверный токен!':
+      await bot.send_message(message.chat.id, 'Неверный токен\!', reply_markup=universal_reply_markup())
+      return
+    raise e
+
+  # message.user_session['update_v3_main_token'] = str(datetime.now())
+  await db_queries.set_user_public_api_token(telegram_user_id=message.from_user.id, public_api_token=clear_token)
+  await bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
+  await db_queries.add_action_history(user_id=user.id, action="Токен", action_description=f"Был установлен Public API Token: '{clear_token}'")
+
+
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Ветка "Список рекламных компаний" --------------------------------------------------------------------------------------------------------------
@@ -1371,6 +1407,7 @@ step_map = {
     'WBToken': token_cmp_handler,
     'WildAuthNewV3': wb_v3_main_token_handler,
     'x_supplier_id': x_supplier_id_handler,
+    'PublicAPIToken': public_api_token_handler,
     'Назад' : menu_back_token,
   },
   'Wb_cmp_token_edit': {
@@ -1380,6 +1417,10 @@ step_map = {
   'Wb_v3_main_token_edit': {
     'default': set_wb_v3_main_token_handler,
     'Назад' : menu_back_selected_token,
+  },
+  'public_api_token_edit': {
+    'default': set_public_api_token,
+    'Назад': menu_back_selected_token,
   },
   'x_supplier_id_edit': {
     'default': set_x_supplier_id_handler,

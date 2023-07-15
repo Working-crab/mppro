@@ -124,6 +124,21 @@ class db_queries:
             result = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
             user = (await session.scalars(result)).one()
             return user.x_supplier_id
+        
+        
+    async def set_user_public_api_token(telegram_user_id, public_api_token):
+          async with AsyncSession(engine) as session:
+              result = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
+              user = result.scalars().one()
+              user.public_api_token = public_api_token
+              await session.commit()
+              
+              
+    async def get_user_public_api_token(telegram_user_id):
+        async with AsyncSession(engine) as session:
+            result = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
+            user = result.scalars().one()
+            return user.public_api_token
 
 
     async def add_user_advert(user,  campaign_id,  max_bid=None, status='ON', place=None):

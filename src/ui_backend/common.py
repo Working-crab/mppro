@@ -190,11 +190,11 @@ def management_tokens_reply_markup():
   markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
   btn_wbtoken = types.KeyboardButton(text='WBToken')
-  # btn_wildauthnewV3 = types.KeyboardButton(text='WildAuthNewV3')
+  btn_public_api_token = types.KeyboardButton(text='PublicAPIToken')
   btn_x_supplier_id = types.KeyboardButton(text='x_supplier_id')
   btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
 # btn_wildauthnewV3
-  markup_inline.add(btn_wbtoken, btn_x_supplier_id)
+  markup_inline.add(btn_wbtoken, btn_public_api_token, btn_x_supplier_id)
   markup_inline.add(btn_back)
     
   return markup_inline
