@@ -25,7 +25,7 @@ async def get_last_actions():
   last_actions = await db_queries.get_action_history_last_actions()
   last_actions_q = list(last_actions)
   list_last_actions = ActionList.from_orm(last_actions_q).dict()
-  list_last_actions["__root__"].reverse()
+  list_last_actions["__root__"]
   return {'last_actions': list_last_actions['__root__']}
 
 @app.get("/last_errors/")
@@ -33,7 +33,7 @@ async def get_last_actions():
   last_errors = await db_queries.get_action_history_last_errors()
   last_errors_q = list(last_errors)
   list_last_errors = ActionList.from_orm(last_errors_q).dict()
-  list_last_errors["__root__"].reverse()
+  list_last_errors["__root__"]
   return {'last_errors': list_last_errors['__root__']}
 
 @app.get("/info_own_services/")
