@@ -51,7 +51,7 @@ export default {
 <style scoped>
 .service-workload{
   height: 360px;
-  width: 700px;
+  width: 720px;
   margin: 10px;
   box-shadow: 2px 2px 5px black;
   /* border-radius: 3px; */
