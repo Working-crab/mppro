@@ -17,16 +17,15 @@ logger = appLogger.getLogger(__name__)
 # Команды бота -------------------------------------------------------------------------------------------------------
 @bot.message_handler(commands=['start'])
 async def start(message):
-    get_user = db_queries.get_user_by_telegram_user_id(telegram_user_id=message.from_user.id)
+    get_user = await db_queries.get_user_by_telegram_user_id(telegram_user_id=message.from_user.id)
     if not get_user:
-        db_queries.create_user(telegram_user_id=message.from_user.id, telegram_chat_id=message.chat.id, telegram_username=message.from_user.username)
-        markup_inline = universal_reply_markup(user_id=message.from_user.id)
+        await db_queries.create_user(telegram_user_id=message.from_user.id, telegram_chat_id=message.chat.id, telegram_username=message.from_user.username)
 
         # queue_message_sync(
         #   message
         # )
 
-        await bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}, вы зарегистрировались в *{await bot.get_me().username}*', parse_mode='Markdown', reply_markup=markup_inline)
+        await bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}, вы зарегистрировались в *{await bot.get_me().username}*', parse_mode='Markdown', reply_markup=universal_reply_markup(user_id=message.from_user.id))
         await bot.send_message(message.chat.id, f'Так как вы только зарегистрировались, предлагаем Вам *Старт* подписку на нашего бота', parse_mode='Markdown', reply_markup=reply_markup_trial(trial=False))
     else:
         await bot.send_message(message.chat.id, f'Вы уже зарегистрированы')

@@ -65,7 +65,7 @@ class wb_queries:
               
               if response.status != 200:
                 logger.warn(f"In while {attempt}")
-                await asyncio.sleep(3)
+                await asyncio.sleep(4)
                 logger.warn(response.status)
               elif response.status == 200:
                 try:
@@ -112,7 +112,7 @@ class wb_queries:
       return output
 
 
-  async def reset_base_tokens(user, token_cmp=None, token_main_v3=None, public_api_token=None, check=None):
+  async def reset_base_tokens(user, check=None, token_cmp=None, token_main_v3=None, public_api_token=None):
 
       user_wb_tokens = {}
       user_wb_tokens['wb_cmp_token'] = ""
@@ -123,6 +123,8 @@ class wb_queries:
       
       if user.x_supplier_id:
         user_wb_tokens['x_supplier_id'] = user.x_supplier_id
+      else:
+        raise Exception("wb_query x_supplier_id Отсутствует!")
       
       if token_cmp:
         user_wb_tokens['wb_cmp_token'] = token_cmp
@@ -148,34 +150,25 @@ class wb_queries:
       headers = {
         'Referer': CONSTS['Referer_async default'],
         'User-Agent': CONSTS['User-Agent'],
-        'Authorization': user_wb_tokens['public_api_token'],
+        # 'Authorization': user_wb_tokens['public_api_token'],
       }
+      if user_wb_tokens['public_api_token']:
+        headers['Authorization'] = user_wb_tokens['public_api_token']
 
       # logger_token.warn('cookies, headers', cookies, headers)
-      logger.warn("user_wb_tokens", user_wb_tokens)
-      if check == "public_api_token" or public_api_token:
+      logger.warn(f"check {check}")
+      if check == 'public_api_token' or public_api_token:
         if user_wb_tokens['public_api_token'] or (public_api_token and token_cmp == None and token_main_v3 == None):
           verif = await wb_queries.wb_query(method='get', url='https://advert-api.wb.ru/adv/v0/count', headers=headers)
 
           if not "all" in verif:
             raise Exception('Ошибка валидации Public API Token!')
-      '''
-      if user_wb_tokens['wb_v3_main_token'] and (token_main_v3 and token_cmp == None and public_api_token == None):
-        auth_result = await wb_queries.wb_query(method='POST', url='https://cmp.wildberries.ru/passport/api/v2/auth/wild_v3_upgrade', cookies={'WILDAUTHNEW_V3': user_wb_tokens['wb_v3_main_token']}, data="{}", user_id=user.id)
-        
-        if not auth_result or not "Set-Cookie" in auth_result:
-          raise Exception('Неверный токен!')
-        
-        cmp_token = await db_queries.get_user_wb_cmp_token(user.telegram_user_id)
-        cookies['WBToken'] = auth_result['Set-Cookie'].replace('WBToken=', '').split(";")[0]
-              
-        if cmp_token != cookies['WBToken']:
-          await db_queries.set_user_wb_cmp_token(telegram_user_id=user.telegram_user_id, wb_cmp_token=cookies['WBToken'])
-      '''        
-      if check == "cmp_token" or token_cmp:
+      
+          
+      elif check == "cmp_token" or token_cmp:
         if user_wb_tokens['wb_cmp_token'] or (token_cmp and public_api_token == None and token_main_v3 == None):
           
-          introspect_result = await wb_queries.wb_query(method='GET', url='https://cmp.wildberries.ru/passport/api/v2/auth/introspect', cookies=cookies, headers=headers)
+          introspect_result = await wb_queries.wb_query(method='GET', url='https://cmp.wildberries.ru/passport/api/v2/auth/introspect', cookies=cookies, headers=headers, user_id=user.id)
         
           if not introspect_result or not 'sessionID' in introspect_result or not 'userID' in introspect_result:
             print(f'{datetime.now()} \t reset_base_tokens \t introspect error! \t {introspect_result}')
@@ -194,6 +187,20 @@ class wb_queries:
           cache_worker.set_user_wb_tokens(user.id, user_wb_tokens)
 
           logger_token.info(f'\t reset_base_tokens \t User id: {user.id} \t New tokens: {str(user_wb_tokens)}')
+      '''
+      if user_wb_tokens['wb_v3_main_token'] and (token_main_v3 and token_cmp == None and public_api_token == None):
+        auth_result = await wb_queries.wb_query(method='POST', url='https://cmp.wildberries.ru/passport/api/v2/auth/wild_v3_upgrade', cookies={'WILDAUTHNEW_V3': user_wb_tokens['wb_v3_main_token']}, data="{}", user_id=user.id)
+        
+        if not auth_result or not "Set-Cookie" in auth_result:
+          raise Exception('Неверный токен!')
+        
+        cmp_token = await db_queries.get_user_wb_cmp_token(user.telegram_user_id)
+        cookies['WBToken'] = auth_result['Set-Cookie'].replace('WBToken=', '').split(";")[0]
+              
+        if cmp_token != cookies['WBToken']:
+          await db_queries.set_user_wb_cmp_token(telegram_user_id=user.telegram_user_id, wb_cmp_token=cookies['WBToken'])
+      '''        
+      
 
       return user_wb_tokens
 

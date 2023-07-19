@@ -7,11 +7,11 @@ import requests
 from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
 
-class wb_queries:
+class wb_api_queries:
   def get_base_tokens(user):
     user_wb_tokens = cache_worker.get_user_wb_tokens(user.id)
     if not user_wb_tokens['wb_cmp_token']:
-      user_wb_tokens = wb_queries.reset_base_tokens(user)
+      user_wb_tokens = wb_api_queries.reset_base_tokens(user)
 
     return user_wb_tokens
 
@@ -56,7 +56,7 @@ class wb_queries:
 
 
   def search_adverts_by_keyword(keyword):
-    res = wb_queries.wb_query(method="get", url=f'https://catalog-ads.wildberries.ru/api/v5/search?keyword={keyword}')
+    res = wb_api_queries.wb_query(method="get", url=f'https://catalog-ads.wildberries.ru/api/v5/search?keyword={keyword}')
     res = res['adverts'][0:10] if res.get('adverts') is not None else []
     result = []
     for advert in res:
@@ -69,11 +69,11 @@ class wb_queries:
 
 
   def get_campaign_info(user, campaign):
-    user_wb_tokens = wb_queries.get_base_tokens(user)
+    user_wb_tokens = wb_api_queries.get_base_tokens(user)
     request_url = f'https://advert-api.wb.ru/adv/v0/advert?id={campaign.campaign_id}'
-    req_params = wb_queries.get_base_request_params(user_wb_tokens)
+    req_params = wb_api_queries.get_base_request_params(user_wb_tokens)
 
-    result = wb_queries.wb_query(method="get", url=request_url, headers=req_params['headers'])
+    result = wb_api_queries.wb_query(method="get", url=request_url, headers=req_params['headers'])
 
     if 'params' in result and len(result['params']) == 0:
       raise Exception('wb не вернул данные get_campaign_info')
@@ -88,9 +88,9 @@ class wb_queries:
 
 
   def set_campaign_bid(user, campaign, campaign_info, new_bid, approximate_place):
-    user_wb_tokens = wb_queries.get_base_tokens(user)
+    user_wb_tokens = wb_api_queries.get_base_tokens(user)
     request_url = f'https://advert-api.wb.ru/adv/v0/cpm'
-    req_params = wb_queries.get_base_request_params(user_wb_tokens)
+    req_params = wb_api_queries.get_base_request_params(user_wb_tokens)
 
     request_body = {
       "advertId": campaign.campaign_id,
@@ -99,7 +99,7 @@ class wb_queries:
       "param": 0
     }
 
-    result = wb_queries.wb_query(method="post", url=request_url, headers=req_params['headers'],
+    result = wb_api_queries.wb_query(method="post", url=request_url, headers=req_params['headers'],
       data=json.dumps(request_body)
     )
 
@@ -111,16 +111,17 @@ class wb_queries:
     
   def get_user_atrevds(req_params):
 
-    user_atrevds = wb_queries.wb_query(method="get", url='https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate', cookies=req_params['cookies'], headers=req_params['headers'])
-    view = user_atrevds['content']
+    user_atrevds = wb_api_queries.wb_query(method="get", url='https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate', cookies=req_params['cookies'], headers=req_params['headers'])
+    # view = user_atrevds['content']
+    view = {'adverts': user_atrevds['content'], 'total_count': user_atrevds['counts']['totalCount']}
     return view
 
   def get_budget(user, campaign):
-    user_wb_tokens = wb_queries.get_base_tokens(user)
+    user_wb_tokens = wb_api_queries.get_base_tokens(user)
     custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
-    req_params = wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
+    req_params = wb_api_queries.get_base_request_params(user_wb_tokens, custom_referer)
 
-    r = wb_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/budget',
+    r = wb_api_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/budget',
     cookies=req_params['cookies'],
     headers=req_params['headers']
     )

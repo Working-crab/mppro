@@ -23,6 +23,7 @@ from ui_backend.common import (edit_token_reply_markup, format_requests_count, m
 from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
+from wb_common.wb_api_try import wb_api_queries
 from datetime import datetime, timedelta
 from cache_worker.cache_worker import cache_worker
 from kafka_dir.general_publisher import queue_message_async
@@ -405,7 +406,7 @@ async def set_wb_v3_main_token_handler(message):
 async def public_api_token_handler(message):
   try:
     user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
-    user_public_api_token = await wb_queries.get_base_tokens(user, check='public_api_token')
+    user_public_api_token = await wb_queries.get_base_tokens(user, check="public_api_token")
   except Exception as e:
     logger.warn(e)
     await bot.send_message(message.chat.id, f'Public API Token *Не найден* либо *Просрочен*\nНапишите новый токен, если хотите добавить/исправить токен', parse_mode="MarkdownV2", reply_markup=edit_token_reply_markup())
@@ -456,7 +457,12 @@ async def list_adverts_handler(message):
   page_number = 1
   
   # user_atrevds_data = await wb_queries.get_user_atrevds(req_params, page_number)  try:
-  user_atrevds_data = await wb_queries.get_user_atrevds(req_params, user_id=message.from_user.id)
+  # if user.public_api_token:
+  #   logger.warn("HERE")
+  #   user_atrevds_data = await wb_api_queries.get_user_atrevds(req_params, user_id=message.from_user.id)
+  # else:
+  user_atrevds_data = await wb_queries.get_user_atrevds(req_params, user_id=message.from_user.id) 
+  
 
   
   page_size = 6
@@ -482,7 +488,9 @@ async def kek(data):
   await bot.edit_message_text('Вайлдберис старается 🔄', data.message.chat.id, data.message.id, parse_mode='MarkdownV2')
   type_of_callback, page_number, user_id = data.data.split(':') # parameters = [type_of_callback, page_number, user_id]
   page_number = int(page_number)
-  user = await db_queries.get_user_by_telegram_user_id(user_id)
+  logger.warn(f"before {user_id}")
+  user = await db_queries.get_user_by_telegram_user_id(telegram_user_id=user_id)
+  logger.warn(f"user {user}")
   user_wb_tokens = await wb_queries.get_base_tokens(user)
   req_params = await wb_queries.get_base_request_params(user_wb_tokens)
   
@@ -490,7 +498,7 @@ async def kek(data):
   user_atrevds_data = await wb_queries.get_user_atrevds(req_params)
 
   page_size = 6
-  result_msg = advert_info_message_maker(user_atrevds_data['adverts'], page_number=page_number, page_size=page_size, user=user)
+  result_msg = await advert_info_message_maker(user_atrevds_data['adverts'], page_number=page_number, page_size=page_size, user=user)
 
   total_count = user_atrevds_data['total_count']
   action = "page"
@@ -1147,8 +1155,6 @@ async def adv_settings_switch_off_word(message):
       await bot.send_message(message.chat.id, f"Произошла ошибка при изменении статуса фиксированных фраз, попробуйте еще раз", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
     
   
-  
-  
 async def adv_settings_switch_status(message):
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
   
@@ -1158,6 +1164,9 @@ async def adv_settings_switch_status(message):
   campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   
   # try:
+  # if campaign_user.public_api_token:
+    # status = await wb_api_queries.get_campaign_info(campaign_user, campaign)
+  # else:
   status = await wb_queries.get_campaign_info(campaign_user, campaign)
   # except:
   #   return await bot.send_message(message.chat.id, f"Произошла ошибка при получении *Статуса* на стороне WB, попробуйте позже", parse_mode="MarkdownV2")
@@ -1233,20 +1242,19 @@ async def add_budget_next_step_handler(message):
   try:
     check = await wb_queries.add_budget(campaign_user, campaign, amount)
     logger.warn("After check")
-    if check.raise_for_status and check.status_code == 429:
-      return await bot.send_message(message.chat.id, f'Не удалось пополнить бюджет рекламной компании, попробуйте еще раз', parse_mode="MarkdownV2")
-    else:  
-      budget2 = await wb_queries.get_budget(campaign_user, campaign)['Бюджет компании']
-      budget2 = budget2['Бюджет компании']
-      logger.warn("After budget")
-      if budget2 == None:
-        return await bot.send_message(message.chat.id, f'WB не вернул бюджет, попробуйте посмотреть изменение бюджета, нажав повторно кнопку \"Пополнить бюджет\"', parse_mode="MarkdownV2")
+    budget2 = await wb_queries.get_budget(campaign_user, campaign)
+    budget2 = budget2['Бюджет компании']
+    logger.warn("After budget")
+    if budget2 == None:
+      return await bot.send_message(message.chat.id, f'WB не вернул бюджет, попробуйте посмотреть изменение бюджета, нажав повторно кнопку \"Пополнить бюджет\"', parse_mode="MarkdownV2")
+    else:
+      if budget == budget2:
+        return await bot.send_message(message.chat.id, f'Не удалось пополнить бюджет рекламной компании, попробуйте еще раз', parse_mode="MarkdownV2")
       else:
-        if budget == budget2:
-          return await bot.send_message(message.chat.id, f'Не удалось пополнить бюджет рекламной компании, попробуйте еще раз', parse_mode="MarkdownV2")
-        else:
-          return await bot.send_message(message.chat.id, f'Был успешно пополнен бюджет компании на {amount} ₽\nТекущий бюджет: {budget2} ₽', parse_mode="MarkdownV2")
-  except:
+        return await bot.send_message(message.chat.id, f'Был успешно пополнен бюджет компании на {amount} ₽\nТекущий бюджет: {budget2} ₽', parse_mode="MarkdownV2")
+  except Exception as e:
+    logger.warn("HERE")
+    logger.warn(e)
     await bot.send_message(message.chat.id, f'На стороне вб произошла ошибка, попробуйте ещё раз чуть позже', parse_mode="MarkdownV2")
     
     
