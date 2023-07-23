@@ -119,7 +119,15 @@ async def message_handler(message):
         message = 'Произошла ошибка валидации токена! Возможно срок его действия истек, попробуйте перезагрузить токен!'
       )
       return
-        
+    
+    if 'Произошла ошибка' in str(e):
+      await queue_message_async(
+        topic = 'telegram_message_sender',
+        destination_id = message.chat.id,
+        message = 'Произошла ошибка в формировании запроса, обратитесь к Разработчику'
+      )
+      return
+    
     if "Read timed out" in str(e):
       await queue_message_async(
         topic = 'telegram_message_sender',
@@ -186,6 +194,7 @@ async def message_handler(message):
         )
         return
     
+      
 
     await queue_message_async(
       topic = 'telegram_message_sender',
@@ -598,7 +607,7 @@ async def show_action_history(message):
   page_number = 1
   page_action = 5
   action_history = await db_queries.show_action_history(message.chat.id)
-  total_count_action = action_history.count()
+  total_count_action = len(action_history)
   
   action = "Нет"
   result_message = f'Список Ваших последних действий в боте\nФильтр: {action}\nCтраница: {page_number}\n\n'
@@ -616,7 +625,7 @@ async def show_action_history(message):
   action = "action"
   inline_keyboard = paginate_buttons(action, page_number, total_count_action, page_action, message.from_user.id)
   await bot.send_message(message.chat.id, result_message, reply_markup=inline_keyboard)
-  await bot.send_message(message.chat.id, 'На панеле снизу Вы можете выбрать фильтрацию для истории действий или загрузить свою историю', reply_markup=action_history_reply_markup())
+  await bot.send_message(message.chat.id, 'На панеле снизу Вы можете загрузить свою историю', reply_markup=action_history_reply_markup())
 
 
 @bot.callback_query_handler(func=lambda x: re.match('action', x.data))
@@ -633,7 +642,7 @@ async def action_page(data):
   else:
     action_history = await db_queries.show_action_history(data.message.chat.id)
   result_message = f'Список Ваших последних действий в боте\nФильтр: {action}\nCтраница: {page_number}\n\n'
-  total_count_action = action_history.count()
+  total_count_action = len(action_history)
   
   if page_number != 1:
     action_history = action_history[(page_action*(page_number-1)):page_action*page_number]
@@ -661,7 +670,8 @@ async def action_page(data):
 # ---- История действий // КНОПКИ -------------------------------------------------------------------------------------------------------------------
 
 async def action_history_filter(message):
-  await bot.send_message(message.chat.id, 'Выберите фильтрацию', reply_markup=action_history_filter_reply_markup(action="filter:action"))
+  markup = await action_history_filter_reply_markup(action="filter:action")
+  await bot.send_message(message.chat.id, 'Выберите фильтрацию', reply_markup=markup)
   
   
 @bot.callback_query_handler(func=lambda x: re.match('filter:action:', x.data))
@@ -674,7 +684,7 @@ async def action_page(data):
   page_number = 1
   page_action = 5
   action_history = await db_queries.show_action_history(data.message.chat.id, action=action)
-  total_count_action = action_history.count()
+  total_count_action = len(action_history)
   
   
   result_message = f'Список Ваших последних действий в боте\nФильтр: {action}\nCтраница: {page_number}\n\n'
@@ -696,14 +706,9 @@ async def action_page(data):
   
   
 async def action_history_download(message):
-  await bot.send_message(message.chat.id, 'Выберите фильтр', reply_markup=action_history_filter_reply_markup(action="download:action"))
-
-
-@bot.callback_query_handler(func=lambda x: re.match('download:action:', x.data))
-async def action_page(data):
-  await bot.edit_message_text("Подготовка файла к установке", data.message.chat.id, data.message.id)
-  action = data.data.split(':')[2] # parameters = [type_of_callback, page_number, user_id]
-  action_history = await db_queries.show_action_history(data.message.chat.id, action=action, download=True)
+  await bot.send_message(message.chat.id, "Подготовка файла к установке", )
+  # action = data.data.split(':')[2] # parameters = [type_of_callback, page_number, user_id]
+  action_history = await db_queries.show_action_history(message.chat.id, download=True)
   
   result_message = ""
   i = 1
@@ -713,9 +718,28 @@ async def action_page(data):
     
   file = io.BytesIO(result_message.encode('utf-8'))
   file.name = "action_history.txt"
-  await bot.delete_message(data.message.chat.id, data.message.id)
+  # await bot.delete_message(message.chat.id, message.id)
   
-  await bot.send_document(chat_id=data.message.chat.id, document=file, caption="Файл готов")
+  await bot.send_document(chat_id=message.chat.id, document=file, caption="Файл готов")
+
+
+# @bot.callback_query_handler(func=lambda x: re.match('download:action:', x.data))
+# async def action_page(data):
+#   await bot.edit_message_text("Подготовка файла к установке", data.message.chat.id, data.message.id)
+#   action = data.data.split(':')[2] # parameters = [type_of_callback, page_number, user_id]
+#   action_history = await db_queries.show_action_history(data.message.chat.id, action=action, download=True)
+  
+#   result_message = ""
+#   i = 1
+#   for action in action_history:
+#     result_message += f'[{i}]-----------------------------\nДата: {(action.date_time + timedelta(hours=3)).strftime("%m/%d/%Y, %H:%M:%S")}\n\nДействие: {action.description}\n-----------------------------\n\n'
+#     i+=1
+    
+#   file = io.BytesIO(result_message.encode('utf-8'))
+#   file.name = "action_history.txt"
+#   await bot.delete_message(data.message.chat.id, data.message.id)
+  
+#   await bot.send_document(chat_id=data.message.chat.id, document=file, caption="Файл готов")
   
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1212,7 +1236,10 @@ async def adv_settings_add_budget(message):
   campaign.campaign_id = adv_id
   
   campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  budget = await wb_queries.get_budget(campaign_user, campaign)
+  if campaign_user.public_api_token:
+    budget = await wb_api_queries.get_budget(campaign_user, campaign)
+  else:
+    budget = await wb_queries.get_budget(campaign_user, campaign)
   budget = budget['Бюджет компании']
   
   await bot.send_message(message.chat.id, f'Текущий бюджет: {budget} ₽\nid рекламной компании: [{adv_id}](https://cmp.wildberries.ru/campaigns/list/all/edit/search/{adv_id})\nВведите сумму пополенения бюджета или нажмите "Назад"', parse_mode="MarkdownV2")

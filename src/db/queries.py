@@ -370,28 +370,28 @@ class db_queries:
             
     async def show_action_history(user_id, action='date_time', download=False):
         async with AsyncSession(engine) as session:
-            user = session.execute(select(User).where(User.telegram_user_id == user_id))
-            user = session.scalars(user).one()
-            if action == 'date_time':
-                if download:
-                    result = await session.execute(select(Action_history).where(Action_history.user_id == user.id).order_by(desc(Action_history.date_time)))
-                    return session.scalars(result).one()
-                else:
-                    result = await session.execute(select(Action_history).where(Action_history.user_id == user.id).order_by(desc(Action_history.date_time))).limit(20)
-                    return session.scalars(result).all() 
+            result = await session.execute(select(User).where(User.telegram_user_id == user_id))
+            user = result.scalars().first()
+            
+            if download:
+                result = await session.execute(select(Action_history).where(Action_history.user_id == user.id).order_by(desc(Action_history.date_time)))
+                return result.scalars().all()
             else:
-                if download:
-                    result = await session.execute(select(Action_history).where(Action_history.user_id == user.id).filter(Action_history.action == action).order_by(desc(Action_history.date_time)))
-                    return session.scalars(result).all() 
-                else:
-                    result = await session.execute(select(Action_history).filter(Action_history.user_id == user.id).filter(Action_history.action == action).order_by(desc(Action_history.date_time))).limit(20)
-                    return session.scalars(result).all() 
+                result = await session.execute(select(Action_history).where(Action_history.user_id == user.id).order_by(desc(Action_history.date_time)).limit(20))
+                return result.scalars().all()
+            # else:
+            #     if download:
+            #         result = await session.execute(select(Action_history).where(Action_history.user_id == user.id).filter(Action_history.action == action).order_by(desc(Action_history.date_time)))
+            #         return result.scalars().all()
+            #     else:
+            #         result = await session.execute(select(Action_history).filter(Action_history.user_id == user.id).filter(Action_history.action == action).order_by(desc(Action_history.date_time)).limit(20))
+            #         return result.scalars().all()
             
             
     async def get_filter_action_history():
         async with AsyncSession(engine) as session:
             result = await session.execute(select(Action_history.action.distinct()))
-            return session.scalars(result).all()
+            return result.scalars().all()
 
 
     async def get_action_history_last_actions():
@@ -410,10 +410,10 @@ class db_queries:
         succsses = {'err': 0, 'all_t': 0}
         async with AsyncSession(engine) as session:
             result1 = await session.execute(select(func.count(Action_history.id)).where(Action_history.initiator==initiator))
-            succsses['all_t'] = result1.scalars().one()
+            succsses['all_t'] = result1.scalars().first()
 
             result2 = await session.execute(select(func.count(Action_history.id)).where(Action_history.initiator==initiator, Action_history.status=='failure'))
-            succsses['err'] = result2.scalars().one()
+            succsses['err'] = result2.scalars().first()
 
         return succsses
 
@@ -422,14 +422,14 @@ class db_queries:
         async with AsyncSession(engine) as session:
             if types == "Change":
                 result = await session.execute(select(Stat_words).where(Stat_words.type == types).where(Stat_words.status == status).order_by(desc(Stat_words.timestamp)))
-                return session.scalars(result).one()
+                return session.scalars(result).first()
             if types != None:
                 result = await session.execute(select(Stat_words).where(Stat_words.campaing_id == int(campaing_id)).where(Stat_words.type == types).where(Stat_words.status == status).order_by(Stat_words.timestamp))
                 return session.scalars(result).all()
             
             if campaing_id != None and status == "Created" and types == None:
                 result = await session.execute(select(Stat_words).where(Stat_words.campaing_id == int(campaing_id)).where(Stat_words.status == "Created"))
-                return session.scalars(result).one()
+                return session.scalars(result).first()
     
 
     async def change_status_stat_words(campaing_id=None, status=None, types=None, words=None):

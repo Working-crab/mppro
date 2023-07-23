@@ -176,11 +176,11 @@ def switch_status_reply_markup(status, campaing_id):
 def action_history_reply_markup():
   markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
-  btn_action_filter = types.KeyboardButton(text='Выбрать фильтрацию')
+  # btn_action_filter = types.KeyboardButton(text='Выбрать фильтрацию')
   btn_download_actions = types.KeyboardButton(text='Загрузить историю действий')
   btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
-
-  markup_inline.add(btn_action_filter, btn_download_actions)
+# btn_action_filter
+  markup_inline.add(btn_download_actions)
   markup_inline.add(btn_back)
     
   return markup_inline

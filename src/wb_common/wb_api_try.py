@@ -2,44 +2,80 @@
 import json
 from datetime import datetime
 from cache_worker.cache_worker import cache_worker
-import requests
+import aiohttp
+import asyncio
+
 
 from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
 
 class wb_api_queries:
-  def get_base_tokens(user):
+  async def get_base_tokens(user):
     user_wb_tokens = cache_worker.get_user_wb_tokens(user.id)
-    if not user_wb_tokens['wb_cmp_token']:
-      user_wb_tokens = wb_api_queries.reset_base_tokens(user)
+    if user.public_api_token:
+      user_wb_tokens['public_api_token'] = user.public_api_token
+    else:
+      user_wb_tokens['public_api_token'] = ""
 
     return user_wb_tokens
 
   
-  def wb_query(method, url, cookies=None, headers=None, data=None):
+  async def wb_query(method, url, cookies=None, headers=None, data=None, req=False, user_id=None):
 
     result = {}
     try:
-      response = requests.request(method=method, url=url, cookies=cookies, headers=headers, data=data)
-      result = response.json()
+      logger.warn(f"{method} url={url}, cookies={cookies}, headers={headers}, data={data}")
+      async with aiohttp.ClientSession() as session:
+        response = None
+        output = {}
+        for attempt in range(3):
+          async with session.request(method=method, url=url, cookies=cookies, headers=headers, data=data) as response:
+            if response.status != 200:
+              logger.warn(f"In while {attempt}")
+              await asyncio.sleep(4)
+              logger.warn(response.status)
+            elif response.status == 200:
+              if data == "{}":
+                return response.headers
+              try:
+                if not req:
+                  output = await response.json()
+              except Exception as e:
+                  logger.error('result.json() error')
+                  if (response.status != 200):
+                    raise e
+        
+        
+        if response.status == 401:
+          raise Exception('Неверный токен!')
+        if response.status == 429:
+          raise Exception('Read timed out')
+        if response.status == 400:
+          raise Exception('Произошла ошибка')
+        
     except Exception as e:
-      logger.error(e)
+      logger.debug({
+        'method': method,
+        'url': url,
+        'cookies': cookies,
+        'headers': headers,
+        'data': data
+      })
+      raise Exception("wb_query error " + str(e) + " user_id:" + str(user_id))      
+    logger.debug(f'user_id: {user_id} url: {url} \t headers: {str(headers)} \t result: {str(result)}')    
+    return output
 
-    logger.debug(f' url: {url} \t headers: {str(headers)} \t result: {str(result)}')
 
-    return result
-
-
-  def get_base_request_params(user_wb_tokens):
+  async def get_base_request_params(user_wb_tokens):
     return {
       'headers': {
-        'Authorization': user_wb_tokens,
+        'Authorization': user_wb_tokens['public_api_token'],
         'Accept': 'application/json'
       }
     }
 
 
-  def reset_base_tokens(user):
+  async def reset_base_tokens(user):
 
     user_wb_tokens = cache_worker.get_user_wb_tokens(user.id)
     if not user_wb_tokens['wb_cmp_token']:
@@ -116,23 +152,24 @@ class wb_api_queries:
     view = {'adverts': user_atrevds['content'], 'total_count': user_atrevds['counts']['totalCount']}
     return view
 
-  def get_budget(user, campaign):
-    user_wb_tokens = wb_api_queries.get_base_tokens(user)
-    custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
-    req_params = wb_api_queries.get_base_request_params(user_wb_tokens, custom_referer)
+  async def get_budget(user, campaign):
+    user_wb_tokens = await wb_api_queries.get_base_tokens(user)
+    # campaign.campaign_id
+    # custom_referer = f'https://advert-api.wb.ru/adv/v1/budget'
+    req_params = await wb_api_queries.get_base_request_params(user_wb_tokens)
 
-    r = wb_api_queries.wb_query(method="get", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/budget',
-    cookies=req_params['cookies'],
-    headers=req_params['headers']
+    r = await wb_api_queries.wb_query(method="get", url=f'https://advert-api.wb.ru/adv/v1/budget?id={campaign.campaign_id}',
+    headers=req_params['headers'],
+    data={'id': campaign.campaing_id}
     )
 
-    total_budget = 0
+    total_budget = None
 
     if 'total' in r:
       total_budget = int(r['total'])
 
     res = {
-      'Бюджет компании ': total_budget,
+      'Бюджет компании': total_budget,
     }
 
     return res
