@@ -49,6 +49,7 @@ class Advert(Base):
     place = Column(String, nullable=False)
     campaign_id = Column(Integer, nullable=False, default=0)
     status = Column(String, nullable=False)
+    strategy = Column(String, nullable=True)
     
     time_created = Column(DateTime(timezone=True), server_default=func.now())
     time_updated = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

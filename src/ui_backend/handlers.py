@@ -19,7 +19,8 @@ from ui_backend.common import (edit_token_reply_markup, format_requests_count, m
                                adv_settings_words_reply_markup, 
                                fixed_word_switch,
                                check_sub, 
-                               paid_requests_inline_markup)
+                               paid_requests_inline_markup,
+                               advert_strategy_reply_markup)
 from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
@@ -517,56 +518,10 @@ async def kek(data):
   await bot.edit_message_reply_markup(data.message.chat.id, data.message.id , reply_markup=inline_keyboard)
   await bot.answer_callback_query(data.id)
 
-# ------------------------------------------------------------------------------------------------------------------------------------------------
-
-# Ветка "Добавить рекламную компанию" ------------------------------------------------------------------------------------------------------------
-@bot.message_handler(regexp='Добавить рекламную компанию')
-async def cb_adverts(message):
-  pass # TODO refactor
-  # msg_text = 'Введите данные в формате "<campaign_id> <max_bid> <place> <status>" в следующем сообщение.'
-  # sent = await bot.send_message(message.chat.id, msg_text, reply_markup=types.ReplyKeyboardRemove())
-  # await bot.register_next_step_handler(sent,add_advert_handler)
-
-async def add_advert_handler(message):
-  """
-  Команда для запсии в бд информацию о том, что юзер включает рекламную компанию
-  TO wOrKeD:
-  (индентификатор, бюджет, место которое хочет занять)
-  записать это в бд
-  """
-  user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
-
-  #(индентификатор, бюджет, место которое хочет занять)args*
-  message_args = re.sub('/add_advert ', '', message.text).split(sep=' ', maxsplit=4)
-  if len(message_args) != 4:
-      msg_text = 'Для использования команды используйте формат: /add_advert <campaign_id> <max_bid> <place> <status>'
-      await bot.send_message(message.chat.id, msg_text, reply_markup=universal_reply_markup())
-      return
-
-  campaign_id = re.sub('/add_advert ', '', message_args[0])
-  max_bid = re.sub('/add_advert ', '', message_args[1])
-  place = re.sub('/add_advert ', '', message_args[2])
-  status = re.sub('/add_advert ', '', message_args[3])
-
-  add_result = await db_queries.add_user_advert(user, status, campaign_id, max_bid, place)
-  
-  res_msg = ''
-  if add_result == 'UPDATED':
-      res_msg = 'Ваша рекламная компания успешно обновлена\!'
-  elif add_result == 'ADDED':
-      res_msg = 'Ваша рекламная компания успешно добавлена\!'
-
-  await bot.send_message(message.chat.id, res_msg, reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Ветка "Показать логи человека" -----------------------------------------------------------------------------------------------------------------
-@bot.message_handler(regexp='Показать логи человека')
-async def cb_adverts(message):
-  pass # TODO refactor
-  # sent = await bot.send_message(message.chat.id, 'Введите id user\'а\nи через пробел дату, пример формата 2023-03-02 14:30', reply_markup=types.ReplyKeyboardRemove())
-  # await bot.register_next_step_handler(sent, search_logs_next_step_handler)
-        
         
 async def search_logs_next_step_handler(message):
   search_logs = re.sub('/search_id ', '', message.text)
@@ -576,6 +531,7 @@ async def search_logs_next_step_handler(message):
 
         
 # ------------------------------------------------------------------------------------------------------------------------------------------------
+
 # Дополнительные опции ---------------------------------------------------------------------------------------------------------------------------
 
 async def menu_additional_options(message):
@@ -777,6 +733,19 @@ async def send_message_for_advert_place(message, adv_id):
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 
+# --- правка данных компании --------------------------------------------------------------------------------------------
+
+
+async def send_message_for_advert_combined(message, adv_id):
+  campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{adv_id}"
+  result_msg = f'Укажите предпочитаемое место для РК с id [{adv_id}]({campaign_link}) \n Бот будет держать это место в рамках максимальной ставки'
+  await bot.send_message(message.chat.id, result_msg, parse_mode = 'MarkdownV2') 
+  set_user_session_step(message, 'Set_advert_place')
+
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------
+
+
 # --- добавление компании --------------------------------------------------------------------------------------------
 
 async def add_advert(message):
@@ -784,18 +753,48 @@ async def add_advert(message):
   adv_id = re.sub('/add_adv_', '', user_text)
   message.user_session['add_adv_id'] = adv_id
   await send_message_for_advert_bid(message, adv_id)
-  # await bot.send_message(message.chat.id, f'Укажите максимальную ставку для РК с id {adv_id} в рублях')
-  # set_user_session_step(message, 'Add_advert')
-    
+
+
+@check_sub(['Старт', 'Победитель', 'Мастер', 'Чемпион'])
+async def setup_advert_strategy(message, adv_id, sub_name):
+  user = await db_queries.get_user_by_telegram_user_id(message.chat.id)
+  adverts_count = await db_queries.get_user_adverts(user.id)
+  my_sub = await db_queries.get_sub(user.subscriptions_id)
+  
+  if len(adverts_count) > my_sub.tracking_advertising:
+    return await bot.send_message(message.chat.id, "К сожалению, вы не можете отслеживать больше РК", parse_mode = 'MarkdownV2')
+  
+  campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{adv_id}"
+  result_msg = f'Выберите стратегию для РК с id [{adv_id}]({campaign_link})'
+  await bot.send_message(message.chat.id, result_msg, parse_mode = 'MarkdownV2', reply_markup=advert_strategy_reply_markup())
+
+  set_user_session_step(message, 'choice_advert_strategy')
+
+
+async def add_advert_strategy_hold_the_position(message):
+  adv_id = message.user_session.get('add_adv_id')
+  message.user_session['advert_strategy'] = 'strategy_hold_the_position'
+  await send_message_for_advert_place(message, adv_id)
+
+async def add_advert_strategy_hold_the_bid(message):
+  adv_id = message.user_session.get('add_adv_id')
+  message.user_session['advert_strategy'] = 'strategy_hold_the_bid'
+  await send_message_for_advert_bid(message, adv_id)
+
+async def add_advert_strategy_combined(message):
+  adv_id = message.user_session.get('add_adv_id')
+  message.user_session['advert_strategy'] = 'strategy_combined'
+  await send_message_for_advert_combined(message, adv_id)
 
 
 async def add_advert_with_define_id(message):
   user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   adv_id = message.user_session.get('add_adv_id')
+  advert_strategy = message.user_session.get('advert_strategy')
   if adv_id == None:
     adv_id = message.user_session.get('adv_settings_id')
   user_number_value = re.sub(r'[^0-9]', '', message.text)
-  await db_queries.add_user_advert(user, adv_id, user_number_value, status='ON')
+  await db_queries.add_user_advert(user, adv_id, user_number_value, status='ON', strategy=advert_strategy)
   await bot.send_message(message.chat.id, f'РК с id {adv_id} отслеживается с максимальной ставкой {user_number_value}')
   message.user_session['add_adv_id'] = None
     
@@ -821,25 +820,22 @@ async def adv_settings(message):
 async def adv_settings_bid(message):
   adv_id = message.user_session.get('adv_settings_id')
   await send_message_for_advert_bid(message, adv_id)
-  # await bot.send_message(message.chat.id, f'Укажите максимальную ставку для РК с id {adv_id} в рублях')
-  # set_user_session_step(message, 'Add_advert')
 
 
 async def adv_settings_place(message):
   adv_id = message.user_session.get('adv_settings_id')
   await send_message_for_advert_place(message, adv_id)
-  # await bot.send_message(message.chat.id, f'Укажите максимальную ставку для РК с id {adv_id} в рублях')
-  # set_user_session_step(message, 'Add_advert')
 
 
 async def set_advert_place_with_define_id(message):
   user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   adv_id = message.user_session.get('adv_settings_id')
+  advert_strategy = message.user_session.get('advert_strategy')
   user_number_value = re.sub(r'[^0-9]', '', message.text)
-  await db_queries.add_user_advert(user, adv_id, None, status='ON', place=user_number_value)
+  await db_queries.add_user_advert(user, adv_id, None, status='ON', place=user_number_value, strategy=advert_strategy)
   await bot.send_message(message.chat.id, f'РК с id {adv_id} отслеживается на предпочитаемом месте {user_number_value}')
   message.user_session['add_adv_id'] = None
-    
+
 
 async def adv_settings_get_plus_word(message):
   
@@ -1464,10 +1460,16 @@ step_map = {
   'Add_advert': {
     'default': add_advert_with_define_id
   },
+  'choice_advert_strategy': {
+    'strategy_hold_the_position': add_advert_strategy_hold_the_position,
+    'strategy_hold_the_bid':      add_advert_strategy_hold_the_bid,
+    'strategy_combined':          add_advert_strategy_combined,
+    'default':                    menu_back_word,
+  },
   'fixed_word_status': {
-      'Назад': menu_back_word,
-      'Включить Фиксированные фразы': adv_settings_switch_on_word,
-      'Выключить Фиксированные фразы': adv_settings_switch_off_word,
+    'Назад': menu_back_word,
+    'Включить Фиксированные фразы': adv_settings_switch_on_word,
+    'Выключить Фиксированные фразы': adv_settings_switch_off_word,
   },
   'Set_advert_place': {
     'Назад': menu_back_word,

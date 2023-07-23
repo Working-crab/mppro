@@ -139,7 +139,7 @@ class db_queries:
             return user.public_api_token
 
 
-    async def add_user_advert(user,  campaign_id,  max_bid=None, status='ON', place=None):
+    async def add_user_advert(user,  campaign_id,  max_bid=None, status='ON', place=None, strategy=None):
         async with AsyncSession(engine) as session:
             
             campaign_id_int = int(campaign_id)
@@ -161,7 +161,8 @@ class db_queries:
                     user_id = int(user.id),
                     place = str(place), # maybe string
                     campaign_id = int(campaign_id),
-                    status = str(status)
+                    status = str(status),
+                    strategy = str(strategy),
                 )
                 session.add(advert)
                 await session.commit()
@@ -175,6 +176,9 @@ class db_queries:
                 
                 if place is not None:
                     advert.place = str(place)
+
+                if strategy is not None:
+                    advert.strategy = strategy
 
                 advert.status = status
                 await session.commit()

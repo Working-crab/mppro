@@ -32,6 +32,7 @@ class campaign_automation:
         await campaign_automation.check_stat_word(advert)
         await user_analitics.start_logs_analitcs(advert.user_id, advert.campaign_id)
       except Exception as e:
+        await db_queries.add_action_history(user_id=advert.user_id, action="campaign_scan", action_description=f'check_campaign id: {advert.campaign_id} \t new_bid: {new_bid} \t old_bid: {old_bid}')
         traceback.print_exc()
         logger.error(f'Exception: {e}.')
 
