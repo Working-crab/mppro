@@ -371,14 +371,19 @@ def escape_telegram_specials(string):
 
   
 def logs_types_reply_markup(user_id, timestamp):
+  markup_inline = types.InlineKeyboardMarkup()
+  btn_wb_queries = types.InlineKeyboardButton(text='wb_queries', callback_data=f'logs: wb_queries user_id: {user_id} timestamp: {timestamp}')
+  markup_inline.add(btn_wb_queries)
+  return markup_inline
 
-    markup_inline = types.InlineKeyboardMarkup()
 
-    btn_wb_queries = types.InlineKeyboardButton(text='wb_queries', callback_data=f'logs: wb_queries user_id: {user_id} timestamp: {timestamp}')
-
-    markup_inline.add(btn_wb_queries)
-
-    return markup_inline
+def advert_strategy_reply_markup():
+  markup_inline = types.InlineKeyboardMarkup()
+  markup_btn = types.InlineKeyboardButton(text='Держать позицию', callback_data=f'strategy_hold_the_position')
+  markup_btn = types.InlineKeyboardButton(text='Держать ставку',  callback_data=f'strategy_hold_the_bid')
+  markup_btn = types.InlineKeyboardButton(text='Комбинированная', callback_data=f'strategy_combined')
+  markup_inline.add(markup_btn)
+  return markup_inline
 
 async def advert_info_message_maker(adverts, page_number, page_size, user):
   adverts = sorted(adverts, key=lambda x: status_parser_priority_map(x['statusId']))
