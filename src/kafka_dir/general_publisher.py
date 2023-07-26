@@ -20,7 +20,6 @@ async def create_async_producer():
 
 
 async def queue_message_async(**kwargs):
-  logger.warn(123)
   global producer
   if not producer:
     producer = await create_async_producer()

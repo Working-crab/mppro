@@ -147,10 +147,11 @@ class wb_api_queries:
     
   def get_user_atrevds(req_params):
 
-    user_atrevds = wb_api_queries.wb_query(method="get", url='https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate', cookies=req_params['cookies'], headers=req_params['headers'])
+    user_atrevds = wb_api_queries.wb_query(method="get", url='https://cmp.wildberries.ru/backend/api/v3/atrevds?order=create', cookies=req_params['cookies'], headers=req_params['headers'])
     # view = user_atrevds['content']
     view = {'adverts': user_atrevds['content'], 'total_count': user_atrevds['counts']['totalCount']}
     return view
+
 
   async def get_budget(user, campaign):
     user_wb_tokens = await wb_api_queries.get_base_tokens(user)
@@ -173,3 +174,24 @@ class wb_api_queries:
     }
 
     return res
+  
+  
+  async def switch_status(user, campaign, status):
+    user_wb_tokens = await wb_api_queries.get_base_tokens(user)
+    req_params = await wb_api_queries.get_base_request_params(user_wb_tokens)
+    
+    if status == "pause":
+      r = await wb_api_queries.wb_query(method='GET', url=f'https://advert-api.wb.ru/adv/v0/pause?id={campaign.campaing_id}',
+        headers=req_params['headers'])
+      
+    elif status == "active":
+      r = await wb_api_queries.wb_query(method='GET', url=f'https://advert-api.wb.ru/adv/v0/pause?id={campaign.campaing_id}', headers=req_params['headers'])
+      
+    elif status == "stop":
+      r = await wb_api_queries.wb_query(method='GET', url=f'https://advert-api.wb.ru/adv/v0/stop?id={campaign.campaing_id}', headers=req_params['headers'])
+    
+    return r
+  
+  
+  async def set_campaign_bid(user, campaign, campaign_info, new_bid, old_bid, approximate_place):
+    pass

@@ -149,7 +149,7 @@ class db_queries:
             
             if not advert:
                 advert_budget = max_bid
-                if advert_budget is None:
+                if advert_budget is None or advert_budget == '':
                     advert_budget = 0
                     status = 'OFF'
 
@@ -242,14 +242,14 @@ class db_queries:
     async def get_sub(sub_id):
         async with AsyncSession(engine) as session:
             result = await session.execute(select(Subscription).where(Subscription.id == int(sub_id)))
-            sub = result.scalars().one()
+            sub = result.scalars().first()
             return sub
         
 
     async def get_sub_name(sub_name):
         async with AsyncSession(engine) as session:
             result = await session.execute(Subscription).filter(Subscription.title == sub_name).first()
-            return session.scalars(result).one()
+            return session.scalars(result).first()
             
        
     async def get_all_sub():

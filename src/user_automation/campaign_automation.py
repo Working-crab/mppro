@@ -32,7 +32,11 @@ class campaign_automation:
         await campaign_automation.check_stat_word(advert)
         await user_analitics.start_logs_analitcs(advert.user_id, advert.campaign_id)
       except Exception as e:
-        await db_queries.add_action_history(user_id=advert.user_id, action="campaign_scan", action_description=f'check_campaign id: {advert.campaign_id} \t new_bid: {new_bid} \t old_bid: {old_bid}')
+        await db_queries.add_action_history(
+          user_id=advert.user_id,
+          action="campaign_scan",
+          action_description=f'check_campaign id: {advert.campaign_id} Exception: {e}',
+          status="error")
         traceback.print_exc()
         logger.error(f'Exception: {e}.')
 
@@ -67,22 +71,62 @@ class campaign_automation:
 
     current_bids_table = await wb_queries.search_adverts_by_keyword(check_word)
 
+    campaign_strategy = campaign.strategy | 'strategy_combined'
+
     new_bid = 0
     approximate_place = 0
     bid_p_id = 0
 
+    off_the_campaign = False
+
+    campaign_places = campaign.place.split('-') # example 2-4
+    max_place = 1
+    min_place = 0
+    if len(campaign_places) > 0:
+      if campaign_places[0]:
+        max_place = campaign_places[0]
+      if len(campaign_places) > 1:
+        min_place = campaign_places[1]
+
     for bid in current_bids_table:
-      if int(bid['position']) < int(campaign.place):
-        continue
-      if bid['price'] < campaign.max_bid:
-        new_bid = bid['price'] + 1
-        bid_p_id = bid['p_id']
-        approximate_place = bid['position']
-        break
+      new_bid = bid['price'] + 1
+      bid_p_id = bid['p_id']
+      approximate_place = bid['position']
+
+      # campaign strategy checking
+      if 'strategy_hold_the_position' in campaign_strategy:
+        if int(bid['position']) >= int(campaign.place):
+          break
+
+      elif 'strategy_hold_the_bid' in campaign_strategy:
+        if bid['price'] < campaign.max_bid:
+          break
+
+      elif 'strategy_combined' in campaign_strategy:
+        if int(bid['position']) < int(max_place):
+          continue
+
+        if int(bid['position']) > int(min_place):
+          if not 'always_online' in campaign_strategy:
+            off_the_campaign = True
+            break
+
+        if bid['price'] < campaign.max_bid:
+          break
+
+        
 
     old_bid = campaign_info["campaign_bid"]
 
-    await db_queries.add_action_history(user_id=campaign.user_id, action="campaign_scan", action_description=f'check_campaign id: {campaign.id} \t new_bid: {new_bid} \t old_bid: {old_bid}')
+    await db_queries.add_action_history(
+      user_id=campaign.user_id,
+      action="campaign_scan",
+      action_description=f'check_campaign id: {campaign.id} \t new_bid: {new_bid} \t old_bid: {old_bid} \t off_the_campaign: {off_the_campaign}',
+      status="info")
+
+
+    if off_the_campaign:
+      await wb_queries.off_the_campaign(campaign_user, campaign)
 
 
     if new_bid != old_bid and bid_p_id != campaign.campaign_id:

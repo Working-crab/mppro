@@ -494,7 +494,11 @@ class wb_queries:
 
     log_string = f'{datetime.now()} \t check_campaign \t Campaign {campaign.campaign_id} updated! \t New bid: {new_bid} \t Old bid: {old_bid} \t Approximate place: {approximate_place}'
     print(log_string)
-    await db_queries.add_action_history(user_id=user.id, action="set_campaign_bid", action_description=log_string)
+    await db_queries.add_action_history(
+      user_id=user.id,
+      action="set_campaign_bid",
+      action_description=log_string,
+      status='success')
 
 
     return r

@@ -377,13 +377,14 @@ def logs_types_reply_markup(user_id, timestamp):
   return markup_inline
 
 
-def advert_strategy_reply_markup():
-  markup_inline = types.InlineKeyboardMarkup()
-  markup_btn = types.InlineKeyboardButton(text='Держать позицию', callback_data=f'strategy_hold_the_position')
-  markup_btn = types.InlineKeyboardButton(text='Держать ставку',  callback_data=f'strategy_hold_the_bid')
-  markup_btn = types.InlineKeyboardButton(text='Комбинированная', callback_data=f'strategy_combined')
-  markup_inline.add(markup_btn)
-  return markup_inline
+def advert_strategy_reply_markup(adv_id):
+  markup = types.InlineKeyboardMarkup()
+
+  markup.add(types.InlineKeyboardButton(text='Держать позицию', callback_data=f'strategy_hold_the_position:{adv_id}'))
+  markup.add(types.InlineKeyboardButton(text='Держать ставку',  callback_data=f'strategy_hold_the_bid:{adv_id}'))
+  markup.add(types.InlineKeyboardButton(text='Комбинированная', callback_data=f'strategy_combined:{adv_id}'))
+  markup.add(types.InlineKeyboardButton(text='Комбинированная без отключения', callback_data=f'strategy_combined_always_online:{adv_id}'))
+  return markup
 
 async def advert_info_message_maker(adverts, page_number, page_size, user):
   adverts = sorted(adverts, key=lambda x: status_parser_priority_map(x['statusId']))

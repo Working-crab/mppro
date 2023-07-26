@@ -1,6 +1,6 @@
 
 Requirements:
-Python 3.8.10
+Python 3.11.4
 Docker version 20.10.22, build 3a2c30b
 Node 16.19.0
 npm 9.2.0
@@ -50,13 +50,13 @@ eval "$(pyenv init -)"
 
 &emsp;&emsp;6.4 use
 ```bash
-pyenv install 3.8.10
+pyenv install 3.11.4
 ```
 
 
 &emsp;&emsp;6.5 cd in project dir and use
 ```bash
-pyenv local 3.8.10
+pyenv local 3.11.4
 ```
 
 
@@ -68,7 +68,7 @@ python3 -m pip install virtualenv
 
 &emsp;&emsp;6.7 in project dir use
 ```bash
-python3 -m virtualenv -p python3.8.10 venv
+python3 -m virtualenv -p python3.11.4 venv
 ```
 
 

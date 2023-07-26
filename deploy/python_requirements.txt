@@ -51,3 +51,4 @@ kafka-python==2.0.2
 matplotlib==3.7.1
 pandas==2.0.1
 requests-toolbelt==0.10.1
+asyncpg==0.28.0

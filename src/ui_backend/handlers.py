@@ -62,6 +62,7 @@ async def message_handler(message):
       status="info"
     )
     
+    logger.warn(f'telegram_user_id {telegram_user_id}')
     logger.warn(user_session)
 
     message.user_session = user_session
@@ -73,10 +74,16 @@ async def message_handler(message):
     possible_actions = step_map.get(user_step, {})
 
     user_action = None
-    for key in possible_actions:
-      if re.search(key, message.text):
-        user_action = possible_actions[key]
-        break
+    if hasattr(message, 'callback_data'):
+      for key in callback_map:
+        if re.search(key, message.callback_data):
+          user_action = callback_map[key]
+          break
+    else:
+      for key in possible_actions:
+        if re.search(key, message.text):
+          user_action = possible_actions[key]
+          break
 
     user_action_default = possible_actions.get('default')
     if user_action:
@@ -203,6 +210,15 @@ async def message_handler(message):
       message = 'На стороне сервера произошла ошибка, обратитесь к разработчику или попробуйте позже'
     )
 
+
+# all callbacks query handler
+@bot.callback_query_handler(func=lambda m: True)
+async def callback_query_handler(data):
+  message = data.message
+  message.callback_data = data.data
+  message.callback_id = data.id
+  message.from_user = data.from_user
+  await message_handler(message)
 
 
 # Ветка "Поиск" --------------------------------------------------------------------------------------------------------
@@ -493,10 +509,9 @@ async def list_adverts_handler(message):
 
 
 
-@bot.callback_query_handler(func=lambda x: re.match('page', x.data))
-async def kek(data):
-  await bot.edit_message_text('Вайлдберис старается 🔄', data.message.chat.id, data.message.id, parse_mode='MarkdownV2')
-  type_of_callback, page_number, user_id = data.data.split(':') # parameters = [type_of_callback, page_number, user_id]
+async def adv_list_pagination(message):
+  await bot.edit_message_text('Вайлдберис старается 🔄', message.chat.id, message.id, parse_mode='MarkdownV2')
+  type_of_callback, page_number, user_id = message.callback_data.split(':') # parameters = [type_of_callback, page_number, user_id]
   page_number = int(page_number)
   logger.warn(f"before {user_id}")
   user = await db_queries.get_user_by_telegram_user_id(telegram_user_id=user_id)
@@ -514,9 +529,9 @@ async def kek(data):
   action = "page"
   inline_keyboard = paginate_buttons(action, page_number, total_count, page_size, user_id)
 
-  await bot.edit_message_text(result_msg, data.message.chat.id, data.message.id, parse_mode='MarkdownV2')
-  await bot.edit_message_reply_markup(data.message.chat.id, data.message.id , reply_markup=inline_keyboard)
-  await bot.answer_callback_query(data.id)
+  await bot.edit_message_text(result_msg, message.chat.id, message.id, parse_mode='MarkdownV2')
+  await bot.edit_message_reply_markup(message.chat.id, message.id , reply_markup=inline_keyboard)
+  await bot.answer_callback_query(message.callback_id)
 
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------
@@ -584,19 +599,18 @@ async def show_action_history(message):
   await bot.send_message(message.chat.id, 'На панеле снизу Вы можете загрузить свою историю', reply_markup=action_history_reply_markup())
 
 
-@bot.callback_query_handler(func=lambda x: re.match('action', x.data))
-async def action_page(data):
-  await bot.edit_message_text('Информация загружается 🔄', data.message.chat.id, data.message.id)
-  type_of_callback, page_number, user_id = data.data.split(':') # parameters = [type_of_callback, page_number, user_id]
+async def load_action_page_info(message):
+  await bot.edit_message_text('Информация загружается 🔄', message.chat.id, message.id)
+  type_of_callback, page_number, user_id = message.callback_data.split(':') # parameters = [type_of_callback, page_number, user_id]
     
   page_number = int(page_number)
   page_action = 5
   action = "Нет"
   if type_of_callback == "action_filter":
-    action = cache_worker.get_action_history_filter(data.message.chat.id)
-    action_history = await db_queries.show_action_history(data.message.chat.id, action=action)
+    action = cache_worker.get_action_history_filter(message.chat.id)
+    action_history = await db_queries.show_action_history(message.chat.id, action=action)
   else:
-    action_history = await db_queries.show_action_history(data.message.chat.id)
+    action_history = await db_queries.show_action_history(message.chat.id)
   result_message = f'Список Ваших последних действий в боте\nФильтр: {action}\nCтраница: {page_number}\n\n'
   total_count_action = len(action_history)
   
@@ -617,9 +631,9 @@ async def action_page(data):
     action = "action"
   inline_keyboard = paginate_buttons(action, page_number, total_count_action, page_action, user_id)      
 
-  await bot.answer_callback_query(data.id)
-  await bot.edit_message_text(result_message, data.message.chat.id, data.message.id)
-  await bot.edit_message_reply_markup(data.message.chat.id, data.message.id , reply_markup=inline_keyboard)
+  await bot.answer_callback_query(message.callback_id)
+  await bot.edit_message_text(result_message, message.chat.id, message.id)
+  await bot.edit_message_reply_markup(message.chat.id, message.id , reply_markup=inline_keyboard)
   
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -630,23 +644,22 @@ async def action_history_filter(message):
   await bot.send_message(message.chat.id, 'Выберите фильтрацию', reply_markup=markup)
   
   
-@bot.callback_query_handler(func=lambda x: re.match('filter:action:', x.data))
-async def action_page(data):
-  action = data.data.split(':')[2] # parameters = [type_of_callback, page_number, user_id]
+async def action_page_filter(message):
+  action = message.callback_data.split(':')[2] # parameters = [type_of_callback, page_number, user_id]
   # await bot.edit_message_text(action, data.message.chat.id, data.message.id)
   
-  cache_worker.set_action_history_filter(user_id=data.message.chat.id, filter=action)
+  cache_worker.set_action_history_filter(user_id=message.chat.id, filter=action)
   
   page_number = 1
   page_action = 5
-  action_history = await db_queries.show_action_history(data.message.chat.id, action=action)
+  action_history = await db_queries.show_action_history(message.chat.id, action=action)
   total_count_action = len(action_history)
   
   
   result_message = f'Список Ваших последних действий в боте\nФильтр: {action}\nCтраница: {page_number}\n\n'
   i = 1
   if total_count_action == 0:
-    return await bot.send_message(data.message.chat.id, 'Нет истории действий', reply_markup=universal_reply_markup())
+    return await bot.send_message(message.chat.id, 'Нет истории действий', reply_markup=universal_reply_markup())
   else:
     if page_number == 1:
       action_history = action_history[page_number-1:page_action]
@@ -657,8 +670,8 @@ async def action_page(data):
 
   action = "action_filter"
   
-  inline_keyboard = paginate_buttons(action, page_number, total_count_action, page_action, data.message.from_user.id)
-  await bot.edit_message_text(result_message, data.message.chat.id, data.message.id, reply_markup=inline_keyboard)
+  inline_keyboard = paginate_buttons(action, page_number, total_count_action, page_action, message.from_user.id)
+  await bot.edit_message_text(result_message, message.chat.id, message.id, reply_markup=inline_keyboard)
   
   
 async def action_history_download(message):
@@ -678,25 +691,6 @@ async def action_history_download(message):
   
   await bot.send_document(chat_id=message.chat.id, document=file, caption="Файл готов")
 
-
-# @bot.callback_query_handler(func=lambda x: re.match('download:action:', x.data))
-# async def action_page(data):
-#   await bot.edit_message_text("Подготовка файла к установке", data.message.chat.id, data.message.id)
-#   action = data.data.split(':')[2] # parameters = [type_of_callback, page_number, user_id]
-#   action_history = await db_queries.show_action_history(data.message.chat.id, action=action, download=True)
-  
-#   result_message = ""
-#   i = 1
-#   for action in action_history:
-#     result_message += f'[{i}]-----------------------------\nДата: {(action.date_time + timedelta(hours=3)).strftime("%m/%d/%Y, %H:%M:%S")}\n\nДействие: {action.description}\n-----------------------------\n\n'
-#     i+=1
-    
-#   file = io.BytesIO(result_message.encode('utf-8'))
-#   file.name = "action_history.txt"
-#   await bot.delete_message(data.message.chat.id, data.message.id)
-  
-#   await bot.send_document(chat_id=data.message.chat.id, document=file, caption="Файл готов")
-  
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -725,7 +719,7 @@ async def send_message_for_advert_bid(message, adv_id, sub_name):
 
 async def send_message_for_advert_place(message, adv_id):
   campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{adv_id}"
-  result_msg = f'Укажите предпочитаемое место для РК с id [{adv_id}]({campaign_link}) \n Бот будет держать это место в рамках максимальной ставки' #f"\t ID: [{advert['id']}]({campaign_link}) Статус: {stat}\n"
+  result_msg = f'Укажите предпочитаемое место для РК с id [{adv_id}]({campaign_link}) \n Бот будет держать это место' #f"\t ID: [{advert['id']}]({campaign_link}) Статус: {stat}\n"
   await bot.send_message(message.chat.id, result_msg, parse_mode = 'MarkdownV2') 
   set_user_session_step(message, 'Set_advert_place')
   
@@ -738,7 +732,7 @@ async def send_message_for_advert_place(message, adv_id):
 
 async def send_message_for_advert_combined(message, adv_id):
   campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{adv_id}"
-  result_msg = f'Укажите предпочитаемое место для РК с id [{adv_id}]({campaign_link}) \n Бот будет держать это место в рамках максимальной ставки'
+  result_msg = f'Укажите предпочитаемое место или диапазон мест через тире в формате 2\-4 для РК с id [{adv_id}]({campaign_link}) \n Бот будет держать это место в рамках максимальной ставки'
   await bot.send_message(message.chat.id, result_msg, parse_mode = 'MarkdownV2') 
   set_user_session_step(message, 'Set_advert_place')
 
@@ -752,11 +746,11 @@ async def add_advert(message):
   user_text = message.text
   adv_id = re.sub('/add_adv_', '', user_text)
   message.user_session['add_adv_id'] = adv_id
-  await send_message_for_advert_bid(message, adv_id)
+  await send_message_advert_strategy(message, adv_id)
 
 
 @check_sub(['Старт', 'Победитель', 'Мастер', 'Чемпион'])
-async def setup_advert_strategy(message, adv_id, sub_name):
+async def send_message_advert_strategy(message, adv_id, sub_name):
   user = await db_queries.get_user_by_telegram_user_id(message.chat.id)
   adverts_count = await db_queries.get_user_adverts(user.id)
   my_sub = await db_queries.get_sub(user.subscriptions_id)
@@ -765,26 +759,27 @@ async def setup_advert_strategy(message, adv_id, sub_name):
     return await bot.send_message(message.chat.id, "К сожалению, вы не можете отслеживать больше РК", parse_mode = 'MarkdownV2')
   
   campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{adv_id}"
-  result_msg = f'Выберите стратегию для РК с id [{adv_id}]({campaign_link})'
-  await bot.send_message(message.chat.id, result_msg, parse_mode = 'MarkdownV2', reply_markup=advert_strategy_reply_markup())
+  result_msg = f'''Выберите стратегию для РК с id [{adv_id}]({campaign_link})
+    "Держать позицию" держит выбранную позицию за минимальную необходимую ставку
+    "Держать ставку" держит наилучшую позицию в пределах указанной максимальной ставки
+    "Комбинированная" держит позицию или диапазон позиций в пределах максимальной ставки с отключением кампании при выходе за пределы максимальной ставки
+    "Комбинированная без отключения" держит позицию или диапазон позиций в пределах максимальной ставки или наилучшую позицию в пределах максимальной ставки ниже диапазона
+  '''
+  await bot.send_message(message.chat.id, result_msg, parse_mode = 'MarkdownV2', reply_markup=advert_strategy_reply_markup(adv_id))
 
   set_user_session_step(message, 'choice_advert_strategy')
 
 
-async def add_advert_strategy_hold_the_position(message):
-  adv_id = message.user_session.get('add_adv_id')
-  message.user_session['advert_strategy'] = 'strategy_hold_the_position'
-  await send_message_for_advert_place(message, adv_id)
-
-async def add_advert_strategy_hold_the_bid(message):
-  adv_id = message.user_session.get('add_adv_id')
-  message.user_session['advert_strategy'] = 'strategy_hold_the_bid'
-  await send_message_for_advert_bid(message, adv_id)
-
-async def add_advert_strategy_combined(message):
-  adv_id = message.user_session.get('add_adv_id')
-  message.user_session['advert_strategy'] = 'strategy_combined'
-  await send_message_for_advert_combined(message, adv_id)
+async def choice_advert_strategy(message):
+  advert_strategy, adv_id = message.callback_data.split(':')
+  if advert_strategy == 'strategy_hold_the_position':
+    await send_message_for_advert_place(message, adv_id)
+  elif advert_strategy == 'strategy_hold_the_bid':
+    await send_message_for_advert_bid(message, adv_id)
+  elif advert_strategy == 'strategy_combined':
+    await send_message_for_advert_combined(message, adv_id)
+  elif advert_strategy == 'strategy_combined_always_online':
+    await send_message_for_advert_combined(message, adv_id)
 
 
 async def add_advert_with_define_id(message):
@@ -831,10 +826,14 @@ async def set_advert_place_with_define_id(message):
   user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   adv_id = message.user_session.get('adv_settings_id')
   advert_strategy = message.user_session.get('advert_strategy')
-  user_number_value = re.sub(r'[^0-9]', '', message.text)
+  user_number_value = None
+  user_number_values = re.findall(r'\d+-?\d*', message.text)
+  if len(user_number_values) > 0:
+    user_number_value = user_number_values[0]
   await db_queries.add_user_advert(user, adv_id, None, status='ON', place=user_number_value, strategy=advert_strategy)
   await bot.send_message(message.chat.id, f'РК с id {adv_id} отслеживается на предпочитаемом месте {user_number_value}')
   message.user_session['add_adv_id'] = None
+  message.user_session['advert_strategy'] = None
 
 
 async def adv_settings_get_plus_word(message):
@@ -1207,23 +1206,22 @@ async def adv_settings_switch_status(message):
     await bot.send_message(message.chat.id, f"На данный момент статус компании: *{status_parse}*\nВы можете изменить статус на *Приостановлено*, кнопкой ниже", parse_mode="MarkdownV2", reply_markup=switch_status_reply_markup(status=status['status'], campaing_id=adv_id))
   
 
-@bot.callback_query_handler(func=lambda x: re.match('status:change:', x.data))
-async def change_status(data):
-  await bot.edit_message_text("Изменение статуса...", data.message.chat.id, data.message.id)
-  change_to = data.data.split(':')[2]
+async def change_adv_status(message):
+  await bot.edit_message_text("Изменение статуса...", message.chat.id, message.id)
+  change_to = message.callback_data.split(':')[2]
   campaign = mock.Mock()
-  adv_id = data.data.split(':')[3]
+  adv_id = message.callback_data.split(':')[3]
   campaign.campaign_id = adv_id
-  user_id = data.message.chat.id
+  user_id = message.chat.id
   campaign_user = await db_queries.get_user_by_telegram_user_id(user_id)
   
   await wb_queries.switch_status(campaign_user, campaign, status=change_to)
   
   if change_to == "pause":
-    await bot.edit_message_text("Статус был успешно изменён на *Приостановлено*", data.message.chat.id, data.message.id, parse_mode="MarkdownV2")
+    await bot.edit_message_text("Статус был успешно изменён на *Приостановлено*", message.chat.id, message.id, parse_mode="MarkdownV2")
     
   elif change_to == "active":
-    await bot.edit_message_text("Статус был успешно изменён на *Активно*", data.message.chat.id, data.message.id, parse_mode="MarkdownV2")
+    await bot.edit_message_text("Статус был успешно изменён на *Активно*", message.chat.id, message.id, parse_mode="MarkdownV2")
 
 
 async def adv_settings_add_budget(message):
@@ -1299,11 +1297,10 @@ async def show_my_requests(message):
   await bot.send_message(message.chat.id, f'На данный момент у вас: {format_requests_count(gpt_requests)}, нажав на кнопку под сообщением, вы можете купить определенное количество запросов', reply_markup=paid_requests_inline_markup())
     
 
-@bot.callback_query_handler(func=lambda x: re.match('paid_service:', x.data))
-async def paid_service(data):
-  user = await db_queries.get_user_by_telegram_user_id(data.message.chat.id)
+async def paid_service(message):
+  user = await db_queries.get_user_by_telegram_user_id(message.chat.id)
   
-  action, action_type, amount =  data.data.split(":")
+  action, action_type, amount =  message.callback_data.split(":")
   amount = int(amount)
   if amount == 100:
     price = amount * INCREASE * 0.9
@@ -1311,14 +1308,14 @@ async def paid_service(data):
     price = amount * INCREASE
   
   if action_type == "requests":
-    await bot.send_message(data.message.chat.id, f'Вы выбрали покупку запросов\nКоличество: {amount}\n Цена: {price} ₽', reply_markup=reply_markup_payment(purchase=action_type, user_data=f"{amount}:{price}"))
+    await bot.send_message(message.chat.id, f'Вы выбрали покупку запросов\nКоличество: {amount}\n Цена: {price} ₽', reply_markup=reply_markup_payment(purchase=action_type, user_data=f"{amount}:{price}"))
   
 
 async def show_my_sub(message):
   set_user_session_step(message, 'paid_service')
   user = await db_queries.get_user_by_telegram_user_id(message.chat.id)
-  my_sub = await db_queries.get_sub(sub_id=user.subscriptions_id)
   if user.subscriptions_id:
+    my_sub = await db_queries.get_sub(sub_id=user.subscriptions_id)
     await bot.send_message(message.chat.id, 'Подключен: `{}`\nОписание: `{}`\nСрок действия с `{}` по `{}`'.format(my_sub.title, my_sub.description, user.sub_start_date.strftime('%d/%m/%Y'), user.sub_end_date.strftime('%d/%m/%Y')), reply_markup=paid_service_reply_markup())
     #TODO do another systeam
     sub_list = await db_queries.get_all_sub()
@@ -1461,10 +1458,7 @@ step_map = {
     'default': add_advert_with_define_id
   },
   'choice_advert_strategy': {
-    'strategy_hold_the_position': add_advert_strategy_hold_the_position,
-    'strategy_hold_the_bid':      add_advert_strategy_hold_the_bid,
-    'strategy_combined':          add_advert_strategy_combined,
-    'default':                    menu_back_word,
+    'default': menu_back_word,
   },
   'fixed_word_status': {
     'Назад': menu_back_word,
@@ -1531,4 +1525,14 @@ step_map = {
     'Мои запросы': show_my_requests,
     'Назад': menu_back
   }
+}
+
+callback_map = {
+  'page': adv_list_pagination,
+  'strategy_': choice_advert_strategy,
+  'action': load_action_page_info,
+  'filter:action:': action_page_filter,
+  'status:change:': change_adv_status,
+  'paid_service:': paid_service,
+
 }
