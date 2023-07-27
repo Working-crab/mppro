@@ -25,7 +25,7 @@ async def get_last_actions():
   last_actions = await db_queries.get_action_history_last_actions()
   last_actions_q = list(last_actions)
   list_last_actions = ActionList.from_orm(last_actions_q).dict()
-  list_last_actions["__root__"].reverse()
+  list_last_actions["__root__"]
   return {'last_actions': list_last_actions['__root__']}
 
 @app.get("/last_errors/")
@@ -33,7 +33,7 @@ async def get_last_actions():
   last_errors = await db_queries.get_action_history_last_errors()
   last_errors_q = list(last_errors)
   list_last_errors = ActionList.from_orm(last_errors_q).dict()
-  list_last_errors["__root__"].reverse()
+  list_last_errors["__root__"]
   return {'last_errors': list_last_errors['__root__']}
 
 @app.get("/info_own_services/")
@@ -58,3 +58,18 @@ async def get_user_by_id(user_id):
   user_orm = await db_queries.get_user_by_id(int(user_id))
   user = User.from_orm(user_orm).dict()
   return {'user': user}
+
+
+@app.get("/last_week_errors/")
+async def get_graph_errors():
+  errors_orm = await db_queries.get_week_errors_action_history(7)
+  errors = ActionList.from_orm(errors_orm).dict()['__root__']
+  errors_count_by_week_days = {}
+  for error in errors:
+    date_key = f"{error['date_time'].day}.{error['date_time'].month}.{error['date_time'].year}"
+    if date_key in errors_count_by_week_days:
+      errors_count_by_week_days[date_key] += 1
+    else:
+      errors_count_by_week_days[date_key] = 1
+  
+  return {'errors': errors_count_by_week_days}

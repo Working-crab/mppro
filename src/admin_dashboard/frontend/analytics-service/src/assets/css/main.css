@@ -13,7 +13,7 @@ html, body {
 .page-container {
   display: flex;
   flex-direction: column;
-  max-width: 1480px;
+  max-width: 1510px;
   margin: 0 auto;
   padding: 0 15px;
   width: 100%;
@@ -35,7 +35,7 @@ html, body {
   flex-wrap: wrap;
 }
 
-@media screen and (max-width: 1502px) { 
+@media screen and (max-width: 1526px) { 
   .flex-keks{
     display: flex;
     flex-direction: column;

@@ -13,6 +13,8 @@
       <ErrorsList :errors="lastErrorssStore?.lastErrorsMapped"></ErrorsList>
       <ActionList :actions="lastActionsStore?.lastActions"></ActionList>
       <ServicesStatus :errors="serviceStaus"></ServicesStatus>
+
+      <Vchart :errors="lastErrorssStore?.weekErrorsMapped"></Vchart>
     </div>
   </div>
 </template>
@@ -22,6 +24,7 @@ import ServiceWorkload from './components/ServiceWorkload.vue'
 import ErrorsList from './components/ErrorsList.vue'
 import ActionList from './components/ActionList.vue'
 import ServicesStatus from './components/ServicesStatus.vue'
+import Vchart from '@/components/VChart.vue'
 import { useLastActions } from '@/stores/lastActions'
 import { useLastErrors } from '@/stores/lastErrors'
 import { useOwnServices } from '@/stores/ownServices'
@@ -42,7 +45,8 @@ export default {
     ServiceWorkload,
     ErrorsList,
     ActionList,
-    ServicesStatus
+    ServicesStatus,
+    Vchart
   },
   data() {
     return {
@@ -58,7 +62,9 @@ export default {
           serviceName: 'Service 2',
           workload: '76%'
         },
-      ]
+      ],
+      lables1:[],
+      data1:[]
     }
   },
   methods:{
@@ -83,12 +89,24 @@ export default {
 
       };
       this.DateDashboard = date.toLocaleString("ru", options)
+    },
+    parsErrors(){
+      const errorsEntries = Object.entries(this.lastErrorssStore.weekErrors)
+      const lables = errorsEntries.map((value) => {
+        return value[0]
+      })
+      this.lables = lables
+      const data = errorsEntries.map((value) => {
+        return value[1]
+      })
+      this.data = data
     }
   },
   async mounted(){
     await this.lastActionsStore.fetchLastActions()
     await this.lastErrorssStore.fetchLastErrors()
     await this.ownServicesStore.fetchOwnServices()
+    await this.lastErrorssStore.fetchLastWeekErrors()
     this.getDateDashboard()
   },
   computed:{
