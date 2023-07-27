@@ -58,3 +58,18 @@ async def get_user_by_id(user_id):
   user_orm = await db_queries.get_user_by_id(int(user_id))
   user = User.from_orm(user_orm).dict()
   return {'user': user}
+
+
+@app.get("/last_week_errors/")
+async def get_graph_errors():
+  errors_orm = await db_queries.get_week_errors_action_history(7)
+  errors = ActionList.from_orm(errors_orm).dict()['__root__']
+  errors_count_by_week_days = {}
+  for error in errors:
+    date_key = f"{error['date_time'].day}.{error['date_time'].month}.{error['date_time'].year}"
+    if date_key in errors_count_by_week_days:
+      errors_count_by_week_days[date_key] += 1
+    else:
+      errors_count_by_week_days[date_key] = 1
+  
+  return {'errors': errors_count_by_week_days}

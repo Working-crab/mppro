@@ -65,6 +65,17 @@ class db_queries:
             
 
 
+    async def get_week_errors_action_history(days_count):
+        days_before_now = datetime.now() - timedelta(days=days_count)
+
+        async with AsyncSession(engine) as session:
+            result = await session.execute(select(Action_history).where(Action_history.status == 'failure',
+                                                                        Action_history.date_time > days_before_now,
+                                                                        ))
+            errors = result.scalars().all()
+            return errors
+
+
 
     async def get_user_by_telegram_user_id(telegram_user_id):
         async with AsyncSession(engine) as session:
