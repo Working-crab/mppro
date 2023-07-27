@@ -9,6 +9,13 @@ from cache_worker.cache_worker import cache_worker
 from collections import namedtuple
 from .config import bot
 
+ADV_STRATS = {
+  'strategy_hold_the_position': 'Держать позицию',
+  'strategy_hold_the_bid': 'Держать ставку',
+  'strategy_combined': 'Комбинированная',
+  'strategy_combined_always_online': 'Комбинированная без отключения',
+}
+
 Campaign = namedtuple('Campaign', ['campaign_id'])
 import re
 
@@ -380,10 +387,10 @@ def logs_types_reply_markup(user_id, timestamp):
 def advert_strategy_reply_markup(adv_id):
   markup = types.InlineKeyboardMarkup()
 
-  markup.add(types.InlineKeyboardButton(text='Держать позицию', callback_data=f'strategy_hold_the_position:{adv_id}'))
-  markup.add(types.InlineKeyboardButton(text='Держать ставку',  callback_data=f'strategy_hold_the_bid:{adv_id}'))
-  markup.add(types.InlineKeyboardButton(text='Комбинированная', callback_data=f'strategy_combined:{adv_id}'))
-  markup.add(types.InlineKeyboardButton(text='Комбинированная без отключения', callback_data=f'strategy_combined_always_online:{adv_id}'))
+  markup.add(types.InlineKeyboardButton(text=ADV_STRATS['strategy_hold_the_position'], callback_data=f'strategy_hold_the_position:{adv_id}'))
+  markup.add(types.InlineKeyboardButton(text=ADV_STRATS['strategy_hold_the_bid'],  callback_data=f'strategy_hold_the_bid:{adv_id}'))
+  markup.add(types.InlineKeyboardButton(text=ADV_STRATS['strategy_combined'], callback_data=f'strategy_combined:{adv_id}'))
+  markup.add(types.InlineKeyboardButton(text=ADV_STRATS['strategy_combined_always_online'], callback_data=f'strategy_combined_always_online:{adv_id}'))
   return markup
 
 async def advert_info_message_maker(adverts, page_number, page_size, user):
@@ -428,16 +435,18 @@ async def advert_info_message_maker(adverts, page_number, page_size, user):
       if db_advert:
         if db_advert.status == 'ON':
           bot_status     += f"\t Отслеживается\!"
-          add_delete_str += f"\t Перестать отслеживать РК: /delete\_adv\_{advert['id']}\n"
-          add_delete_str += f"\t Макс\. ставка: {db_advert.max_bid} макс\. место: {db_advert.place}\n"
+          if db_advert.strategy:
+            add_delete_str += f"\t Стратегия отслеживания: {ADV_STRATS[db_advert.strategy]}\n"
+          add_delete_str += f"\t Перестать отслеживать: /delete\_adv\_{advert['id']}\n"
+          add_delete_str += f"\t Макс\. ставка: {db_advert.max_bid} макс\. место: {escape_telegram_specials(db_advert.place)}\n"
         else:
           bot_status     += f"\t Не отслеживается\!"
-          add_delete_str += f"\t Отслеживать РК: /add\_adv\_{advert['id']}\n"
+          add_delete_str += f"\t Отслеживать: /add\_adv\_{advert['id']}\n"
     else:
       bot_status     += f"\t Не отслеживается\!"
-      add_delete_str += f"\t Отслеживать РК: /add\_adv\_{advert['id']}\n"
+      add_delete_str += f"\t Отслеживать: /add\_adv\_{advert['id']}\n"
 
-    add_delete_str += f"\t Настроить РК: /adv\_settings\_{advert['id']}\n"
+    add_delete_str += f"\t Настроить: /adv\_settings\_{advert['id']}\n"
 
     # add_delete_str += f"\t Получить график аналитики: /user\_analitics\_grafic\_{advert['id']}\n"
 
@@ -453,6 +462,7 @@ async def advert_info_message_maker(adverts, page_number, page_size, user):
     result_msg += add_delete_str
     # TODO Текущие ставки на 1-2 месте по рекламному слову
     result_msg += f"\n"
+
   return result_msg
 
 # campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{advert['id']}"

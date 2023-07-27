@@ -3,24 +3,13 @@ import re
 from unittest import mock
 from user_analitics.graphic_analitic import graphics_analitics
 from ui_backend.app import bot
-from ui_backend.common import (edit_token_reply_markup, format_requests_count, management_tokens_reply_markup, paid_requests_inline_markup, paid_service_reply_markup, status_parser, 
-                               switch_status_reply_markup, 
-                               universal_reply_markup, 
-                               paginate_buttons, 
-                               city_reply_markup, 
-                               escape_telegram_specials, 
-                               logs_types_reply_markup, 
-                               universal_reply_markup_additionally, 
-                               advert_info_message_maker, 
-                               reply_markup_payment, 
-                               adv_settings_reply_markup, 
-                               action_history_reply_markup, 
-                               action_history_filter_reply_markup, 
-                               adv_settings_words_reply_markup, 
-                               fixed_word_switch,
-                               check_sub, 
-                               paid_requests_inline_markup,
-                               advert_strategy_reply_markup)
+from ui_backend.common import (edit_token_reply_markup, format_requests_count, 
+  management_tokens_reply_markup, paid_requests_inline_markup, paid_service_reply_markup, status_parser, 
+  switch_status_reply_markup, universal_reply_markup, paginate_buttons, city_reply_markup, 
+  escape_telegram_specials, logs_types_reply_markup, universal_reply_markup_additionally, 
+  advert_info_message_maker, reply_markup_payment, adv_settings_reply_markup, action_history_reply_markup, 
+  action_history_filter_reply_markup, adv_settings_words_reply_markup, fixed_word_switch, check_sub, 
+  paid_requests_inline_markup, advert_strategy_reply_markup, ADV_STRATS)
 from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
@@ -701,8 +690,6 @@ async def send_message_for_advert_bid(message, adv_id, sub_name):
   adverts_count = await db_queries.get_user_adverts(user.id)
   my_sub = await db_queries.get_sub(user.subscriptions_id)
   
-  logger.warn(adverts_count)
-  
   if len(adverts_count) > my_sub.tracking_advertising:
     return await bot.send_message(message.chat.id, "К сожалению, вы не можете отслеживать больше РК", parse_mode = 'MarkdownV2')
   
@@ -760,10 +747,10 @@ async def send_message_advert_strategy(message, adv_id, sub_name):
   
   campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{adv_id}"
   result_msg = f'''Выберите стратегию для РК с id [{adv_id}]({campaign_link})
-    "Держать позицию" держит выбранную позицию за минимальную необходимую ставку
-    "Держать ставку" держит наилучшую позицию в пределах указанной максимальной ставки
-    "Комбинированная" держит позицию или диапазон позиций в пределах максимальной ставки с отключением кампании при выходе за пределы максимальной ставки
-    "Комбинированная без отключения" держит позицию или диапазон позиций в пределах максимальной ставки или наилучшую позицию в пределах максимальной ставки ниже диапазона
+    "{ADV_STRATS['strategy_hold_the_position']}" держит выбранную позицию за минимальную необходимую ставку
+    "{ADV_STRATS['strategy_hold_the_bid']}" держит наилучшую позицию в пределах указанной максимальной ставки
+    "{ADV_STRATS['strategy_combined']}" держит позицию или диапазон позиций в пределах максимальной ставки с отключением кампании при выходе за пределы максимальной ставки
+    "{ADV_STRATS['strategy_combined_always_online']}" держит позицию или диапазон позиций в пределах максимальной ставки или наилучшую позицию в пределах максимальной ставки ниже диапазона
   '''
   await bot.send_message(message.chat.id, result_msg, parse_mode = 'MarkdownV2', reply_markup=advert_strategy_reply_markup(adv_id))
 
@@ -772,6 +759,7 @@ async def send_message_advert_strategy(message, adv_id, sub_name):
 
 async def choice_advert_strategy(message):
   advert_strategy, adv_id = message.callback_data.split(':')
+  message.user_session['advert_strategy'] = advert_strategy
   message.user_session['adv_settings_id'] = adv_id
   if advert_strategy == 'strategy_hold_the_position':
     await send_message_for_advert_place(message, adv_id)
@@ -834,7 +822,8 @@ async def set_advert_place_with_define_id(message):
   await db_queries.add_user_advert(user, adv_id, None, status='ON', place=user_number_value, strategy=advert_strategy)
   await bot.send_message(message.chat.id, f'РК с id {adv_id} отслеживается на предпочитаемом месте {user_number_value}')
   message.user_session['add_adv_id'] = None
-  message.user_session['advert_strategy'] = None
+  if advert_strategy and 'strategy_combined' in advert_strategy:
+    await send_message_for_advert_bid(message, adv_id)
 
 
 async def adv_settings_get_plus_word(message):

@@ -154,12 +154,12 @@ async def trial(message):
 async def delete_user_advert(message):
   bot_message_text = message.text
   adv_id = re.sub('/delete_adv_', '', bot_message_text)
-  user = db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  db_queries.delete_user_advert(user, adv_id)
+  user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
+  await db_queries.delete_user_advert(user, adv_id)
 
   deletion_message = f'Компания с id {adv_id} перестала отслеживаться'
   action_message = f'Отслеживание компании'
-  db_queries.add_action_history(user_id=user.id, action_description=deletion_message, action=action_message)
+  await db_queries.add_action_history(user_id=user.id, action_description=deletion_message, action=action_message)
   await bot.send_message(message.chat.id, deletion_message)
 
 
