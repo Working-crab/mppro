@@ -772,6 +772,7 @@ async def send_message_advert_strategy(message, adv_id, sub_name):
 
 async def choice_advert_strategy(message):
   advert_strategy, adv_id = message.callback_data.split(':')
+  message.user_session['adv_settings_id'] = adv_id
   if advert_strategy == 'strategy_hold_the_position':
     await send_message_for_advert_place(message, adv_id)
   elif advert_strategy == 'strategy_hold_the_bid':

@@ -15,6 +15,7 @@ logger = appLogger.getLogger(__name__)
 class campaign_automation:
 
   async def start():
+    print(1)
     adverts = await db_queries.get_adverts_chunk()
 
     print('============= campaign automation start =============')
@@ -25,7 +26,10 @@ class campaign_automation:
     for advert in adverts:
       await asyncio.sleep(1)
       print('=== campaign automation ===')
+      print(123)
       # print(campaign.campaign_id, campaign)
+
+      print(advert)
 
       try:
         await campaign_automation.check_campaign(advert)
@@ -81,7 +85,7 @@ class campaign_automation:
 
     campaign_places = campaign.place.split('-') # example 2-4
     max_place = 1
-    min_place = 0
+    min_place = float('inf')
     if len(campaign_places) > 0:
       if campaign_places[0]:
         max_place = campaign_places[0]

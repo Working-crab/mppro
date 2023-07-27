@@ -82,7 +82,7 @@ class wb_queries:
           if response.status == 401:
             raise Exception('Неверный токен!')
           if response.status == 429:
-            raise Exception('Read timed out')
+            raise Exception('Read timed out') # ?
           
           
           logger.warn(f"result {response.headers}")
@@ -99,6 +99,7 @@ class wb_queries:
           #     raise e
 
       except Exception as e:
+        await session.close()
         logger.debug({
           'method': method,
           'url': url,

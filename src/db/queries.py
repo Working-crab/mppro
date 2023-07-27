@@ -236,6 +236,11 @@ class db_queries:
 
             await session.commit()
 
+            # campaign data is broken here
+
+            for campaign in campaigns:
+                await session.refresh(campaign)
+
             return campaigns
             
         
