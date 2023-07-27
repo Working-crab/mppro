@@ -95,7 +95,7 @@ export default {
 <style scoped>
 .errors-list{
   height: 360px;
-  width: 700px;
+  width: 720px;
   margin: 10px;
   box-shadow: 2px 2px 5px black;
   /* border-radius: 5px; */
@@ -112,7 +112,7 @@ export default {
   background-color: rgba(0,133,242,.1);
 }
 .errors-list-content{
-  height: calc(100% - 101px);
+  height: calc(100% - 112px);
   display: flex;
   flex-direction: column;
   align-items: center;

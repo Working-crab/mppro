@@ -3,7 +3,8 @@ import httpRequester from '../miscellaneous/requester.js'
 
 export const useLastErrors = defineStore('lastErrors', {
   state: () => ({ 
-    lastErrors: []
+    lastErrors: [],
+    weekErrors: []
   }),
 
 
@@ -21,6 +22,21 @@ export const useLastErrors = defineStore('lastErrors', {
         return value
       }
     }),
+    
+    weekErrorsMapped: (state) => {
+      const errorsEntries = Object.entries(state.weekErrors)
+      
+      const lables = errorsEntries.map((value) => {
+        return value[0]
+      })
+      const data = errorsEntries.map((value) => {
+        return value[1]
+      })
+
+      return {lables: lables, data: data}
+    }
+
+
   },
 
   
@@ -42,6 +58,18 @@ export const useLastErrors = defineStore('lastErrors', {
       try {
         const result = await httpRequester.get('/testFront/')
         this.subscription = result.data.subs
+
+      } 
+      catch (error) {
+        console.error(error)
+      }
+      
+    },
+
+    async fetchLastWeekErrors() {
+      try {
+        const result = await httpRequester.get('/last_week_errors/')
+        this.weekErrors = result.data.errors
 
       } 
       catch (error) {
