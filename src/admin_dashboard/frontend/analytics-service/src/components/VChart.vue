@@ -28,7 +28,7 @@ export default {
       chartData: {
         labels: ['21.03.2023'],
         datasets: [ 
-          { data: [], backgroundColor: '#f87979', label: 'Data One', },
+          { data: [], backgroundColor: '#f87979', label: 'Errors count', },
         ],
       },
       chartOptions: {
