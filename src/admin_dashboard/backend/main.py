@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from db.queries import db_queries
 from admin_dashboard.backend.serializers import Action, ActionList, User
 
+from datetime import datetime, timedelta
+
 app = FastAPI(openapi_url=None) # openapi_url=None fix on the end TODO
 
 origins = ["*"]
@@ -65,11 +67,21 @@ async def get_graph_errors():
   errors_orm = await db_queries.get_week_errors_action_history(7)
   errors = ActionList.from_orm(errors_orm).dict()['__root__']
   errors_count_by_week_days = {}
+
   for error in errors:
     date_key = f"{error['date_time'].day}.{error['date_time'].month}.{error['date_time'].year}"
     if date_key in errors_count_by_week_days:
       errors_count_by_week_days[date_key] += 1
     else:
       errors_count_by_week_days[date_key] = 1
+
+  week_days = {}
+  date = datetime.now() - timedelta(days=6)
+  for day in range(1, 8):
+    date_key = f"{date.day}.{date.month}.{date.year}"
+    week_days[date_key] = 0
+    date = date + timedelta(days=1)
   
-  return {'errors': errors_count_by_week_days}
+  week_days.update(errors_count_by_week_days)
+
+  return {'errors': week_days}
