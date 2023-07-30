@@ -520,14 +520,17 @@ class wb_queries:
     
 # async def get_user_atrevds(req_params, page_number=1, pagesize=100):
 #     url = f'https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate&pageNumber={page_number}&pageSize={pagesize}'
-  async def get_user_atrevds(req_params, pagesize=50, user_id=None):
+  async def get_user_atrevds(pagesize=50, user=None):
     url = f'https://cmp.wildberries.ru/backend/api/v3/atrevds?order=createDate&pageNumber=1&pageSize={pagesize}'
+    custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all'
+    user_wb_tokens = await wb_queries.get_base_tokens(user)
+    req_params = await wb_queries.get_base_request_params(user_wb_tokens, custom_referer)
     
     user_atrevds = await wb_queries.wb_query(method='GET',
                                        url=url,
     # logger.warn("USER_LIST")
     # logger.warn(user_atrevds)
-                                       cookies=req_params['cookies'], headers=req_params['headers'], user_id=user_id)
+                                       cookies=req_params['cookies'], headers=req_params['headers'], user_id=user.id)
     logger.warn(user_atrevds)
     view = {'adverts': user_atrevds['content'], 'total_count': user_atrevds['counts']['totalCount']}
     return view

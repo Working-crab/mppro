@@ -2,6 +2,7 @@
 import asyncio
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
+from wb_common.wb_api_try import wb_api_queries
 import time
 from datetime import datetime
 from user_analitics import main as user_analitics
@@ -136,8 +137,12 @@ class campaign_automation:
     if new_bid != old_bid and bid_p_id != campaign.campaign_id:
 
       # emulate full setup
-      await wb_queries.set_campaign_bid(campaign_user, campaign, campaign_info, new_bid, old_bid, approximate_place)
-      await wb_queries.get_campaign_info(campaign_user, campaign, False)
+      if campaign_user.public_api_token:
+        await wb_api_queries.set_campaign_bid(campaign_user, campaign, campaign_info, new_bid, old_bid, approximate_place)
+        await wb_api_queries.get_campaign_info(campaign_user, campaign, False)
+      else:
+        await wb_queries.set_campaign_bid(campaign_user, campaign, campaign_info, new_bid, old_bid, approximate_place)
+        await wb_queries.get_campaign_info(campaign_user, campaign, False)
       await wb_queries.post_get_active(campaign_user, campaign)
       
 
@@ -151,7 +156,11 @@ class campaign_automation:
     if not db_words:
       return
     campaign_user = await db_queries.get_user_by_id(campaign.user_id)
-    words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+    if campaign_user.public_api_token:
+      words = await wb_api_queries.get_stat_words(user=campaign_user, campaign=campaign)
+    else:
+      words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+      
     logger.warn("before if")
     logger.warn(words)
     if len(words['fixed']) != 0:

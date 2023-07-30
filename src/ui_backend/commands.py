@@ -39,7 +39,7 @@ async def start(message):
 async def trial(call):
     if call.data == "Trial_Yes":
         await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text="Активируем Вам подписку, а пока можете посмотреть что она предоставляет: Информация\nИли /trial - Информация", reply_markup=reply_markup_trial(trial=True))
-        db_queries.update_sub(user_id=call.message.chat.id, sub_name='Старт', total=0)
+        await db_queries.update_sub(user_id=call.message.chat.id, sub_name='Старт', total=0)
     if call.data == "Trial_No":
         await bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text=f'Хорошо, но если вы всё же захотите активировать подписку, введите команду /trial', parse_mode='Markdown')
     if call.data == "Trial_info":
@@ -92,7 +92,7 @@ async def payment_func(call):
             purchase = call.data.split(':')[2]
             if purchase == "subscription":
                 sub_name = call.data.split(":")[3]
-                sub = db_queries.get_sub_name(sub_name=sub_name)
+                sub = await db_queries.get_sub_name(sub_name=sub_name)
                 price = sub.price
                 payment_dict['amount']['value'] = price
                 payment_dict['metadata'] = {
@@ -128,20 +128,19 @@ async def payment_func(call):
         search_user_id = call.data.split()[3]
         timestamp = call.data.split()[5] + " " + call.data.split()[6]
         await bot.send_message(call.message.chat.id, f'Идет поиск по: {search_user_id}\nВремя: {timestamp}')
-        
 
 
 @bot.message_handler(commands=['trial'])
 async def trial(message):
-    user = db_queries.get_user_by_telegram_user_id(message.chat.id)
-    transaction = db_queries.get_transaction(user_id=user.id, transaction_title="Старт")
+    user = await db_queries.get_user_by_telegram_user_id(message.chat.id)
+    transaction = await db_queries.get_transaction(user_id=user.id, transaction_title="Старт")
     if user.subscriptions_id == None:
         if transaction:
             await bot.send_message(message.chat.id, f'У вас уже была активирована Стартовая подписка', parse_mode='Markdown')
         else:
             await bot.send_message(message.chat.id, f'Информация о Стартовой подписке\nКнопка *Согласиться* активирует Вам подписку', reply_markup=reply_markup_trial(trial=False), parse_mode='Markdown')
     else:    
-        sub = db_queries.get_sub(sub_id=user.subscriptions_id)
+        sub = await db_queries.get_sub(sub_id=user.subscriptions_id)
         if sub.title != 'Старт':
             await bot.send_message(message.chat.id, f'У вас сейчас не Стартовая подписка', parse_mode='Markdown')
         elif sub.title == 'Старт':
@@ -193,8 +192,8 @@ async def got_payment(message):
 
 @bot.message_handler(commands=['show_active_sub'])
 async def show_active_sub(message):
-    user = db_queries.get_user_by_telegram_user_id(message.chat.id)
-    sub = db_queries.get_sub(sub_id=user.subscriptions_id)
+    user = await db_queries.get_user_by_telegram_user_id(message.chat.id)
+    sub = await db_queries.get_sub(sub_id=user.subscriptions_id)
     if user.subscriptions_id != None:
         await bot.send_message(message.chat.id, 'Подключен: `{}`\nСрок действия с `{}` по `{}`'.format(sub.title, user.sub_start_date.strftime('%d/%m/%Y'), user.sub_end_date.strftime('%d/%m/%Y')))
     else:

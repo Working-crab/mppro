@@ -54,3 +54,5 @@ requests-toolbelt==0.10.1
 asyncpg==0.28.0
 user_agent==0.1.10
 pathlib==1.0.1
+aiochclient==2.4.0
+clickhouse-driver==0.2.6

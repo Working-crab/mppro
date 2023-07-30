@@ -7,6 +7,7 @@ import asyncio
 
 
 from common.appLogger import appLogger
+from db.queries import db_queries
 logger = appLogger.getLogger(__name__)
 
 class wb_api_queries:
@@ -91,25 +92,25 @@ class wb_api_queries:
     return user_wb_tokens
 
 
-  def search_adverts_by_keyword(keyword):
-    res = wb_api_queries.wb_query(method="get", url=f'https://catalog-ads.wildberries.ru/api/v5/search?keyword={keyword}')
-    res = res['adverts'][0:10] if res.get('adverts') is not None else []
-    result = []
-    for advert in res:
-      result.append({
-      "price": advert['cpm'],
-      "p_id": advert['id'],
-      "position": advert['id']
-      })
-    return result
+  # def search_adverts_by_keyword(keyword):
+  #   res = wb_api_queries.wb_query(method="get", url=f'https://catalog-ads.wildberries.ru/api/v5/search?keyword={keyword}')
+  #   res = res['adverts'][0:10] if res.get('adverts') is not None else []
+  #   result = []
+  #   for advert in res:
+  #     result.append({
+  #     "price": advert['cpm'],
+  #     "p_id": advert['id'],
+  #     "position": advert['id']
+  #     })
+  #   return result
 
 
-  def get_campaign_info(user, campaign):
-    user_wb_tokens = wb_api_queries.get_base_tokens(user)
+  async def get_campaign_info(user, campaign):
+    user_wb_tokens = await wb_api_queries.get_base_tokens(user)
     request_url = f'https://advert-api.wb.ru/adv/v0/advert?id={campaign.campaign_id}'
-    req_params = wb_api_queries.get_base_request_params(user_wb_tokens)
+    req_params = await wb_api_queries.get_base_request_params(user_wb_tokens)
 
-    result = wb_api_queries.wb_query(method="get", url=request_url, headers=req_params['headers'])
+    result = await wb_api_queries.wb_query(method="get", url=request_url, headers=req_params['headers'])
 
     if 'params' in result and len(result['params']) == 0:
       raise Exception('wb не вернул данные get_campaign_info')
@@ -117,25 +118,27 @@ class wb_api_queries:
     res = {
       'campaign_id': campaign.campaign_id,
       'campaign_bid': result['params'][0]['price'],
-      'campaign_key_word': result['params'][0]['subjectName']
+      'campaign_key_word': result['params'][0]['subjectName'],
+      'status': result['status'],
+      'full_body': result
     }
 
     return res
 
 
-  def set_campaign_bid(user, campaign, campaign_info, new_bid, approximate_place):
-    user_wb_tokens = wb_api_queries.get_base_tokens(user)
+  async def set_campaign_bid(user, campaign, campaign_info, new_bid, approximate_place):
+    user_wb_tokens = await wb_api_queries.get_base_tokens(user)
     request_url = f'https://advert-api.wb.ru/adv/v0/cpm'
-    req_params = wb_api_queries.get_base_request_params(user_wb_tokens)
+    req_params = await wb_api_queries.get_base_request_params(user_wb_tokens)
 
     request_body = {
       "advertId": campaign.campaign_id,
-      "type": 6,
+      "type": 8,
       "cpm": new_bid,
       "param": 0
     }
 
-    result = wb_api_queries.wb_query(method="post", url=request_url, headers=req_params['headers'],
+    result = await wb_api_queries.wb_query(method="post", url=request_url, headers=req_params['headers'],
       data=json.dumps(request_body)
     )
 
@@ -145,9 +148,9 @@ class wb_api_queries:
 
 
     
-  def get_user_atrevds(req_params):
+  async def get_user_atrevds(req_params):
 
-    user_atrevds = wb_api_queries.wb_query(method="get", url='https://cmp.wildberries.ru/backend/api/v3/atrevds?order=create', cookies=req_params['cookies'], headers=req_params['headers'])
+    user_atrevds = await wb_api_queries.wb_query(method="get", url='https://advert-api.wb.ru/adv/v0/adverts?order=create', cookies=req_params['cookies'], headers=req_params['headers'])
     # view = user_atrevds['content']
     view = {'adverts': user_atrevds['content'], 'total_count': user_atrevds['counts']['totalCount']}
     return view
@@ -193,5 +196,137 @@ class wb_api_queries:
     return r
   
   
-  async def set_campaign_bid(user, campaign, campaign_info, new_bid, old_bid, approximate_place):
-    pass
+  async def get_stat_words(user, campaign):
+    user_wb_tokens = await wb_api_queries.get_base_tokens(user)
+    req_params = await wb_api_queries.get_base_request_params(user_wb_tokens)
+
+    print('get_campaign_info', req_params)
+
+    r = await wb_api_queries.wb_query(method='GET', url=f'https://advert-api.wb.ru/adv/v1/stat/words?id={campaign.campaign_id}', 
+      headers=req_params['headers']
+    )
+    
+    error = "На WB произошла ошибка"
+    
+    pluses = []
+    minuses = []
+    fixed = [] # Words
+    fixed_status = ''
+    main_pluse_word = ''
+
+    if 'words' in r and 'pluse' in r['words']:
+      pluses = r['words']['pluse']
+    
+    if 'words' in r and 'keywords' in r['words']:
+      fixed = r['words']['keywords']
+      
+    if 'words' in r and 'fixed' in r['words']:
+      fixed_status = r['words']['fixed']
+    
+    if 'words' in r and 'excluded' in r['words']:
+      minuses = r['words']['excluded']
+
+    if len(pluses) > 0:
+      main_pluse_word = pluses[0]
+
+    res = {
+      'pluses': pluses,
+      'minuses': minuses,
+      'main_pluse_word': main_pluse_word,
+      'fixed': fixed,
+      'fixed_status': fixed_status
+    }
+    try:
+      if r.raise_for_status:
+        res['error'] = error
+    except:
+      pass
+
+    return res
+  
+  
+  async def get_fixed(user, campaign):
+    user_wb_tokens = await wb_api_queries.get_base_tokens(user)
+    req_params = await wb_api_queries.get_base_request_params(user_wb_tokens)
+    
+
+    r = await wb_api_queries.wb_query(method='GET', url=f'https://advert-api.wb.ru/adv/v1/stat/words?id={campaign.campaign_id}', 
+      headers=req_params['headers']
+    )
+
+    fixed = [] # Status
+
+    if 'words' in r and 'fixed' in r['words']:
+      fixed = r['words']['fixed']
+
+    res = {
+      'fixed': fixed
+    }
+
+    return res
+
+
+  async def add_word(user, campaign, plus_word=None):
+    user_wb_tokens = await wb_api_queries.get_base_tokens(user)
+    req_params = await wb_api_queries.get_base_request_params(user_wb_tokens)
+    req_params['headers']['Content-type'] = 'application/json'
+    
+    # plus_word = [plus.lower() for plus in plus_word]
+    request_body = {"pluse": plus_word}
+    r = await wb_api_queries.wb_query(method='POST', url=f'https://advert-api.wb.ru/adv/v1/search/set-plus?id={campaign.campaign_id}',
+    headers=req_params['headers'],
+    data=json.dumps(request_body))
+    await db_queries.add_action_history(user_id=user.id, action="Добавлено Плюс слово", action_description=f"Было добавлено Плюс слово {plus_word[-1]} в компанию с id {campaign.campaign_id}")
+
+
+    return r
+
+
+  async def switch_word(user, campaign, switch):
+    user_wb_tokens = await wb_api_queries.get_base_tokens(user)
+    req_params = await wb_api_queries.get_base_request_params(user_wb_tokens)
+    req_params['headers']['Content-type'] = 'application/json'
+    
+    r = await wb_api_queries.wb_query(method='GET', url=f'https://advert-api.wb.ru/adv/v1/search/set-plus?id={campaign.campaign_id}&fixed={switch}',
+      headers=req_params['headers'],
+      req=True
+    )
+    
+    status = "Включены" if switch == "true" else "Выключены"
+    await db_queries.add_action_history(user_id=user.id, action=f"Были {status} Фиксированные фразы", action_description=f"Были {status} Фиксированные фразы в компании с id {campaign.campaign_id}")
+
+    return r
+  
+  
+  async def add_budget(user, campaign, budget):
+    user_wb_tokens = await wb_api_queries.get_base_tokens(user)
+    req_params = await wb_api_queries.get_base_request_params(user_wb_tokens)
+    req_params['headers']['Content-type'] = 'application/json'
+    
+    request_body = {"sum": budget, "type": 1}
+    r = await wb_api_queries.wb_query(method='POST', url=f'https://advert-api.wb.ru/adv/v1/budget/deposit?id={campaign.campaign_id}',
+    headers=req_params['headers'],
+    data=json.dumps(request_body), req=True)
+        
+    
+    # if not r.raise_for_status:
+    await db_queries.add_action_history(user_id=user.id, action="Изменен бюджет", action_description=f"Было добавлено {budget} к бюджету в компании с id {campaign.campaign_id}")
+
+    # if not tries:
+    #   return error
+    return r
+  
+  
+  async def get_user_atrevds(user=None):
+    url = f'https://advert-api.wb.ru/adv/v0/adverts?order=createDate'
+    
+    user_wb_tokens = await wb_api_queries.get_base_tokens(user)
+    req_params = await wb_api_queries.get_base_request_params(user_wb_tokens)
+    
+    user_atrevds = await wb_api_queries.wb_query(method='GET', url=url, headers=req_params['headers'], user_id=user.id)
+    # logger.warn("USER_LIST")
+    # logger.warn(user_atrevds)
+                                       
+    logger.warn(user_atrevds)
+    view = {'adverts': user_atrevds, 'total_count': len(user_atrevds)}
+    return view

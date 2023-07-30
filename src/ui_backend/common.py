@@ -4,6 +4,7 @@ from ui_backend.config import syncBot
 from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
+from wb_common.wb_api_try import wb_api_queries
 from unittest import mock
 from cache_worker.cache_worker import cache_worker
 from collections import namedtuple
@@ -358,14 +359,18 @@ def paginate_buttons(action, page_number, total_count_adverts, page_size, user_i
 
 async def get_first_place(user_id, campaign):
   campaign_user = await db_queries.get_user_by_telegram_user_id(user_id)
-  campaign_info = await wb_queries.get_campaign_info(campaign_user, campaign)
-  campaign_pluse_words = await wb_queries.get_stat_words(campaign_user, campaign)
+  if campaign_user.public_api_token:
+    campaign_info = await wb_api_queries.get_campaign_info(campaign_user, campaign)
+    campaign_pluse_words = await wb_api_queries.get_stat_words(campaign_user, campaign)
+  else:
+    campaign_info = await wb_queries.get_campaign_info(campaign_user, campaign)
+    campaign_pluse_words = await wb_queries.get_stat_words(campaign_user, campaign)
 
   check_word = campaign_info['campaign_key_word']
   if campaign_pluse_words['main_pluse_word']:
     check_word = campaign_pluse_words['main_pluse_word']
 
-  current_bids_table = wb_queries.search_adverts_by_keyword(check_word)
+  current_bids_table = await wb_queries.search_adverts_by_keyword(check_word)
   
   logger.info("current_bids_table")
   logger.info(current_bids_table)
@@ -394,30 +399,44 @@ def advert_strategy_reply_markup(adv_id):
   return markup
 
 async def advert_info_message_maker(adverts, page_number, page_size, user):
-  adverts = sorted(adverts, key=lambda x: status_parser_priority_map(x['statusId']))
+  if user.public_api_token:
+    adverts = sorted(adverts, key=lambda x: status_parser_priority_map(x['status']))
+  else:
+    adverts = sorted(adverts, key=lambda x: status_parser_priority_map(x['statusId']))
   
   if page_number != 1:
     adverts = adverts[(page_size*(page_number-1)):page_size*page_number]
   else:
     adverts = adverts[page_number-1:page_size]
   
-
-  lst_adverts_ids = [i['id'] for i in adverts]
+  if user.public_api_token:
+    lst_adverts_ids = [i['advertId'] for i in adverts]
+  else:
+    lst_adverts_ids = [i['id'] for i in adverts]
+    
   db_adverts = await db_queries.get_user_adverts_by_wb_ids(user.id, lst_adverts_ids)
   id_to_db_adverts = {x.campaign_id: x for x in db_adverts}
   lst_adverts_ids = [i.campaign_id for i in db_adverts]
 
   result_msg = f'Список ваших рекламных компаний с cmp\.wildberries\.ru, страница: {page_number}\n\n'
   for advert in adverts:
-    stat = status_parser(advert['statusId'])
-
     campaign = mock.Mock()
-    campaign.campaign_id = advert['id']
+    
+    if user.public_api_token:
+      stat = status_parser(advert['status'])
+      campaign.campaign_id = advert['advertId']
+    else:
+      stat = status_parser(advert['statusId'])
+      campaign.campaign_id = advert['id']
+    
 
     budget_string = ''
     try:
       # first_place_price = get_first_place(user.telegram_user_id, campaign)
-      budget = await wb_queries.get_budget(user, campaign)
+      if user.public_api_token:
+        budget = await wb_api_queries.get_budget(user, campaign)
+      else:
+        budget = await wb_queries.get_budget(user, campaign)
       budget = budget.get("Бюджет компании")
     except Exception as e:
       budget = None
@@ -430,30 +449,33 @@ async def advert_info_message_maker(adverts, page_number, page_size, user):
 
     add_delete_str = ''
     bot_status = ''
-    if advert['id'] in lst_adverts_ids:
-      db_advert = id_to_db_adverts.get(advert['id'])
+    if campaign.campaign_id in lst_adverts_ids:
+      db_advert = id_to_db_adverts.get(campaign.campaign_id)
       if db_advert:
         if db_advert.status == 'ON':
           bot_status     += f"\t Отслеживается\!"
           if db_advert.strategy:
             add_delete_str += f"\t Стратегия отслеживания: {ADV_STRATS[db_advert.strategy]}\n"
-          add_delete_str += f"\t Перестать отслеживать: /delete\_adv\_{advert['id']}\n"
+          add_delete_str += f"\t Перестать отслеживать: /delete\_adv\_{campaign.campaign_id}\n"
           add_delete_str += f"\t Макс\. ставка: {db_advert.max_bid} макс\. место: {escape_telegram_specials(db_advert.place)}\n"
         else:
           bot_status     += f"\t Не отслеживается\!"
-          add_delete_str += f"\t Отслеживать: /add\_adv\_{advert['id']}\n"
+          add_delete_str += f"\t Отслеживать: /add\_adv\_{campaign.campaign_id}\n"
     else:
       bot_status     += f"\t Не отслеживается\!"
-      add_delete_str += f"\t Отслеживать: /add\_adv\_{advert['id']}\n"
+      add_delete_str += f"\t Отслеживать: /add\_adv\_{campaign.campaign_id}\n"
 
-    add_delete_str += f"\t Настроить: /adv\_settings\_{advert['id']}\n"
+    add_delete_str += f"\t Настроить: /adv\_settings\_{campaign.campaign_id}\n"
 
     # add_delete_str += f"\t Получить график аналитики: /user\_analitics\_grafic\_{advert['id']}\n"
 
-    campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{advert['id']}"
+    campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}"
     
-    result_msg += f"*Имя компании: {escape_telegram_specials(advert['campaignName'])}*\n"
-    result_msg += f"\t ID: [{advert['id']}]({campaign_link}) Статус: {stat}\n"
+    if user.public_api_token:
+      result_msg += f"*Имя компании: {escape_telegram_specials(advert['name'])}*\n"
+    else:
+      result_msg += f"*Имя компании: {escape_telegram_specials(advert['campaignName'])}*\n"
+    result_msg += f"\t ID: [{campaign.campaign_id}]({campaign_link}) Статус: {stat}\n"
 
     result_msg += budget_string
 

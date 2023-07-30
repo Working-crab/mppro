@@ -57,6 +57,16 @@ services:
     environment:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+
+  clickhouse:
+    image: clickhouse/clickhouse-server
+    container_name: clickhouse-server
+    restart: always
+    environment:
+      - USER=default
+    ports:
+      - "127.0.0.1:8123:8123"
+      - "127.0.0.1:9000:9000"
  
 
 volumes:
@@ -65,4 +75,6 @@ volumes:
   redis:
     driver: local
   kafka:
+    driver: local
+  clickhouse:
     driver: local
