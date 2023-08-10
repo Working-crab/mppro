@@ -55,7 +55,7 @@ async def payment_func(call):
             purchase = call.data.split(':')[2]
             if purchase == "subscription":
                 sub_name = call.data.split(':')[3]
-                sub = db_queries.get_sub_name(sub_name=sub_name)
+                sub = await db_queries.get_sub_name(sub_name=sub_name)
                 product_price = [LabeledPrice(label=sub.title, amount=sub.price * 100)]
                 await bot.send_invoice(call.message.chat.id,
                                 title=sub.title,

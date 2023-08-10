@@ -13,7 +13,7 @@ from ui_backend.common import (edit_token_reply_markup, format_requests_count,
 from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
-from wb_common.wb_api_try import wb_api_queries
+from wb_common.wb_api_queries import wb_api_queries
 from datetime import datetime, timedelta
 from cache_worker.cache_worker import cache_worker
 from kafka_dir.general_publisher import queue_message_async
@@ -150,6 +150,15 @@ async def message_handler(message):
         )
         return
       
+      if "Неверный токен Public API!" in str(e):
+        await db_queries.remove_public_api_token(message.chat.id)
+        await queue_message_async(
+        topic = 'telegram_message_sender',
+        destination_id = message.chat.id,
+        message = 'Произошла ошибка валидации Публичного АПИ Токена! Возможно срок его действия истек, попробуйте перезагрузить токен!'
+        )
+        return
+      
       if "'User' object has no attribute 'update_v3_main_token'" in str(e):
         await queue_message_async(
         topic = 'telegram_message_sender',
@@ -234,9 +243,6 @@ async def search_next_step_handler(message, after_city_choose=False):
   user = await db_queries.get_user_by_telegram_user_id(telegram_user_id)
   
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
-  # if user.public_api_token:
-  #   item_dicts = await wb_api_queries.search_adverts_by_keyword(keyword, telegram_user_id)
-  # else:  
   item_dicts = await wb_queries.search_adverts_by_keyword(keyword, telegram_user_id)
   result_message = ''
   position_ids = []
@@ -324,9 +330,9 @@ async def misSpell(message):
 # ------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Ветка "Установить токен" -----------------------------------------------------------------------------------------------------------------------
-
-async def management_tokens(message):
-  await bot.send_message(message.chat.id, 'Выберите тип токена для просмотра статуса\nРекомендации:\nСначала нужно поставить x_supplier_id, для правильной работоспособности, после поставить любой другой токен', reply_markup=management_tokens_reply_markup())
+@check_sub(['*'])
+async def management_tokens(message, sub_name): 
+  await bot.send_message(message.chat.id, f'Выберите тип токена для просмотра статуса\nРекомендации:\nСначала нужно поставить x_supplier_id, для правильной работоспособности, после поставить любой другой токен', reply_markup=management_tokens_reply_markup(sub_name=sub_name))
   set_user_session_step(message, 'Manage_tokens')
 
 
@@ -386,6 +392,21 @@ async def set_token_cmp_handler(message):
   await db_queries.set_user_wb_cmp_token(telegram_user_id=message.from_user.id, wb_cmp_token=clear_token)
   await bot.send_message(message.chat.id, 'Ваш токен установлен\!', reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
   await db_queries.add_action_history(user_id=user.id, action="Токен", action_description=f"Был установлен cmp Token: '{clear_token}'")
+  
+@check_sub(['Разработчик'])
+async def get_wb_token(message, sub_name):
+  await bot.send_message(message.chat.id, 'Получаю ВБ токен', reply_markup=universal_reply_markup(), parse_mode='MarkdownV2')
+  users_with_tokens = await db_queries.get_work_wb_token()
+  
+  result = None
+  for user_with_token in users_with_tokens:
+    result = await wb_queries.reset_base_tokens(user_with_token, check='cmp_token', force_check=True)  
+    if result != None:
+      await bot.send_message(message.chat.id, escape_telegram_specials(f"telegram_user_id: {user_with_token.telegram_user_id}\nusername: {user_with_token.telegram_username}\n\nwb_cmp_token: {result['wb_cmp_token']}\n x_supplier_id: {result['x_supplier_id']}"), parse_mode='MarkdownV2')
+      break
+    logger.warn(result)
+  logger.warn(result)
+  
   
 '''
 async def wb_v3_main_token_handler(message):
@@ -471,22 +492,12 @@ async def list_adverts_handler(message):
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
 
   user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  user_wb_tokens = await wb_queries.get_base_tokens(user)
-  req_params = await wb_queries.get_base_request_params(user_wb_tokens)
+  # user_wb_tokens = await wb_queries.get_base_tokens(user)
+  # req_params = await wb_queries.get_base_request_params(user_wb_tokens)
   
   page_number = 1
   
-  # user_atrevds_data = await wb_queries.get_user_atrevds(req_params, page_number)  try:
-  # if user.public_api_token:
-  #   logger.warn("HERE")
-  #   user_atrevds_data = await wb_api_queries.get_user_atrevds(req_params, user_id=message.from_user.id)
-  # else:
-  if user.public_api_token:
-    user_atrevds_data = await wb_api_queries.get_user_atrevds(user=user) 
-    # logger.warn(user_atrevds_data)
-  else:
-    user_atrevds_data = await wb_queries.get_user_atrevds(user=user) 
-  
+  user_atrevds_data = await wb_queries.get_user_atrevds(pagesize=page_number, user=user)
   
   page_size = 6
   logger.info(len(user_atrevds_data['adverts']))
@@ -515,11 +526,7 @@ async def adv_list_pagination(message):
   logger.warn(f"user {user}")
   
   # user_atrevds_data = await wb_queries.get_user_atrevds(req_params, page_number=1)
-  if user.public_api_token:
-    user_atrevds_data = await wb_api_queries.get_user_atrevds(user=user) 
-    logger.warn(user_atrevds_data)
-  else:
-    user_atrevds_data = await wb_queries.get_user_atrevds(user=user) 
+  user_atrevds_data = await wb_queries.get_user_atrevds(user=user)
 
   page_size = 6
   result_msg = await advert_info_message_maker(user_atrevds_data['adverts'], page_number=page_number, page_size=page_size, user=user)
@@ -696,6 +703,7 @@ async def action_history_download(message):
 # --- правка ставки компании --------------------------------------------------------------------------------------------
 @check_sub(['Старт', 'Победитель', 'Мастер', 'Чемпион'])
 async def send_message_for_advert_bid(message, adv_id, sub_name):
+  logger.warn("HERE, NOW")
   user = await db_queries.get_user_by_telegram_user_id(message.chat.id)
   adverts_count = await db_queries.get_user_adverts(user.id)
   my_sub = await db_queries.get_sub(user.subscriptions_id)
@@ -785,10 +793,13 @@ async def add_advert_with_define_id(message):
   user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   adv_id = message.user_session.get('add_adv_id')
   advert_strategy = message.user_session.get('advert_strategy')
+  logger.warn(f"Here, and {message.text}")
   if adv_id == None:
     adv_id = message.user_session.get('adv_settings_id')
   user_number_value = re.sub(r'[^0-9]', '', message.text)
-  await db_queries.add_user_advert(user, adv_id, user_number_value, status='ON', strategy=advert_strategy)
+  logger.warn(user_number_value)
+  await db_queries.add_user_advert(user, adv_id, max_bid=user_number_value, status='ON', strategy=advert_strategy)
+  logger.warn("yes")
   await bot.send_message(message.chat.id, f'РК с id {adv_id} отслеживается с максимальной ставкой {user_number_value}')
   message.user_session['add_adv_id'] = None
     
@@ -804,17 +815,14 @@ async def adv_settings(message):
   campaign.campaign_id = adv_id
   campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   
-  if campaign_user.public_api_token:  
-    fixed = await wb_api_queries.get_fixed(campaign_user, campaign)
-  else:
-    fixed = await wb_queries.get_fixed(campaign_user, campaign)
+  fixed = await wb_queries.get_fixed(campaign_user, campaign)
   
   message.user_session['adv_fixed'] = fixed['fixed']
   
   await bot.send_message(message.chat.id, f'Ниже представлена панель, для возможных действий с компанией {adv_id}', reply_markup=adv_settings_reply_markup(message.from_user.id))
 
 @check_sub(['Старт', 'Победитель', 'Мастер', 'Чемпион'])
-async def adv_settings_bid(message):
+async def adv_settings_bid(message, sub_name):
   adv_id = message.user_session.get('adv_settings_id')
   await send_message_for_advert_bid(message, adv_id)
 
@@ -830,6 +838,7 @@ async def set_advert_place_with_define_id(message):
   advert_strategy = message.user_session.get('advert_strategy')
   user_number_value = None
   user_number_values = re.findall(r'\d+-?\d*', message.text)
+  logger.warn(f"user_number_values {user_number_values}")
   if len(user_number_values) > 0:
     user_number_value = user_number_values[0]
   await db_queries.add_user_advert(user, adv_id, None, status='ON', place=user_number_value, strategy=advert_strategy)
@@ -846,10 +855,7 @@ async def adv_settings_get_plus_word(message):
   campaign.campaign_id = adv_id
   campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   
-  if campaign_user.public_api_token:
-    words = await wb_api_queries.get_stat_words(user=campaign_user, campaign=campaign)
-  else:
-    words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   if len(words['fixed']) == 0:
     check_new = True
@@ -909,19 +915,14 @@ async def add_plus_word_next_step_handler(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  if campaign_user.public_api_token:
-    words = await wb_api_queries.get_stat_words(user=campaign_user, campaign=campaign)
-  else:
-    words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   pluse_word = [word.lower() for word in words['pluses']]
   pluse_word.append(keyword.lower())
   
   try:
-    if campaign_user.public_api_token:
-      await wb_api_queries.add_word(campaign_user, campaign, plus_word=pluse_word)
-    else:
-      await wb_queries.add_word(campaign_user, campaign, plus_word=pluse_word)
+    await wb_queries.add_word(campaign_user, campaign, plus_word=pluse_word)
     await bot.send_message(message.chat.id, f"Слово {keyword.lower()} было добавлено")
   except:
     await bot.send_message(message.chat.id, f"На стороне WB произошла ошибка")
@@ -952,10 +953,8 @@ async def adv_settings_get_minus_word(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  if campaign_user.public_api_token:
-    words = await wb_api_queries.get_stat_words(user=campaign_user, campaign=campaign)
-  else:
-    words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   if len(words['fixed']) == 0:
     check_new = True
@@ -1030,10 +1029,7 @@ async def add_minus_word_next_step_handler(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  if campaign_user.public_api_token:
-    words = await wb_api_queries.get_stat_words(user=campaign_user, campaign=campaign)
-  else:
-    words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   minus_word = [word.lower() for word in words['minuses']]
   minus_word.append(keyword.lower())
@@ -1059,10 +1055,8 @@ async def delete_plus_word_next_step_handler(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  if campaign_user.public_api_token:
-    words = await wb_api_queries.get_stat_words(user=campaign_user, campaign=campaign)
-  else:
-    words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   pluse_word = []
   check = False
   for word in words['pluses']:
@@ -1074,10 +1068,7 @@ async def delete_plus_word_next_step_handler(message):
   
   try:
     if check:
-      if campaign_user.public_api_token:
-        await wb_api_queries.add_word(campaign_user, campaign, plus_word=pluse_word)
-      else:
-        await wb_queries.add_word(campaign_user, campaign, plus_word=pluse_word)
+      await wb_queries.add_word(campaign_user, campaign, plus_word=pluse_word)
       await bot.send_message(message.chat.id, f"Слово/фраза {keyword.lower()} было удалено")
     else:
       await bot.send_message(message.chat.id, f"Не удалось найти слово/фразу в списке")  
@@ -1130,10 +1121,7 @@ async def adv_settings_switch_fixed_word(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  if campaign_user.public_api_token:
-    words = await wb_api_queries.get_stat_words(user=campaign_user, campaign=campaign)
-  else:
-    words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
     
   if words['fixed_status']:
     await bot.send_message(message.chat.id, f"Фиксированные фразы на данный момент: *Включены*", parse_mode="MarkdownV2", reply_markup=fixed_word_switch(fixed_status=True))
@@ -1151,10 +1139,7 @@ async def adv_settings_switch_on_word(message):
   campaign.campaign_id = adv_id
   campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   
-  if campaign_user.public_api_token:
-    words = await wb_api_queries.get_stat_words(user=campaign_user, campaign=campaign)
-  else:
-    words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
   chat_id_proccessing = proccesing.chat.id
@@ -1167,12 +1152,8 @@ async def adv_settings_switch_on_word(message):
     await bot.send_message(message.chat.id, f"Фиксированные фразы будут *включены* автоматически, когда появяться \"Ключевые слова\", автоматически, если компания отслеживается", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
   else:
     try:      
-      if campaign_user.public_api_token:
-        switch = await wb_api_queries.switch_word(user=campaign_user, campaign=campaign, switch="true")
-        words = await wb_api_queries.get_stat_words(user=campaign_user, campaign=campaign)
-      else:
-        switch = await wb_queries.switch_word(user=campaign_user, campaign=campaign, switch="true")
-        words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+      switch = await wb_queries.switch_word(user=campaign_user, campaign=campaign, switch="true")
+      words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
         
       await bot.delete_message(chat_id_proccessing, message_id_proccessing)
       if words['fixed_status']:
@@ -1191,10 +1172,8 @@ async def adv_settings_switch_off_word(message):
   adv_id = message.user_session.get('adv_settings_id')
   campaign.campaign_id = adv_id
   campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  if campaign_user.public_api_token:
-    words = await wb_api_queries.get_stat_words(user=campaign_user, campaign=campaign)
-  else:
-    words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+  
+  words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
   
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
   chat_id_proccessing = proccesing.chat.id
@@ -1206,12 +1185,8 @@ async def adv_settings_switch_off_word(message):
     await bot.send_message(message.chat.id, f"Фиксированные фразы будут *выключены* автоматически, когда появяться \"Ключеваые слова\", автоматически, если компания отслеживается", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
   else:
     try:
-      if campaign_user.public_api_token:
-        switch = await wb_api_queries.switch_word(user=campaign_user, campaign=campaign, switch="false")
-        words = await wb_api_queries.get_stat_words(user=campaign_user, campaign=campaign)
-      else:
-        switch = await wb_queries.switch_word(user=campaign_user, campaign=campaign, switch="false")
-        words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
+      switch = await wb_queries.switch_word(user=campaign_user, campaign=campaign, switch="false")
+      words = await wb_queries.get_stat_words(user=campaign_user, campaign=campaign)
       await bot.delete_message(chat_id_proccessing, message_id_proccessing)
       if not words['fixed_status']:
         await bot.send_message(message.chat.id, f"Фиксированные фразы были *Выключены*", parse_mode="MarkdownV2", reply_markup=adv_settings_reply_markup(message.from_user.id))
@@ -1229,12 +1204,9 @@ async def adv_settings_switch_status(message):
   campaign.campaign_id = adv_id
   campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
   
-  if campaign_user.public_api_token:
-    status = await wb_api_queries.get_campaign_info(campaign_user, campaign)
-    budget = await wb_api_queries.get_budget(campaign_user, campaign)
-  else:
-    status = await wb_queries.get_campaign_info(campaign_user, campaign)
-    budget = await wb_queries.get_budget(campaign_user, campaign)
+  
+  status = await wb_queries.get_campaign_info(campaign_user, campaign)
+  budget = await wb_queries.get_budget(campaign_user, campaign)
   # except:
   #   return await bot.send_message(message.chat.id, f"Произошла ошибка при получении *Статуса* на стороне WB, попробуйте позже", parse_mode="MarkdownV2")
   logger.warn(status)
@@ -1251,7 +1223,7 @@ async def adv_settings_switch_status(message):
       await bot.send_message(message.chat.id, f"На данный момент статус компании: *{status_parse}*\nВы можете изменить статус на *Активно*, кнопкой ниже", parse_mode="MarkdownV2", reply_markup=switch_status_reply_markup(status=status['status'], campaing_id=adv_id))
   elif status_parse == "Активна":
     await bot.send_message(message.chat.id, f"На данный момент статус компании: *{status_parse}*\nВы можете изменить статус на *Приостановлено*, кнопкой ниже", parse_mode="MarkdownV2", reply_markup=switch_status_reply_markup(status=status['status'], campaing_id=adv_id))
-  
+
 
 async def change_adv_status(message):
   await bot.edit_message_text("Изменение статуса...", message.chat.id, message.id)
@@ -1261,10 +1233,8 @@ async def change_adv_status(message):
   campaign.campaign_id = adv_id
   user_id = message.chat.id
   campaign_user = await db_queries.get_user_by_telegram_user_id(user_id)
-  if campaign_user.public_api_token:
-    await wb_api_queries.switch_status(campaign_user, campaign, status=change_to)
-  else:
-    await wb_queries.switch_status(campaign_user, campaign, status=change_to)
+  
+  await wb_queries.switch_status(campaign_user, campaign, status=change_to)
   
   if change_to == "pause":
     await bot.edit_message_text("Статус был успешно изменён на *Приостановлено*", message.chat.id, message.id, parse_mode="MarkdownV2")
@@ -1279,10 +1249,7 @@ async def adv_settings_add_budget(message):
   campaign.campaign_id = adv_id
   
   campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  if campaign_user.public_api_token:
-    budget = await wb_api_queries.get_budget(campaign_user, campaign)
-  else:
-    budget = await wb_queries.get_budget(campaign_user, campaign)
+  budget = await wb_queries.get_budget(campaign_user, campaign)
   budget = budget['Бюджет компании']
   
   await bot.send_message(message.chat.id, f'Текущий бюджет: {budget} ₽\nid рекламной компании: [{adv_id}](https://cmp.wildberries.ru/campaigns/list/all/edit/search/{adv_id})\nВведите сумму пополенения бюджета или нажмите "Назад"', parse_mode="MarkdownV2")
@@ -1300,10 +1267,7 @@ async def add_budget_next_step_handler(message):
   campaign.campaign_id = adv_id
   
   campaign_user = await db_queries.get_user_by_telegram_user_id(message.from_user.id)
-  if campaign_user.public_api_token:
-    budget = await wb_api_queries.get_budget(campaign_user, campaign)
-  else:
-    budget = await wb_queries.get_budget(campaign_user, campaign)
+  budget = await wb_queries.get_budget(campaign_user, campaign)
   budget = budget['Бюджет компании']
   await asyncio.sleep(2)
   
@@ -1313,12 +1277,8 @@ async def add_budget_next_step_handler(message):
     return await bot.send_message(message.chat.id, f'Невозможно пополнить бюджет компании, сумма не кратна 50', parse_mode="MarkdownV2")
   
   try:
-    if campaign_user.public_api_token:
-      check = await wb_api_queries.add_budget(campaign_user, campaign, amount)
-      budget2 = await wb_api_queries.get_budget(campaign_user, campaign)
-    else:
-      check = await wb_queries.add_budget(campaign_user, campaign, amount)
-      budget2 = await wb_queries.get_budget(campaign_user, campaign)
+    check = await wb_queries.add_budget(campaign_user, campaign, amount)
+    budget2 = await wb_queries.get_budget(campaign_user, campaign)
     logger.warn("After check")
     budget2 = budget2['Бюджет компании']
     logger.warn("After budget")
@@ -1492,6 +1452,7 @@ step_map = {
     # 'WildAuthNewV3': wb_v3_main_token_handler,
     'x_supplier_id': x_supplier_id_handler,
     'PublicAPIToken': public_api_token_handler,
+    'GetWbToken': get_wb_token,
     'Назад' : menu_back_token,
   },
   'Wb_cmp_token_edit': {

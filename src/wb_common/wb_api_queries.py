@@ -10,6 +10,7 @@ from common.appLogger import appLogger
 from db.queries import db_queries
 logger = appLogger.getLogger(__name__)
 
+# TODO переименовать чтобы имя класса совпадало с именем файла
 class wb_api_queries:
   async def get_base_tokens(user):
     user_wb_tokens = cache_worker.get_user_wb_tokens(user.id)
@@ -48,11 +49,14 @@ class wb_api_queries:
         
         
         if response.status == 401:
-          raise Exception('Неверный токен!')
+          # TODO удалить токен из бд чтобы условие if user.public_api_token: не проходило
+          raise Exception('Неверный токен Public API!')
         if response.status == 429:
           raise Exception('Read timed out')
         if response.status == 400:
-          raise Exception('Произошла ошибка')
+          logger.warn(response)
+          logger.warn(await response.text())
+          raise Exception('Произошла ошибка') # TODO Андрей Плохое наименование ошибки
         
     except Exception as e:
       logger.debug({
@@ -126,14 +130,14 @@ class wb_api_queries:
     return res
 
 
-  async def set_campaign_bid(user, campaign, campaign_info, new_bid, approximate_place):
+  async def set_campaign_bid(user, campaign, campaign_info, new_bid, old_bid, approximate_place):
     user_wb_tokens = await wb_api_queries.get_base_tokens(user)
     request_url = f'https://advert-api.wb.ru/adv/v0/cpm'
     req_params = await wb_api_queries.get_base_request_params(user_wb_tokens)
 
     request_body = {
       "advertId": campaign.campaign_id,
-      "type": 8,
+      "type": 6,
       "cpm": new_bid,
       "param": 0
     }
@@ -142,15 +146,24 @@ class wb_api_queries:
       data=json.dumps(request_body)
     )
 
-    logger.info(f' \t Campaign {campaign.campaign_id} updated! \t New bid: {new_bid} \t Approximate place: {approximate_place}')
+    log_string = f'{datetime.now()} \t check_campaign wb_api_queries \t Campaign {campaign.campaign_id} updated! \t New bid: {new_bid} \t Old bid: {old_bid} \t Approximate place: {approximate_place}'
+    print(log_string)
+    await db_queries.add_action_history(
+      user_id=user.id,
+      action="set_campaign_bid_wb_api_queries",
+      action_description=log_string,
+      status='success')
+
 
     return result
 
 
     
-  async def get_user_atrevds(req_params):
-
-    user_atrevds = await wb_api_queries.wb_query(method="get", url='https://advert-api.wb.ru/adv/v0/adverts?order=create', cookies=req_params['cookies'], headers=req_params['headers'])
+  async def get_user_atrevds(user):
+    user_wb_tokens = await wb_api_queries.get_base_tokens(user)
+    req_params = await wb_api_queries.get_base_request_params(user_wb_tokens)
+    
+    user_atrevds = await wb_api_queries.wb_query(method="get", url='https://advert-api.wb.ru/adv/v0/adverts?order=create', headers=req_params['headers'], user_id=user.id)
     # view = user_atrevds['content']
     view = {'adverts': user_atrevds['content'], 'total_count': user_atrevds['counts']['totalCount']}
     return view
@@ -164,7 +177,8 @@ class wb_api_queries:
 
     r = await wb_api_queries.wb_query(method="get", url=f'https://advert-api.wb.ru/adv/v1/budget?id={campaign.campaign_id}',
     headers=req_params['headers'],
-    data={'id': campaign.campaing_id}
+    data={'id': campaign.campaing_id},
+    user_id=user.id
     )
 
     total_budget = None
@@ -185,7 +199,7 @@ class wb_api_queries:
     
     if status == "pause":
       r = await wb_api_queries.wb_query(method='GET', url=f'https://advert-api.wb.ru/adv/v0/pause?id={campaign.campaing_id}',
-        headers=req_params['headers'])
+        headers=req_params['headers'], user_id=user.id)
       
     elif status == "active":
       r = await wb_api_queries.wb_query(method='GET', url=f'https://advert-api.wb.ru/adv/v0/pause?id={campaign.campaing_id}', headers=req_params['headers'])

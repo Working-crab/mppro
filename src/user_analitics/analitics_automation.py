@@ -24,10 +24,12 @@ class analitics_automation:
 
   @staticmethod
   async def start(user_id, campaign_id):
+    pass
+    # Экономия пользователя TODO: Не работает
 
-    max_bid_company = db_queries.get_campaign_by_user_id_and_campaign_id(user_id, campaign_id).max_bid #TODO .max_bid нет Получаем Максимальную ставку кампании из Адвертов
-    max_budget_company = await analitics_automation.get_current_budget(user_id, campaign_id)# Получаем текущий бюджет компании(макс)
-    current_bid = await analitics_automation.get_campaign_bid(user_id, campaign_id)# Получает текущую ставку кампании
-    # user_economy = int(max_bid_company) - int(current_bid)# Экономия пользователя TODO: Не работает
+    # max_bid_company = db_queries.get_campaign_by_user_id_and_campaign_id(user_id, campaign_id).max_bid # .max_bid нет Получаем Максимальную ставку кампании из Адвертов
+    # max_budget_company = await analitics_automation.get_current_budget(user_id, campaign_id)# Получаем текущий бюджет компании(макс)
+    # current_bid = await analitics_automation.get_campaign_bid(user_id, campaign_id)# Получает текущую ставку кампании
+    # user_economy = int(max_bid_company) - int(current_bid)
     # time = datetime.datetime.now()# Текущая дата и время
     # db_queries.add_user_analitcs(user_id, campaign_id, max_bid_company, max_budget_company, current_bid, user_economy, time) 
