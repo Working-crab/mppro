@@ -1424,7 +1424,15 @@ async def id_getter(message):
 
 async def statistics_on_popular_queries(message):
   result = await get_csv_statistics_search_words(message.text)
-  await bot.send_message(message.chat.id, result)
+  text = result['text']
+  search_words = text.split('\n')
+  if len(search_words) < 6:
+    await bot.send_message(message.chat.id, text)
+  else:
+    file = io.BytesIO(result['content'])
+    await bot.send_message(message.chat.id, "\n".join(search_words[0:6]) + "\n...")
+    await bot.send_document(message.chat.id, file, visible_file_name='full_data.csv')
+    
   set_user_session_step(message, 'Show_statistics_menu')
 
 
