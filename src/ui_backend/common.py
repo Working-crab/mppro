@@ -4,7 +4,7 @@ from ui_backend.config import syncBot
 from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
-from wb_common.wb_api_try import wb_api_queries
+from wb_common.wb_api_queries import wb_api_queries
 from unittest import mock
 from cache_worker.cache_worker import cache_worker
 from collections import namedtuple
@@ -205,12 +205,16 @@ def action_history_reply_markup():
   return markup_inline
 
 
-def management_tokens_reply_markup():
+def management_tokens_reply_markup(sub_name):
   markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
   btn_wbtoken = types.KeyboardButton(text='WBToken')
   btn_public_api_token = types.KeyboardButton(text='PublicAPIToken')
   btn_x_supplier_id = types.KeyboardButton(text='x_supplier_id')
+  if sub_name == 'Разработчик':
+    btn_get_wb_token = types.KeyboardButton(text='GetWbToken')
+    markup_inline.add(btn_get_wb_token)
+    
   btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
 # btn_wildauthnewV3
   markup_inline.add(btn_wbtoken, btn_public_api_token, btn_x_supplier_id)
@@ -369,13 +373,9 @@ def paginate_buttons(action, page_number, total_count_adverts, page_size, user_i
 
 
 async def get_first_place(user_id, campaign):
-  campaign_user = await db_queries.get_user_by_telegram_user_id(user_id)
-  if campaign_user.public_api_token:
-    campaign_info = await wb_api_queries.get_campaign_info(campaign_user, campaign)
-    campaign_pluse_words = await wb_api_queries.get_stat_words(campaign_user, campaign)
-  else:
-    campaign_info = await wb_queries.get_campaign_info(campaign_user, campaign)
-    campaign_pluse_words = await wb_queries.get_stat_words(campaign_user, campaign)
+  campaign_user = await db_queries.get_user_by_telegram_user_id(user_id)  
+  campaign_info = await wb_queries.get_campaign_info(campaign_user, campaign)
+  campaign_pluse_words = await wb_queries.get_stat_words(campaign_user, campaign)
 
   check_word = campaign_info['campaign_key_word']
   if campaign_pluse_words['main_pluse_word']:
@@ -444,10 +444,7 @@ async def advert_info_message_maker(adverts, page_number, page_size, user):
     budget_string = ''
     try:
       # first_place_price = get_first_place(user.telegram_user_id, campaign)
-      if user.public_api_token:
-        budget = await wb_api_queries.get_budget(user, campaign)
-      else:
-        budget = await wb_queries.get_budget(user, campaign)
+      budget = await wb_queries.get_budget(user, campaign)
       budget = budget.get("Бюджет компании")
     except Exception as e:
       budget = None
@@ -465,7 +462,8 @@ async def advert_info_message_maker(adverts, page_number, page_size, user):
       if db_advert:
         if db_advert.status == 'ON':
           bot_status     += f"\t Отслеживается\!"
-          if db_advert.strategy:
+          if db_advert.strategy is not None and db_advert.strategy != None and db_advert.strategy != "None":
+            logger.warn(f"HERE {db_advert.strategy}")
             add_delete_str += f"\t Стратегия отслеживания: {ADV_STRATS[db_advert.strategy]}\n"
           add_delete_str += f"\t Перестать отслеживать: /delete\_adv\_{campaign.campaign_id}\n"
           add_delete_str += f"\t Макс\. ставка: {db_advert.max_bid} макс\. место: {escape_telegram_specials(db_advert.place)}\n"
@@ -604,14 +602,18 @@ def check_sub(required_subs):
           user = await db_queries.get_user_by_telegram_user_id(user_id)
           
           sub = await db_queries.get_sub(user.subscriptions_id)
-          if sub is None:
-              await bot.send_message(user_id, "У вас недостаточно прав для выполнения данной команды, купите подписку")
-              return None
+          if sub is None and '*' not in required_subs:
+            await bot.send_message(user_id, "У вас недостаточно прав для выполнения данной команды, купите подписку")
+            return None
+          elif sub is None and '*' in required_subs:
+            return await func(*args, sub_name="User", **kwargs)
           else:
-            sub_name = sub.title  
+            sub_name = sub.title
           
             if sub is not None and sub_name in required_subs:
-                return await func(*args, sub_name=sub_name, **kwargs)
+              return await func(*args, sub_name=sub_name, **kwargs)
+            elif sub is not None and '*' in required_subs:
+              return await func(*args, sub_name=sub_name, **kwargs)
             elif sub is not None and sub_name not in required_subs:
               await bot.send_message(user_id, "У вас недостаточно прав для выполнения данной команды, купите подписку по лучше")
               return None

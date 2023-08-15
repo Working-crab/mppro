@@ -105,29 +105,6 @@ module.exports = {
         MONITORING_INITIATOR: 'admin_dashboard_monitoring_backend',
       },
     },
-
-    // { TODO: Refactor
-    //   ...defaults,
-    //   name: 'mq_campaign_info_consumer',
-    //   script: 'src/ui_backend/mq_campaign_info.py',
-    //   log_file: 'logs/pm2/campaign_info_consumer.log',
-    // },
-
-    // {
-    //   name: 'mp_pro_web_test',
-    //   script: '/data/src/web_test_frontend/index.js',
-    //   args: [''],
-    //   wait_ready: true,
-    //   autorestart: true,
-    //   max_restarts: 0,
-    //   instances : 2,
-    //   exec_mode : "cluster",
-    //   log_file: "/data/logs/pm2/mp_pro_web_test.log",
-    //   cwd: '/data/',
-    //   env: {
-    //     NODE_ENV: '/data/'
-    //   }
-    // }
     
   ]
 }

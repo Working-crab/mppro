@@ -2,7 +2,7 @@
 import asyncio
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
-from wb_common.wb_api_try import wb_api_queries
+from wb_common.wb_api_queries import wb_api_queries
 import time
 from datetime import datetime
 from user_analitics import main as user_analitics
@@ -16,7 +16,6 @@ logger = appLogger.getLogger(__name__)
 class campaign_automation:
 
   async def start():
-    print(1)
     adverts = await db_queries.get_adverts_chunk()
 
     print('============= campaign automation start =============')
@@ -27,10 +26,6 @@ class campaign_automation:
     for advert in adverts:
       await asyncio.sleep(1)
       print('=== campaign automation ===')
-      print(123)
-      # print(campaign.campaign_id, campaign)
-
-      print(advert)
 
       try:
         await campaign_automation.check_campaign(advert)
@@ -53,7 +48,11 @@ class campaign_automation:
     campaign_info = None
 
     # campaign_info = await wb_queries.very_try_get_campaign_info(campaign_user, campaign, 5)
-    campaign_info = await wb_queries.get_campaign_info(campaign_user, campaign, False)
+    campaign_info = None
+    if campaign_user.public_api_token:
+      campaign_info = await wb_api_queries.get_campaign_info(campaign_user, campaign)
+    else:
+      campaign_info = await wb_queries.get_campaign_info(campaign_user, campaign, False)
 
     # auto stop checking if not valid
     logger.warn('logger.warn(campaign_info)')
@@ -76,11 +75,13 @@ class campaign_automation:
 
     current_bids_table = await wb_queries.search_adverts_by_keyword(check_word)
 
-    campaign_strategy = campaign.strategy | 'strategy_combined'
+    campaign_strategy = 'strategy_combined'
+    if campaign.strategy:
+      campaign_strategy = campaign.strategy
 
     new_bid = 0
     approximate_place = 0
-    bid_p_id = 0
+    new_bid_campaign_id = 0
 
     off_the_campaign = False
 
@@ -95,23 +96,23 @@ class campaign_automation:
 
     for bid in current_bids_table:
       new_bid = bid['price'] + 1
-      bid_p_id = bid['p_id']
+      new_bid_campaign_id = bid['p_id']
       approximate_place = bid['position']
 
       # campaign strategy checking
       if 'strategy_hold_the_position' in campaign_strategy:
-        if int(bid['position']) >= int(campaign.place):
+        if float(bid['position']) >= float(campaign.place):
           break
 
       elif 'strategy_hold_the_bid' in campaign_strategy:
-        if bid['price'] < campaign.max_bid:
+        if float(bid['price']) < float(campaign.max_bid):
           break
 
       elif 'strategy_combined' in campaign_strategy:
-        if int(bid['position']) < int(max_place):
+        if float(bid['position']) < float(max_place):
           continue
 
-        if int(bid['position']) > int(min_place):
+        if float(bid['position']) > float(min_place):
           if not 'always_online' in campaign_strategy:
             off_the_campaign = True
             break
@@ -134,19 +135,20 @@ class campaign_automation:
       await wb_queries.off_the_campaign(campaign_user, campaign)
 
 
-    if new_bid != old_bid and bid_p_id != campaign.campaign_id:
+    # check if need to update bid
+    if new_bid != old_bid and new_bid_campaign_id != campaign.campaign_id:
 
-      # emulate full setup
       if campaign_user.public_api_token:
         await wb_api_queries.set_campaign_bid(campaign_user, campaign, campaign_info, new_bid, old_bid, approximate_place)
-        await wb_api_queries.get_campaign_info(campaign_user, campaign, False)
-      else:
-        await wb_queries.set_campaign_bid(campaign_user, campaign, campaign_info, new_bid, old_bid, approximate_place)
-        await wb_queries.get_campaign_info(campaign_user, campaign, False)
-      await wb_queries.post_get_active(campaign_user, campaign)
+    
+      # check if bid is updated
+      campaign_info_check = await wb_api_queries.get_campaign_info(campaign_user, campaign)
+      if campaign_info_check["campaign_bid"] == old_bid:
+        # emulate full setup
+        campaign_info_full = await wb_queries.get_campaign_info(campaign_user, campaign, False)
+        await wb_queries.set_campaign_bid(campaign_user, campaign, campaign_info_full, new_bid, old_bid, approximate_place, use_public_api = False)
+        await wb_queries.post_get_active(campaign_user, campaign)
       
-
-    pass
 
 
   async def check_stat_word(campaign):
