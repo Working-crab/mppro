@@ -239,8 +239,8 @@ class wb_queries:
     return result
 
 
-  async def get_campaign_info(user, campaign, send_exeption=False):
-    if user.public_api_token:
+  async def get_campaign_info(user, campaign, send_exeption=False, use_public_api = True):
+    if user.public_api_token and use_public_api:
       return await wb_api_queries.get_campaign_info(user, campaign)
     
 
@@ -400,8 +400,8 @@ class wb_queries:
     return r
   
   async def add_budget(user, campaign, budget):
-    if user.public_api_token:
-      return await wb_api_queries.switch_status(user, campaign, budget)
+    # if user.public_api_token: Не работает
+    #   return await wb_api_queries.switch_status(user, campaign, budget)
     
     user_wb_tokens = await wb_queries.get_base_tokens(user)
     custom_referer = f'https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}'
@@ -520,22 +520,18 @@ class wb_queries:
     #   ]
     # }
 
-    print('request_body')
-    print(request_body)
-
     r = await wb_queries.wb_query(method="put", url=f'https://cmp.wildberries.ru/backend/api/v2/search/{campaign.campaign_id}/save',
       cookies=req_params['cookies'],
       headers=req_params['headers'],
       data=json.dumps(request_body)
     )
 
-    log_string = f'{datetime.now()} \t check_campaign \t Campaign {campaign.campaign_id} updated! \t New bid: {new_bid} \t Old bid: {old_bid} \t Approximate place: {approximate_place}'
-    print(log_string)
+    log_string = f'{datetime.now()} \t check_campaign \t Sent campaign {campaign.campaign_id} update! \t New bid: {new_bid} \t Old bid: {old_bid} \t Approximate place: {approximate_place}'
     await db_queries.add_action_history(
       user_id=user.id,
       action="set_campaign_bid",
       action_description=log_string,
-      status='success')
+      status='info')
 
 
     return r

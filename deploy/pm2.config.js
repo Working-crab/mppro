@@ -69,7 +69,7 @@ module.exports = {
       name: 'user_automation',
       script: 'src/user_automation/main.py',
       log_file: 'logs/pm2/user_automation.log',
-      cron_restart: '*/10 * * * *', // once per 10 minutes
+      cron_restart: '*/3 * * * *', // once per 3 minutes
       env: {
         PYTHONPATH: 'src/',
         MONITORING_INITIATOR: 'user_automation',
