@@ -14,6 +14,7 @@ from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
 from wb_common.wb_api_queries import wb_api_queries
+from monorepository_communication.wb_scraper_api_queries import get_csv_statistics_search_words
 from datetime import datetime, timedelta
 from cache_worker.cache_worker import cache_worker
 from kafka_dir.general_publisher import queue_message_async
@@ -1417,8 +1418,14 @@ async def show_statistics_menu(message):
   await bot.send_message(message.chat.id, 'Меню статистики', reply_markup=statistics_reply_markup())
   set_user_session_step(message, 'Show_statistics_menu')
 
+async def id_getter(message):
+  await bot.send_message(message.chat.id, 'Введите ID товара и опционально период')
+  set_user_session_step(message, 'Statistics_on_popular_queries')
+
 async def statistics_on_popular_queries(message):
-  await bot.send_message(message.chat.id, 'Статистика по популярным запросам nfrfz djn nfrfz!!',)
+  result = await get_csv_statistics_search_words(message.text)
+  await bot.send_message(message.chat.id, result)
+  set_user_session_step(message, 'Show_statistics_menu')
 
 
 
@@ -1462,8 +1469,12 @@ step_map = {
     'default': set_token_cmp_handler
   },
   'Show_statistics_menu':{
-    'Статистика по популярным запросам': statistics_on_popular_queries,
+    'Статистика по популярным запросам': id_getter,
     'Назад': menu_back,
+  },
+  'Statistics_on_popular_queries':{
+    'default': statistics_on_popular_queries,
+    'Назад': show_statistics_menu,
   },
   'Manage_tokens': {
     'WBToken': token_cmp_handler,
