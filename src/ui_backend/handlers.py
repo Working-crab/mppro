@@ -1410,7 +1410,7 @@ async def user_analitics_grafic(message):
   except Exception:
     await bot.send_message(message.chat.id, 'Произошла ошибка с формированием графика')
 
-# --- 
+# --- Статистика ----------------------------------
 
 async def show_statistics_menu(message):
   await bot.send_message(message.chat.id, 'Меню статистики', reply_markup=statistics_reply_markup())

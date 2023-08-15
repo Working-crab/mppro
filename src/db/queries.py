@@ -589,3 +589,7 @@ class db_queries:
                 return gtp_requests
             else:
                 return 0
+            
+    
+    async def get_statistic():
+        pass
