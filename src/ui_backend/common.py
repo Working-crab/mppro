@@ -65,9 +65,10 @@ def universal_reply_markup(search=False):
   # btn_my_sub = types.KeyboardButton(text='🎟️ Моя подписка 🎟️')
   btn_paid_service = types.KeyboardButton(text='⭐ Платные услуги ⭐')
   btn_additionally = types.KeyboardButton(text='⚙️ Дополнительные опции ⚙️')
+  btn_statistics = types.KeyboardButton(text='Статистика')
 
   markup_inline.add(btn_search, btn_list_adverts, btn_card)
-  markup_inline.add(btn_additionally, btn_paid_service)
+  markup_inline.add(btn_additionally, btn_paid_service, btn_statistics)
   
   if search:
     btn_choose_city = types.KeyboardButton(text='Выбрать город 🏙️')
@@ -78,6 +79,16 @@ def universal_reply_markup(search=False):
   #   btn_get_logs = types.KeyboardButton(text='Показать логи человека')
   #   markup_inline.add(btn_get_logs)
     
+  return markup_inline
+
+def statistics_reply_markup():
+  markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
+
+  btn_place_by_searchword = types.KeyboardButton(text='Статистика по популярным запросам')
+  btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
+
+  markup_inline.add(btn_place_by_searchword, btn_back)
+
   return markup_inline
 
 

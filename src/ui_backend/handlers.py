@@ -9,7 +9,7 @@ from ui_backend.common import (edit_token_reply_markup, format_requests_count,
   escape_telegram_specials, logs_types_reply_markup, universal_reply_markup_additionally, 
   advert_info_message_maker, reply_markup_payment, adv_settings_reply_markup, action_history_reply_markup, 
   action_history_filter_reply_markup, adv_settings_words_reply_markup, fixed_word_switch, check_sub, 
-  paid_requests_inline_markup, advert_strategy_reply_markup, ADV_STRATS)
+  paid_requests_inline_markup, advert_strategy_reply_markup, statistics_reply_markup, ADV_STRATS)
 from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
@@ -1450,6 +1450,17 @@ async def user_analitics_grafic(message):
   except Exception:
     await bot.send_message(message.chat.id, 'Произошла ошибка с формированием графика')
 
+# --- 
+
+async def show_statistics_menu(message):
+  await bot.send_message(message.chat.id, 'Меню статистики', reply_markup=statistics_reply_markup())
+  set_user_session_step(message, 'Show_statistics_menu')
+
+async def statistics_on_popular_queries(message):
+  await bot.send_message(message.chat.id, 'Статистика по популярным запросам nfrfz djn nfrfz!!',)
+
+
+
 # --- маппинг степов --------------------------------------------------------------------------------------------
 
 step_map = {
@@ -1465,6 +1476,8 @@ step_map = {
     'История действий': show_action_history,
     'Дополнительные опции': menu_additional_options,
     'Выбрать фильтрацию': action_history_filter,
+    'Статистика': show_statistics_menu,
+    # 'Статистика по популярным запросам': show_statistics,
     'Загрузить историю действий': action_history_download,
     'Назад': menu_back,
     'add_adv_': add_advert,
@@ -1486,6 +1499,10 @@ step_map = {
   },
   'Set_token_cmp': {
     'default': set_token_cmp_handler
+  },
+  'Show_statistics_menu':{
+    'Статистика по популярным запросам': statistics_on_popular_queries,
+    'Назад': menu_back,
   },
   'Manage_tokens': {
     'WBToken': token_cmp_handler,
