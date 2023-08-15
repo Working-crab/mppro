@@ -146,13 +146,12 @@ class wb_api_queries:
       data=json.dumps(request_body)
     )
 
-    log_string = f'{datetime.now()} \t check_campaign wb_api_queries \t Campaign {campaign.campaign_id} updated! \t New bid: {new_bid} \t Old bid: {old_bid} \t Approximate place: {approximate_place}'
-    print(log_string)
+    log_string = f'{datetime.now()} \t check_campaign wb_api_queries \t Sent campaign {campaign.campaign_id} update! \t New bid: {new_bid} \t Old bid: {old_bid} \t Approximate place: {approximate_place}'
     await db_queries.add_action_history(
       user_id=user.id,
       action="set_campaign_bid_wb_api_queries",
       action_description=log_string,
-      status='success')
+      status='info')
 
 
     return result
@@ -177,7 +176,7 @@ class wb_api_queries:
 
     r = await wb_api_queries.wb_query(method="get", url=f'https://advert-api.wb.ru/adv/v1/budget?id={campaign.campaign_id}',
     headers=req_params['headers'],
-    data={'id': campaign.campaing_id},
+    data={'id': campaign.campaign_id},
     user_id=user.id
     )
 
@@ -198,14 +197,14 @@ class wb_api_queries:
     req_params = await wb_api_queries.get_base_request_params(user_wb_tokens)
     
     if status == "pause":
-      r = await wb_api_queries.wb_query(method='GET', url=f'https://advert-api.wb.ru/adv/v0/pause?id={campaign.campaing_id}',
+      r = await wb_api_queries.wb_query(method='GET', url=f'https://advert-api.wb.ru/adv/v0/pause?id={campaign.campaign_id}',
         headers=req_params['headers'], user_id=user.id)
       
     elif status == "active":
-      r = await wb_api_queries.wb_query(method='GET', url=f'https://advert-api.wb.ru/adv/v0/pause?id={campaign.campaing_id}', headers=req_params['headers'])
+      r = await wb_api_queries.wb_query(method='GET', url=f'https://advert-api.wb.ru/adv/v0/pause?id={campaign.campaign_id}', headers=req_params['headers'])
       
     elif status == "stop":
-      r = await wb_api_queries.wb_query(method='GET', url=f'https://advert-api.wb.ru/adv/v0/stop?id={campaign.campaing_id}', headers=req_params['headers'])
+      r = await wb_api_queries.wb_query(method='GET', url=f'https://advert-api.wb.ru/adv/v0/stop?id={campaign.campaign_id}', headers=req_params['headers'])
     
     return r
   

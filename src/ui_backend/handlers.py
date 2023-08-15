@@ -1291,6 +1291,7 @@ async def add_budget_next_step_handler(message):
         return await bot.send_message(message.chat.id, f'Был успешно пополнен бюджет компании на {amount} ₽\nТекущий бюджет: {budget2} ₽', parse_mode="MarkdownV2")
   except Exception as e:
     logger.warn("HERE")
+    traceback.print_exc()
     logger.warn(e)
     await bot.send_message(message.chat.id, f'На стороне вб произошла ошибка, попробуйте ещё раз чуть позже', parse_mode="MarkdownV2")
     
