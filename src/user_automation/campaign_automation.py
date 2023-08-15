@@ -36,9 +36,11 @@ class campaign_automation:
           user_id=advert.user_id,
           action="campaign_scan",
           action_description=f'check_campaign id: {advert.campaign_id} Exception: {e}',
-          status="error")
+          status="failure")
         traceback.print_exc()
         logger.error(f'Exception: {e}.')
+
+    print('============= campaign automation end cycle =============')
 
 
   async def check_campaign(campaign):
@@ -54,9 +56,9 @@ class campaign_automation:
     else:
       campaign_info = await wb_queries.get_campaign_info(campaign_user, campaign, False)
 
-    # auto stop checking if not valid
-    logger.warn('logger.warn(campaign_info)')
     logger.warn(campaign_info)
+
+    # auto stop checking if not valid
     if campaign_info.get('status') == 'OFF_CAMP':  
       await db_queries.add_user_advert(campaign_user, campaign.campaign_id, None, 'OFF', None)      
       await db_queries.add_action_history(user_id=campaign.user_id, action="campaign_off", action_description=campaign.campaign_id)
@@ -127,7 +129,7 @@ class campaign_automation:
     await db_queries.add_action_history(
       user_id=campaign.user_id,
       action="campaign_scan",
-      action_description=f'check_campaign id: {campaign.id} \t new_bid: {new_bid} \t old_bid: {old_bid} \t off_the_campaign: {off_the_campaign}',
+      action_description=f'check_campaign id: {campaign.campaign_id} \t new_bid: {new_bid} \t old_bid: {old_bid} \t off_the_campaign: {off_the_campaign}',
       status="info")
 
 
@@ -135,6 +137,7 @@ class campaign_automation:
       await wb_queries.off_the_campaign(campaign_user, campaign)
 
 
+    # BID SETUP
     # check if need to update bid
     if new_bid != old_bid and new_bid_campaign_id != campaign.campaign_id:
 
@@ -142,21 +145,42 @@ class campaign_automation:
         await wb_api_queries.set_campaign_bid(campaign_user, campaign, campaign_info, new_bid, old_bid, approximate_place)
     
       # check if bid is updated
-      campaign_info_check = await wb_api_queries.get_campaign_info(campaign_user, campaign)
+      campaign_info_check = await wb_queries.get_campaign_info(campaign_user, campaign)
       if campaign_info_check["campaign_bid"] == old_bid:
         # emulate full setup
-        campaign_info_full = await wb_queries.get_campaign_info(campaign_user, campaign, False)
-        await wb_queries.set_campaign_bid(campaign_user, campaign, campaign_info_full, new_bid, old_bid, approximate_place, use_public_api = False)
+        campaign_info_full = await wb_queries.get_campaign_info(campaign_user, campaign, False, False)
+        await wb_queries.set_campaign_bid(campaign_user, campaign, campaign_info_full, new_bid, old_bid, approximate_place, False)
         await wb_queries.post_get_active(campaign_user, campaign)
+
+      # last check if bid is updated
+      await asyncio.sleep(30)
+      campaign_info_check_last = await wb_queries.get_campaign_info(campaign_user, campaign, False)
+      if campaign_info_check_last["campaign_bid"] == old_bid:
+        exception_string = f'Не удалось изменить ставку! \t Campaign {campaign.campaign_id} \t current {campaign_info_check_last["campaign_bid"]} \t setted {new_bid}'
+        raise Exception(exception_string)
+      
+      log_string = f'{datetime.now()} \t check_campaign \t Campaign {campaign.campaign_id} updated! \t New bid: {new_bid} \t Old bid: {old_bid} \t Approximate place: {approximate_place}'
+      print(log_string)
+      await db_queries.add_action_history(
+        user_id=campaign_user.id,
+        action="set_campaign_bid",
+        action_description=log_string,
+        status='success')
+      
+    else:
+      log_string = f'{datetime.now()} \t check_campaign \t Campaign {campaign.campaign_id} update unnecessary! \t Current bid: {new_bid} \t Approximate place: {approximate_place}'
+      print(log_string)
+      
+
       
 
 
   async def check_stat_word(campaign):
-    logger.warn(campaign.campaign_id)
     db_words = await db_queries.get_stat_words(campaing_id=campaign.campaign_id, status="Created")
-    logger.warn(db_words)
     if not db_words:
       return
+    
+    logger.warn('check_stat_word setup')
     campaign_user = await db_queries.get_user_by_id(campaign.user_id)
     if campaign_user.public_api_token:
       words = await wb_api_queries.get_stat_words(user=campaign_user, campaign=campaign)

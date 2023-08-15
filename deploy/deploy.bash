@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# start from /deploy
 cd .. && \
 mainWorkDirectory=`pwd` && \
 
@@ -23,5 +24,6 @@ service nginx restart && \
 
 pm2 kill && \
 pm2 start deploy/pm2.config.js && \
+pm2 save && \
 
 echo "Complete!"
