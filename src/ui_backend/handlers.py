@@ -51,6 +51,16 @@ async def message_handler(message):
       status="info"
     )
     
+    # user = db_queries.get_user_by_telegram_user_id(telegram_user_id)
+    # if user.subscriptions_id == None:
+    #   if 
+    #   await queue_message_async(
+    #     topic = 'telegram_message_sender',
+    #     destination_id = message.chat.id,
+    #     message = 'У вас недостаточно прав для использования бота. Активируйте Стартовую подписку - /trial или Купите подписку!'
+    #   )
+    #   return
+    
     logger.warn(f'telegram_user_id {telegram_user_id}')
     logger.warn(user_session)
 
@@ -72,7 +82,11 @@ async def message_handler(message):
       for key in possible_actions:
         if re.search(key, message.text):
           user_action = possible_actions[key]
+          logger.warn(f"user_step {str(user_step)}")
+          logger.warn(f"user_step {str(message.text)}")
           break
+
+    
 
     user_action_default = possible_actions.get('default')
     if user_action:

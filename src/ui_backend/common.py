@@ -314,11 +314,11 @@ def format_requests_count(count):
 
 def status_parser_priority_map(status_id):
   status_dict = {
-    4: 5,
+    4: 2,
     9: 1,
-    8: 4,
-    7: 3,
-    11: 2,
+    8: 5,
+    7: 4,
+    11: 3,
   }
   return status_dict.get(status_id, 99)
     
