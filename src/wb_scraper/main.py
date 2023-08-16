@@ -1,6 +1,6 @@
 import time
 from sys import argv
-from scraping_search_word import scrapping_search_word
+from scraping.scraping_search_word import scrapping_search_word
 
 start = time.time()
 

@@ -9,6 +9,7 @@ import user_agent
 import clickhouse_driver
 import random
 from threading import Thread
+from class_list.main_var import Main_var
 
 class Process(multiprocessing.Process):
     def run(self):
@@ -24,7 +25,7 @@ class Process(multiprocessing.Process):
         
 
     async def parser(self):
-        self.client = clickhouse_driver.Client.from_url(f"""clickhouse://default:@localhost:9000/default""")
+        self.client = clickhouse_driver.Client.from_url(Main_var.DB_URL)
         async with aiohttp.ClientSession() as session:
             for i2,search_word in enumerate(self.search_words, start=0):
                 for i in range(1,3):
@@ -54,11 +55,11 @@ class Process(multiprocessing.Process):
                 data = await response.read()
                 hashrate = json.loads(data)
                 for i in range(len(hashrate.get('data',{}).get('products',''))):
-                    result={}
-                    id = hashrate["data"]["products"][i]["id"]
-                    result['id'] = id
-                    result['place'] = (page - 1) * 100 + i + 1
-                    result['search_word'] = search_word
+                    result = {
+                        "id" : hashrate["data"]["products"][i]["id"],
+                        "place" : (page - 1) * 100 + i + 1,
+                        "search_word" : search_word
+                    }
                     result_array.append(result)
             except Exception as ex:
                 print(ex, 'add parser info')
