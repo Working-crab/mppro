@@ -1,5 +1,5 @@
 import fastapi
-from routes import get_main_page, get_csv_file_statistics_search_words
+from wb_scraper_api.routes import get_main_page, get_csv_file_statistics_search_words
 
 app = fastapi.FastAPI()
 
