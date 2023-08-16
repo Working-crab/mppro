@@ -9,11 +9,12 @@ from ui_backend.common import (edit_token_reply_markup, format_requests_count,
   escape_telegram_specials, logs_types_reply_markup, universal_reply_markup_additionally, 
   advert_info_message_maker, reply_markup_payment, adv_settings_reply_markup, action_history_reply_markup, 
   action_history_filter_reply_markup, adv_settings_words_reply_markup, fixed_word_switch, check_sub, 
-  paid_requests_inline_markup, advert_strategy_reply_markup, ADV_STRATS)
+  paid_requests_inline_markup, advert_strategy_reply_markup, statistics_reply_markup, ADV_STRATS)
 from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
 from wb_common.wb_api_queries import wb_api_queries
+from monorepository_communication.wb_scraper_api_queries import get_csv_statistics_search_words
 from datetime import datetime, timedelta
 from cache_worker.cache_worker import cache_worker
 from kafka_dir.general_publisher import queue_message_async
@@ -51,6 +52,16 @@ async def message_handler(message):
       status="info"
     )
     
+    # user = db_queries.get_user_by_telegram_user_id(telegram_user_id)
+    # if user.subscriptions_id == None:
+    #   if 
+    #   await queue_message_async(
+    #     topic = 'telegram_message_sender',
+    #     destination_id = message.chat.id,
+    #     message = 'У вас недостаточно прав для использования бота. Активируйте Стартовую подписку - /trial или Купите подписку!'
+    #   )
+    #   return
+    
     logger.warn(f'telegram_user_id {telegram_user_id}')
     logger.warn(user_session)
 
@@ -72,7 +83,11 @@ async def message_handler(message):
       for key in possible_actions:
         if re.search(key, message.text):
           user_action = possible_actions[key]
+          logger.warn(f"user_step {str(user_step)}")
+          logger.warn(f"user_step {str(message.text)}")
           break
+
+    
 
     user_action_default = possible_actions.get('default')
     if user_action:
@@ -1411,6 +1426,31 @@ async def user_analitics_grafic(message):
   except Exception:
     await bot.send_message(message.chat.id, 'Произошла ошибка с формированием графика')
 
+# --- Статистика ----------------------------------
+
+async def show_statistics_menu(message):
+  await bot.send_message(message.chat.id, 'Меню статистики', reply_markup=statistics_reply_markup())
+  set_user_session_step(message, 'Show_statistics_menu')
+
+async def id_getter(message):
+  await bot.send_message(message.chat.id, 'Введите ID товара и опционально период')
+  set_user_session_step(message, 'Statistics_on_popular_queries')
+
+async def statistics_on_popular_queries(message):
+  result = await get_csv_statistics_search_words(message.text)
+  text = result['text']
+  search_words = text.split('\n')
+  if len(search_words) < 6:
+    await bot.send_message(message.chat.id, text)
+  else:
+    file = io.BytesIO(result['content'])
+    await bot.send_message(message.chat.id, "\n".join(search_words[0:6]) + "\n...")
+    await bot.send_document(message.chat.id, file, visible_file_name='full_data.csv')
+    
+  set_user_session_step(message, 'Show_statistics_menu')
+
+
+
 # --- маппинг степов --------------------------------------------------------------------------------------------
 
 step_map = {
@@ -1426,6 +1466,8 @@ step_map = {
     'История действий': show_action_history,
     'Дополнительные опции': menu_additional_options,
     'Выбрать фильтрацию': action_history_filter,
+    'Статистика': show_statistics_menu,
+    # 'Статистика по популярным запросам': show_statistics,
     'Загрузить историю действий': action_history_download,
     'Назад': menu_back,
     'add_adv_': add_advert,
@@ -1447,6 +1489,14 @@ step_map = {
   },
   'Set_token_cmp': {
     'default': set_token_cmp_handler
+  },
+  'Show_statistics_menu':{
+    'Статистика по популярным запросам': id_getter,
+    'Назад': menu_back,
+  },
+  'Statistics_on_popular_queries':{
+    'default': statistics_on_popular_queries,
+    'Назад': show_statistics_menu,
   },
   'Manage_tokens': {
     'WBToken': token_cmp_handler,
