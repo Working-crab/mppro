@@ -70,6 +70,7 @@ class Subscription(Base):
     price = Column(Integer, default=0)
     requests_get = Column(Integer, default=0)
     tracking_advertising = Column(Integer, default=0, nullable=True)
+    access_level = Column(Integer, default=1)
 
     user = relationship('User', back_populates='subscriptions')
     transactions = relationship('Transaction', back_populates='subscriptions')

@@ -147,8 +147,6 @@ async def trial(message):
             await bot.send_message(message.chat.id, f'Нажмите на `Информация` чтобы узнать, что дает Стартовая подписка', reply_markup=reply_markup_trial(trial=True), parse_mode='Markdown')
 
 
-
-
 @bot.message_handler(regexp='/delete_adv')
 async def delete_user_advert(message):
   bot_message_text = message.text
@@ -165,7 +163,7 @@ async def delete_user_advert(message):
 @bot.message_handler(commands=['buy'])
 async def buy_subscription(message):
     try:
-        sub_list = db_queries.get_all_sub()
+        sub_list = await db_queries.get_all_sub()
         for sub in sub_list:
             await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
     except Exception as e:
