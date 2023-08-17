@@ -64,7 +64,7 @@ async def get_user_by_id(user_id):
 
 @app.get("/last_week_errors/")
 async def get_graph_errors():
-  errors_orm = await db_queries.get_week_errors_action_history(7)
+  errors_orm = await db_queries.get_week_errors_action_history(30)
   errors = ActionList.from_orm(errors_orm).dict()['__root__']
   errors_count_by_week_days = {}
 
@@ -76,8 +76,8 @@ async def get_graph_errors():
       errors_count_by_week_days[date_key] = 1
 
   week_days = {}
-  date = datetime.now() - timedelta(days=6)
-  for day in range(1, 8):
+  date = datetime.now() - timedelta(days=30)
+  for day in range(1, 31):
     date_key = f"{date.day}.{date.month}.{date.year}"
     week_days[date_key] = 0
     date = date + timedelta(days=1)
