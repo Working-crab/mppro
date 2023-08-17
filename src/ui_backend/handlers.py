@@ -1481,8 +1481,6 @@ async def statistics_on_popular_queries(message):
   text = result['text']
   search_words = text.split('\n')
   search_words.pop()
-  logger.warn(search_words)
-  logger.warn(len(search_words) < 6)
   if len(search_words) < 6:
     await bot.send_message(message.chat.id, text)
   else:
