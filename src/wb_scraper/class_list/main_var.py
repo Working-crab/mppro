@@ -1,6 +1,6 @@
 class Main_var():
     DB_NAME = "default"
-    DB_PORT = "9000"
+    DB_PORT = "19000"
     DB_HOST = "localhost"
     DB_UNSERNAME = "default"
     DB_PASSWORD = ""

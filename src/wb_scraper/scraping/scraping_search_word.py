@@ -1,6 +1,6 @@
 from func_catalog.lst_chunk import lst_chunk
 from func_catalog.read_csv import reader_csv_file
-from class_list.Process_parsing import Process
+from class_list.Process_parsing_search_word import Process
 import clickhouse_driver
 from class_list.main_var import Main_var
 from datetime import datetime, timedelta
