@@ -3,11 +3,36 @@ import httpRequester from '../miscellaneous/requester.js'
 
 export const useLastActions = defineStore('lastActions', {
   state: () => ({ 
-    lastActions: []
+    lastActions: [],
+    lastActionsForChart: []
   }),
 
   getters: {
     subsFromGetter: (state) => state.subs,
+    lastActionsForChartMapped: (state) => {
+      const errorsEntries = Object.entries(state.lastActionsForChart)
+      
+      const lables = errorsEntries.map((value) => {
+        return value[0]
+      })
+      const errorsData = errorsEntries.map((value) => {
+        return value[1].error_count
+      })
+      const successData = errorsEntries.map((value) => {
+        return value[1].success_count
+      })
+
+      return {
+        errors: {
+          data: errorsData
+        },
+        success:{
+          
+          data: successData
+        },
+        labels: lables, 
+      }
+    }
   },
   
   actions: {
@@ -22,6 +47,15 @@ export const useLastActions = defineStore('lastActions', {
       
     },
 
+    async fetchTimeIntervalErrors() {
+      try {
+        const result = await httpRequester.get('/last_week_errors/')
+        this.lastActionsForChart = result.data.errors
+      } 
+      catch (error) {
+        console.error(error)
+      }
+    },
   },
 
 })

@@ -78,6 +78,28 @@ class db_queries:
 
 
 
+    async def get_time_interval_errors_action_history(days_count):
+        days_before_now = datetime.now() - timedelta(days=days_count)
+        formatted_days_before_now = days_before_now.strftime('%Y-%m-%d')
+        text_sql_queris = f"""SELECT 
+                                date(date_time),
+                                count(*) FILTER (WHERE status != 'failure') AS succsess,
+                                count(*) FILTER (WHERE status = 'failure') AS errors
+                            FROM
+                                action_history
+                            WHERE
+                                date_time > '{formatted_days_before_now}'::DATE and date_time < '{datetime.now().strftime('%Y-%m-%d')}'::DATE
+                            GROUP BY
+                                date(date_time)
+                            ORDER BY
+	                            date(date_time) ASC;"""
+        async with AsyncSession(engine) as session:
+            result = await session.execute(text_sql_queris)
+            rows = result.fetchall()
+            return rows
+
+
+
     async def get_user_by_telegram_user_id(telegram_user_id):
         async with AsyncSession(engine) as session:
             result = await session.execute(select(User).where(User.telegram_user_id == int(telegram_user_id)))

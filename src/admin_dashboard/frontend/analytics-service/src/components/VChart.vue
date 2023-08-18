@@ -29,6 +29,7 @@ export default {
         labels: ['21.03.2023'],
         datasets: [ 
           { data: [], backgroundColor: '#f87979', label: 'Errors count', },
+          { data: [], backgroundColor: '#81f899', label: 'Success count', },
         ],
       },
       chartOptions: {
@@ -38,15 +39,16 @@ export default {
     }
   },
   props:{
-    errors:{
+    actions:{
       type: Object,
       default: () => {}
     }
   },
   watch:{
-    errors(){
-      this.chartData.labels = this.errors.lables
-      this.chartData.datasets[0].data = this.errors.data
+    actions(){
+      this.chartData.labels = this.actions.labels
+      this.chartData.datasets[0].data = this.actions.errors.data
+      this.chartData.datasets[1].data = this.actions.success.data
       this.load = true
     }
   }
