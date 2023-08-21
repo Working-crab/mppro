@@ -12,6 +12,7 @@ def scraping_product_main_info ():
 
     lst_procces_product = list(lst_chunk(lst_id, c_num=2))
     prc_list=[]
+
     for i in range(2):
         prc = Process(name=f'prc-{i}',id_product=lst_procces_product[i])
         prc.start()
