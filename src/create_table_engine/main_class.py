@@ -68,8 +68,9 @@ class Create_table ():
         return len(self.df)
 
     
+text = "Слово для поиска,2023-08-15\nсерьги с жемчугом,102\nжемчуг,80\nсерьги жемчуг,102\nсерьги крупные,24\nпусеты,196"
 
-df = pd.DataFrame([['shdahduashdua ashudhasudhausdhuasud ausd huashduashdu','2'],['3','4'],['5','6']])
+df = pd.DataFrame(text)
 
 tb = Create_table(df=df, font_size=30)
 
