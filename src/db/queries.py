@@ -78,6 +78,28 @@ class db_queries:
 
 
 
+    async def get_time_interval_errors_action_history(days_count):
+        days_before_now = datetime.now() - timedelta(days=days_count)
+        formatted_days_before_now = days_before_now.strftime('%Y-%m-%d')
+        text_sql_queris = f"""SELECT 
+                                date(date_time),
+                                count(*) FILTER (WHERE status != 'failure') AS succsess,
+                                count(*) FILTER (WHERE status = 'failure') AS errors
+                            FROM
+                                action_history
+                            WHERE
+                                date_time > '{formatted_days_before_now}'::DATE and date_time < '{datetime.now().strftime('%Y-%m-%d')}'::DATE
+                            GROUP BY
+                                date(date_time)
+                            ORDER BY
+	                            date(date_time) ASC;"""
+        async with AsyncSession(engine) as session:
+            result = await session.execute(text_sql_queris)
+            rows = result.fetchall()
+            return rows
+
+
+
     async def get_user_by_telegram_user_id(telegram_user_id):
         async with AsyncSession(engine) as session:
             result = await session.execute(select(User).where(User.telegram_user_id == int(telegram_user_id)))
@@ -474,7 +496,8 @@ class db_queries:
     async def change_status_stat_words(campaing_id=None, status=None, types=None, words=None):
         async with AsyncSession(engine) as session:
             if types == "Change" and campaing_id != None and status != "Finished":
-                get_word = await session.execute(Stat_words).filter(Stat_words.type == types).filter(Stat_words.campaing_id == int(campaing_id)).first()
+                result = await session.execute(select(Stat_words).where(Stat_words.type == types).where(Stat_words.campaing_id == int(campaing_id)))
+                get_word = result.scalars().first()
                 if get_word:
                     get_word.word = words
                     get_word.timestamp = datetime.now()
@@ -491,13 +514,15 @@ class db_queries:
                 
                 return 
             elif types == "Change" and campaing_id != None and status == "Finished":
-                get_word = await session.execute(Stat_words).filter(Stat_words.type == types).filter(Stat_words.campaing_id == int(campaing_id)).first()
+                result = await session.execute(select(Stat_words).where(Stat_words.type == types).where(Stat_words.campaing_id == int(campaing_id)))
+                get_word = result.scalars().first()
                 if get_word:
                     get_word.status = status
                     get_word.timestamp = datetime.now()
                     await session.commit()
                 return
-            get_word = await session.execute(Stat_words).filter(Stat_words.campaing_id == int(campaing_id)).filter(Stat_words.word.in_(words)).all()
+            result = await session.execute(select(Stat_words).where(Stat_words.campaing_id == int(campaing_id)).where(Stat_words.word.in_(words)))
+            get_word = result.scalars().all()
             for word in get_word:
                 logger.warn(word)
                 word.status = "Finished"
@@ -508,8 +533,8 @@ class db_queries:
         async with AsyncSession(engine) as session:
             stat_word = Stat_words(
                 status = "Created",
-                campaing_id = campaing_id,
-                word = word,
+                campaing_id = int(campaing_id),
+                word = str(word),
                 type = types,
             )
             session.add(stat_word)

@@ -64,24 +64,21 @@ async def get_user_by_id(user_id):
 
 @app.get("/last_week_errors/")
 async def get_graph_errors():
-  errors_orm = await db_queries.get_week_errors_action_history(7)
+  errors_orm = await db_queries.get_week_errors_action_history(30)
   errors = ActionList.from_orm(errors_orm).dict()['__root__']
-  errors_count_by_week_days = {}
-
-  for error in errors:
-    date_key = f"{error['date_time'].day}.{error['date_time'].month}.{error['date_time'].year}"
-    if date_key in errors_count_by_week_days:
-      errors_count_by_week_days[date_key] += 1
-    else:
-      errors_count_by_week_days[date_key] = 1
+  err_actions_for_time = await db_queries.get_time_interval_errors_action_history(30)
+  new_map = {}
+  for err_actions in err_actions_for_time:
+    date_key = f"{err_actions[0].day}.{err_actions[0].month}.{err_actions[0].year}"
+    new_map[date_key] = {"success_count" : int(err_actions[1]), "error_count" : int(err_actions[2])}
 
   week_days = {}
-  date = datetime.now() - timedelta(days=6)
-  for day in range(1, 8):
+  date = datetime.now() - timedelta(days=30)
+  for day in range(1, 31):
     date_key = f"{date.day}.{date.month}.{date.year}"
-    week_days[date_key] = 0
+    week_days[date_key] = {"success_count" : 0, "error_count" : 0}
     date = date + timedelta(days=1)
   
-  week_days.update(errors_count_by_week_days)
+  week_days.update(new_map)
 
   return {'errors': week_days}

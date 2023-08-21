@@ -105,6 +105,34 @@ module.exports = {
         MONITORING_INITIATOR: 'admin_dashboard_monitoring_backend',
       },
     },
+
+    // wb_scraper_api
+    {
+      ...defaults,
+      name: 'wb_scraper_api',
+      autorestart: true,
+      script: 'venv/bin/python3 -m uvicorn wb_scraper_api.main:app --port 8002', 
+      log_file: 'logs/pm2/wb_scraper_api.log',
+      cron_restart: '0 0 * * *', // once per day
+      interpreter: undefined,
+      env: {
+        PYTHONPATH: 'src/',
+        MONITORING_INITIATOR: 'wb_scraper_api',
+      },
+    },
+
+    // wb_scraper
+    {
+      ...defaults,
+      name: 'wb_scraper', // scraps wb for stats
+      script: 'src/wb_scraper/main.py search_word 0 20000',
+      log_file: 'logs/pm2/wb_scraper.log',
+      cron_restart: '0 0 * * *', // once per day
+      env: {
+        PYTHONPATH: 'src/',
+        MONITORING_INITIATOR: 'wb_scraper',
+      },
+    },
     
   ]
 }

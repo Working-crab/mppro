@@ -4,17 +4,12 @@
       <h1>Дашборд для админов для аналитики сервисов</h1>
       <h4>Сегодня: {{ getDate() }} | Время обновления дешборда: {{ DateDashboard }}</h4>
     </div>
-   
-    <!-- <div class="sub-container">
-      <h4 v-for="sub in subs" :key="sub.id">{{sub.title}}({{sub.description}}) price: {{ sub.price }}</h4>
-    </div> -->
     <div class="flex-keks">
       <service-workload :infoAboutServices="ownServicesStore?.mappedOwnServices"></service-workload>
       <ErrorsList :errors="lastErrorssStore?.lastErrorsMapped"></ErrorsList>
       <ActionList :actions="lastActionsStore?.lastActions"></ActionList>
       <ServicesStatus :errors="serviceStaus"></ServicesStatus>
-
-      <Vchart :errors="lastErrorssStore?.weekErrorsMapped"></Vchart>
+      <Vchart :actions="lastActionsStore?.lastActionsForChartMapped"></Vchart>
     </div>
   </div>
 </template>
@@ -28,8 +23,6 @@ import Vchart from '@/components/VChart.vue'
 import { useLastActions } from '@/stores/lastActions'
 import { useLastErrors } from '@/stores/lastErrors'
 import { useOwnServices } from '@/stores/ownServices'
-
-
 
 
 export default {
@@ -106,7 +99,7 @@ export default {
     await this.lastActionsStore.fetchLastActions()
     await this.lastErrorssStore.fetchLastErrors()
     await this.ownServicesStore.fetchOwnServices()
-    await this.lastErrorssStore.fetchLastWeekErrors()
+    await this.lastActionsStore.fetchTimeIntervalErrors()
     this.getDateDashboard()
   },
   computed:{

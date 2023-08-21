@@ -36,7 +36,7 @@ logger = appLogger.getLogger(__name__)
 #await db_queries.add_action_history(user_id=message.chat.id, action=f"Какое-то событие")
 INCREASE = 10
 # all messages handler
-@bot.message_handler(func=lambda m: True)
+@bot.message_handler(func=lambda command: True)
 async def message_handler(message):
 
   log_uuid = uuid.uuid4()
@@ -72,7 +72,7 @@ async def message_handler(message):
     user_step = user_session.get('step', 'База')
 
     possible_actions = step_map.get(user_step, {})
-
+    
     user_action = None
     if hasattr(message, 'callback_data'):
       for key in callback_map:
@@ -83,12 +83,40 @@ async def message_handler(message):
       for key in possible_actions:
         if re.search(key, message.text):
           user_action = possible_actions[key]
-          logger.warn(f"user_step {str(user_step)}")
-          logger.warn(f"user_step {str(message.text)}")
           break
-
     
+    try:
+      user = await db_queries.get_user_by_telegram_user_id(telegram_user_id)
+      if user.subscriptions_id != None:
+        sub = await db_queries.get_sub(user.subscriptions_id)
+        if type(user_action) == dict:
+          if sub.access_level < user_action['access_level']:
+            await queue_message_async(
+            topic = 'telegram_message_sender',
+            destination_id = message.chat.id,
+            message = 'У вас недостаточно прав для использования бота. Активируйте Стартовую подписку - /trial или Купите подписку!'
+            )
+            return
+          else:
+            user_action = user_action['action']
+      else:
+        if type(user_action) == dict:
+          if user_action['access_level'] != 0:  
+            await queue_message_async(
+            topic = 'telegram_message_sender',
+            destination_id = message.chat.id,
+            message = 'У вас недостаточно прав для использования бота. Активируйте Стартовую подписку - /trial или Купите подписку!'
+            )
+            return
+          else:
+            user_action = user_action['action']
+          
+    except Exception as e:
+      logger.warn('step_map_access_level error')
+      logger.warn(e)
 
+    logger.warn(f"user_step {str(message.text)}")
+    
     user_action_default = possible_actions.get('default')
     if user_action:
       await user_action(message)
@@ -1437,15 +1465,28 @@ async def id_getter(message):
   set_user_session_step(message, 'Statistics_on_popular_queries')
 
 async def statistics_on_popular_queries(message):
-  result = await get_csv_statistics_search_words(message.text)
+  user_input = message.text.split(' ')
+  p_id, start_date, end_date = None, None, None
+  if len(user_input) == 1:
+    p_id = user_input[0]
+  elif len(user_input) == 2:
+    p_id, start_date = user_input
+  elif len(user_input) == 3:
+    p_id, start_date, end_date = user_input
+  else:
+    await bot.send_message(message.chat.id, "Возможно вы ввели что-то неправильно, формат через пробелы 'id продукта' 'дата начала' 'дата окончания'")
+    set_user_session_step(message, 'Show_statistics_menu')
+    return
+  result = await get_csv_statistics_search_words(p_id, start_date, end_date)
   text = result['text']
   search_words = text.split('\n')
+  search_words.pop()
   if len(search_words) < 6:
     await bot.send_message(message.chat.id, text)
   else:
     file = io.BytesIO(result['content'])
     await bot.send_message(message.chat.id, "\n".join(search_words[0:6]) + "\n...")
-    await bot.send_document(message.chat.id, file, visible_file_name='full_data.csv')
+    await bot.send_document(message.chat.id, file, visible_file_name=f'admp.pro Статистика по поисковым запросам WB {p_id}.csv')
     
   set_user_session_step(message, 'Show_statistics_menu')
 
@@ -1459,7 +1500,7 @@ step_map = {
     'Помощь': help,
     'Поиск': search_adverts,
     'Платные услуги': show_paid_services,
-    'Список рекламных компаний': list_adverts,
+    'Список рекламных компаний': {"action": list_adverts, "access_level": 1},
     'Выбрать город': choose_city,
     'Выбор:': choose_city_handler,
     'Управление токенами': management_tokens,
