@@ -5,7 +5,7 @@ from sys import argv
 
 def reader_csv_file (min, max) :
     # with open(f'{pathlib.Path("/data/src/wb_scraper")}/qwe.csv', "r", encoding='utf-8-sig') as c:
-    with open(f'D:\mppro\src\wb_scraper\qwe.csv', "r", encoding='utf-8-sig') as c:
+    with open(f'mppro/src/wb_scraper/qwe.csv', "r", encoding='utf-8-sig') as c:
         search_words = []
         reader = csv.reader(c)
         for i,r in enumerate(reader):
