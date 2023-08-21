@@ -66,12 +66,3 @@ class Create_table ():
 
     def __search_cout_rows(self):
         return len(self.df)
-
-    
-text = "Слово для поиска,2023-08-15\nсерьги с жемчугом,102\nжемчуг,80\nсерьги жемчуг,102\nсерьги крупные,24\nпусеты,196"
-
-df = pd.DataFrame(text)
-
-tb = Create_table(df=df, font_size=30)
-
-tb.create_table()
