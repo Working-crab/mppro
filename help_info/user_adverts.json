@@ -1,0 +1,375 @@
+{
+  "httpStatus": 200,
+  "error": "",
+  "code": 0,
+  "counts": {
+    "pageCount": 6,
+    "totalCount": 38,
+    "activeCount": 6,
+    "pauseCount": 7,
+    "draftCount": 0,
+    "archiveCount": 25
+  },
+  "content": [
+    {
+      "id": 4260658,
+      "type": 6,
+      "statusId": 9,
+      "imagePath": "",
+      "categoryUid": "33333333-3333-3333-3333-333333333333",
+      "categoryName": "Поиск",
+      "campaignId": 4265304,
+      "campaignName": "Тест компания",
+      "brandName": "",
+      "startDate": "2023-01-22T17:29:09.907283+03:00",
+      "finishDate": "None",
+      "position": "None",
+      "predictedStartDate": "None",
+      "predictedEndDate": "None",
+      "carouselCard": [],
+      "products": [
+        {
+          "nm": 62441596,
+          "name": "",
+          "subject": {
+            "id": 0,
+            "name": ""
+          },
+          "brand": {
+            "id": 0,
+            "name": ""
+          },
+          "kind": {
+            "id": 0,
+            "name": ""
+          },
+          "categories": []
+        }
+      ],
+      "TotalCount": 0,
+      "createDate": "2023-01-22T17:29:09.907283+03:00",
+      "ChangeDate": "2023-01-23T18:36:20.795016+03:00",
+      "UrlType": 8192,
+      "Url": "",
+      "disableDate": "None",
+      "PromoSetId": "None"
+    },
+    {
+      "id": 4081527,
+      "type": 6,
+      "statusId": 8,
+      "imagePath": "",
+      "categoryUid": "33333333-3333-3333-3333-333333333333",
+      "categoryName": "Поиск",
+      "campaignId": 4086173,
+      "campaignName": "Платье тест",
+      "brandName": "",
+      "startDate": "2023-01-07T19:01:42.081231+03:00",
+      "finishDate": "None",
+      "position": "None",
+      "predictedStartDate": "None",
+      "predictedEndDate": "None",
+      "carouselCard": [],
+      "products": [
+        {
+          "nm": 62441596,
+          "name": "",
+          "subject": {
+            "id": 0,
+            "name": ""
+          },
+          "brand": {
+            "id": 0,
+            "name": ""
+          },
+          "kind": {
+            "id": 0,
+            "name": ""
+          },
+          "categories": []
+        },
+        {
+          "nm": 103955654,
+          "name": "",
+          "subject": {
+            "id": 0,
+            "name": ""
+          },
+          "brand": {
+            "id": 0,
+            "name": ""
+          },
+          "kind": {
+            "id": 0,
+            "name": ""
+          },
+          "categories": []
+        }
+      ],
+      "TotalCount": 0,
+      "createDate": "2023-01-07T19:01:42.081231+03:00",
+      "ChangeDate": "2023-01-07T19:01:42.126718+03:00",
+      "UrlType": 8192,
+      "Url": "",
+      "disableDate": "2023-01-22T00:08:26.686294+03:00",
+      "PromoSetId": "None"
+    },
+    {
+      "id": 3881834,
+      "type": 6,
+      "statusId": 7,
+      "imagePath": "",
+      "categoryUid": "33333333-3333-3333-3333-333333333333",
+      "categoryName": "Поиск",
+      "campaignId": 3886459,
+      "campaignName": "платье женское",
+      "brandName": "",
+      "startDate": "2022-12-15T20:06:45.730677+03:00",
+      "finishDate": "2022-12-15T22:02:33.415322+03:00",
+      "position": "None",
+      "predictedStartDate": "None",
+      "predictedEndDate": "None",
+      "carouselCard": [],
+      "products": [
+        {
+          "nm": 97048312,
+          "name": "",
+          "subject": {
+            "id": 0,
+            "name": ""
+          },
+          "brand": {
+            "id": 0,
+            "name": ""
+          },
+          "kind": {
+            "id": 0,
+            "name": ""
+          },
+          "categories": []
+        },
+        {
+          "nm": 139768411,
+          "name": "",
+          "subject": {
+            "id": 0,
+            "name": ""
+          },
+          "brand": {
+            "id": 0,
+            "name": ""
+          },
+          "kind": {
+            "id": 0,
+            "name": ""
+          },
+          "categories": []
+        },
+        {
+          "nm": 98947225,
+          "name": "",
+          "subject": {
+            "id": 0,
+            "name": ""
+          },
+          "brand": {
+            "id": 0,
+            "name": ""
+          },
+          "kind": {
+            "id": 0,
+            "name": ""
+          },
+          "categories": []
+        }
+      ],
+      "TotalCount": 0,
+      "createDate": "2022-12-15T20:04:01.639201+03:00",
+      "ChangeDate": "2022-12-20T13:30:23.659681+03:00",
+      "UrlType": 8192,
+      "Url": "",
+      "disableDate": "2023-02-03T16:09:28.931398+03:00",
+      "PromoSetId": "None"
+    },
+    {
+      "id": 3881751,
+      "type": 6,
+      "statusId": 7,
+      "imagePath": "",
+      "categoryUid": "33333333-3333-3333-3333-333333333333",
+      "categoryName": "Поиск",
+      "campaignId": 3886376,
+      "campaignName": "платье вечернее",
+      "brandName": "",
+      "startDate": "2022-12-15T19:58:52.19189+03:00",
+      "finishDate": "2022-12-23T19:58:34.0035+03:00",
+      "position": "None",
+      "predictedStartDate": "None",
+      "predictedEndDate": "None",
+      "carouselCard": [],
+      "products": [
+        {
+          "nm": 97048312,
+          "name": "",
+          "subject": {
+            "id": 0,
+            "name": ""
+          },
+          "brand": {
+            "id": 0,
+            "name": ""
+          },
+          "kind": {
+            "id": 0,
+            "name": ""
+          },
+          "categories": []
+        },
+        {
+          "nm": 139768411,
+          "name": "",
+          "subject": {
+            "id": 0,
+            "name": ""
+          },
+          "brand": {
+            "id": 0,
+            "name": ""
+          },
+          "kind": {
+            "id": 0,
+            "name": ""
+          },
+          "categories": []
+        },
+        {
+          "nm": 98947225,
+          "name": "",
+          "subject": {
+            "id": 0,
+            "name": ""
+          },
+          "brand": {
+            "id": 0,
+            "name": ""
+          },
+          "kind": {
+            "id": 0,
+            "name": ""
+          },
+          "categories": []
+        }
+      ],
+      "TotalCount": 0,
+      "createDate": "2022-12-15T19:55:18.727917+03:00",
+      "ChangeDate": "2022-12-23T19:58:34.173584+03:00",
+      "UrlType": 8192,
+      "Url": "",
+      "disableDate": "2023-02-07T04:57:36.274273+03:00",
+      "PromoSetId": "None"
+    },
+    {
+      "id": 3855886,
+      "type": 6,
+      "statusId": 11,
+      "imagePath": "",
+      "categoryUid": "33333333-3333-3333-3333-333333333333",
+      "categoryName": "Поиск",
+      "campaignId": 3860511,
+      "campaignName": "лонгслив черный кофта женская",
+      "brandName": "",
+      "startDate": "2022-12-14T04:01:03+03:00",
+      "finishDate": "None",
+      "position": "None",
+      "predictedStartDate": "None",
+      "predictedEndDate": "None",
+      "carouselCard": [],
+      "products": [
+        {
+          "nm": 126072221,
+          "name": "",
+          "subject": {
+            "id": 0,
+            "name": ""
+          },
+          "brand": {
+            "id": 0,
+            "name": ""
+          },
+          "kind": {
+            "id": 0,
+            "name": ""
+          },
+          "categories": []
+        },
+        {
+          "nm": 126072223,
+          "name": "",
+          "subject": {
+            "id": 0,
+            "name": ""
+          },
+          "brand": {
+            "id": 0,
+            "name": ""
+          },
+          "kind": {
+            "id": 0,
+            "name": ""
+          },
+          "categories": []
+        }
+      ],
+      "TotalCount": 0,
+      "createDate": "2022-12-13T23:45:50.415766+03:00",
+      "ChangeDate": "2023-02-15T21:36:21.556811+03:00",
+      "UrlType": 8192,
+      "Url": "",
+      "disableDate": "None",
+      "PromoSetId": "None"
+    },
+    {
+      "id": 3833716,
+      "type": 6,
+      "statusId": 9,
+      "imagePath": "",
+      "categoryUid": "33333333-3333-3333-3333-333333333333",
+      "categoryName": "Поиск",
+      "campaignId": 3838341,
+      "campaignName": "Праздничное Бежевое платье женское праздничное",
+      "brandName": "",
+      "startDate": "2022-12-12T11:21:15.534223+03:00",
+      "finishDate": "None",
+      "position": "None",
+      "predictedStartDate": "None",
+      "predictedEndDate": "None",
+      "carouselCard": [],
+      "products": [
+        {
+          "nm": 139768411,
+          "name": "",
+          "subject": {
+            "id": 0,
+            "name": ""
+          },
+          "brand": {
+            "id": 0,
+            "name": ""
+          },
+          "kind": {
+            "id": 0,
+            "name": ""
+          },
+          "categories": []
+        }
+      ],
+      "TotalCount": 0,
+      "createDate": "2022-12-12T11:20:22.820784+03:00",
+      "ChangeDate": "2023-02-14T16:51:41.981994+03:00",
+      "UrlType": 8192,
+      "Url": "",
+      "disableDate": "None",
+      "PromoSetId": "None"
+    }
+  ]
+}

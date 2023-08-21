@@ -11,6 +11,7 @@ services:
   postgres:
     image: postgres:14-alpine
     container_name: 'postgres'
+    restart: always
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
@@ -24,6 +25,7 @@ services:
   redis:
     image: redis:6-alpine
     container_name: 'redis'
+    restart: always
     ports:
       - 127.0.0.1:6379:6379
     command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
@@ -35,6 +37,7 @@ services:
   zookeeper:
     image: confluentinc/cp-zookeeper:6.1.1
     container_name: zookeeper
+    restart: always
     networks:
       - kafka-network
     environment:
@@ -54,6 +57,16 @@ services:
     environment:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+
+  clickhouse:
+    image: clickhouse/clickhouse-server
+    container_name: clickhouse-server
+    restart: always
+    environment:
+      - USER=default
+    ports:
+      - "127.0.0.1:8123:8123"
+      - "127.0.0.1:9000:9000"
  
 
 volumes:
@@ -62,4 +75,6 @@ volumes:
   redis:
     driver: local
   kafka:
+    driver: local
+  clickhouse:
     driver: local

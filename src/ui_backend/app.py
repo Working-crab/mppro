@@ -8,6 +8,8 @@ from typing import Optional
 from telebot import types
 from fastapi.responses import RedirectResponse
 
+from db.engine import create_tables
+
 import asyncio
 from typing import Union, Dict, Any
 from ui_backend.config import bot, WEBHOOK_URL
@@ -27,6 +29,7 @@ async def on_startup():
     webhook_info = await bot.get_webhook_info()
     if webhook_info.url != WEBHOOK_URL:
         await bot.set_webhook(url=WEBHOOK_URL)
+        await create_tables()
 
 @app.post('/')
 async def webhook(update: Dict[str, Any]):
@@ -45,10 +48,10 @@ async def webhook(data: dict):
     if data['object']['status'] == "succeeded":
         total = data['object']['amount']['value']
         if 'subscription_name' in data['object']['metadata']:
-            db_queries.update_sub(user_id=data['object']['metadata']['telegram_user_id'], sub_name=data['object']['metadata']['subscription_name'], total=int(float(total)))
+            await db_queries.update_sub(user_id=data['object']['metadata']['telegram_user_id'], sub_name=data['object']['metadata']['subscription_name'], total=int(float(total)))
             await bot.send_message(data['object']['metadata']['telegram_user_id'], f"Была подключена подписка: {data['object']['metadata']['subscription_name']}\nЕсли хотите узнать подробнее, нажмите - Платные услуги >>> Моя подписка")
         elif 'requests_amount' in data['object']['metadata']:
-            db_queries.edit_user_transaction(user_id=data['object']['metadata']['telegram_user_id'], type="Buy", token_amount=int(data['object']['metadata']['requests_amount']) * 700, request_amount=int(data['object']['metadata']['requests_amount']))
+            await db_queries.edit_user_transaction(user_id=data['object']['metadata']['telegram_user_id'], type="Buy", token_amount=int(data['object']['metadata']['requests_amount']) * 700, request_amount=int(data['object']['metadata']['requests_amount']))
             await bot.send_message(data['object']['metadata']['telegram_user_id'], f"Было успешно куплено: {data['object']['metadata']['requests_amount']} запросов\nЕсли хотите узнать сколько у вас сейчас запросов нажмите: Платные услуги >>> Мои запросы")
     return 'ok'
 
@@ -100,14 +103,14 @@ async def register(user: dict):
 
 @app.post('/api/v1/search-campaign-depth-of-market')
 async def search_campaign_depth_of_market(data: dict):
-    data = common.get_search_result_message(data.get('keyword'))
+    data = await common.get_search_result_message(data.get('keyword'))
     return { "data": data }
 
 
 @app.post('/api/v1/gpt-generate-card-description')
 async def gpt_generate_card_description(data: dict, current_user: UserIn = Depends(get_current_user)):
     user_id = current_user.id
-    data = gpt_queries.get_card_description(data.get('keyword'), user_id)
+    data = await gpt_queries.get_card_description(data.get('keyword'), user_id)
     if data == "You do not have permission":
         raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,

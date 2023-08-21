@@ -4,10 +4,18 @@ from ui_backend.config import syncBot
 from telebot import types
 from db.queries import db_queries
 from wb_common.wb_queries import wb_queries
+from wb_common.wb_api_queries import wb_api_queries
 from unittest import mock
 from cache_worker.cache_worker import cache_worker
 from collections import namedtuple
 from .config import bot
+
+ADV_STRATS = {
+  'strategy_hold_the_position': 'Держать позицию',
+  'strategy_hold_the_bid': 'Держать ставку',
+  'strategy_combined': 'Комбинированная',
+  'strategy_combined_always_online': 'Комбинированная без отключения',
+}
 
 Campaign = namedtuple('Campaign', ['campaign_id'])
 import re
@@ -57,9 +65,10 @@ def universal_reply_markup(search=False):
   # btn_my_sub = types.KeyboardButton(text='🎟️ Моя подписка 🎟️')
   btn_paid_service = types.KeyboardButton(text='⭐ Платные услуги ⭐')
   btn_additionally = types.KeyboardButton(text='⚙️ Дополнительные опции ⚙️')
+  btn_statistics = types.KeyboardButton(text='Статистика')
 
   markup_inline.add(btn_search, btn_list_adverts, btn_card)
-  markup_inline.add(btn_additionally, btn_paid_service)
+  markup_inline.add(btn_additionally, btn_paid_service, btn_statistics)
   
   if search:
     btn_choose_city = types.KeyboardButton(text='Выбрать город 🏙️')
@@ -70,6 +79,16 @@ def universal_reply_markup(search=False):
   #   btn_get_logs = types.KeyboardButton(text='Показать логи человека')
   #   markup_inline.add(btn_get_logs)
     
+  return markup_inline
+
+def statistics_reply_markup():
+  markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
+
+  btn_place_by_searchword = types.KeyboardButton(text='Статистика по популярным запросам')
+  btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
+
+  markup_inline.add(btn_place_by_searchword, btn_back)
+
   return markup_inline
 
 
@@ -176,25 +195,29 @@ def switch_status_reply_markup(status, campaing_id):
 def action_history_reply_markup():
   markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
-  btn_action_filter = types.KeyboardButton(text='Выбрать фильтрацию')
+  # btn_action_filter = types.KeyboardButton(text='Выбрать фильтрацию')
   btn_download_actions = types.KeyboardButton(text='Загрузить историю действий')
   btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
-
-  markup_inline.add(btn_action_filter, btn_download_actions)
+# btn_action_filter
+  markup_inline.add(btn_download_actions)
   markup_inline.add(btn_back)
     
   return markup_inline
 
 
-def management_tokens_reply_markup():
+def management_tokens_reply_markup(sub_name):
   markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
   btn_wbtoken = types.KeyboardButton(text='WBToken')
-  # btn_wildauthnewV3 = types.KeyboardButton(text='WildAuthNewV3')
+  btn_public_api_token = types.KeyboardButton(text='PublicAPIToken')
   btn_x_supplier_id = types.KeyboardButton(text='x_supplier_id')
+  if sub_name == 'Разработчик':
+    btn_get_wb_token = types.KeyboardButton(text='GetWbToken')
+    markup_inline.add(btn_get_wb_token)
+    
   btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
 # btn_wildauthnewV3
-  markup_inline.add(btn_wbtoken, btn_x_supplier_id)
+  markup_inline.add(btn_wbtoken, btn_public_api_token, btn_x_supplier_id)
   markup_inline.add(btn_back)
     
   return markup_inline
@@ -210,10 +233,10 @@ def edit_token_reply_markup():
   return markup_inline
 
 
-def action_history_filter_reply_markup(action):
+async def action_history_filter_reply_markup(action):
   markup_inline = types.InlineKeyboardMarkup()
   
-  filters = db_queries.get_filter_action_history()
+  filters = await db_queries.get_filter_action_history()
   buttons_array = []
   # logger.info(filters)
   markup_inline.add(types.InlineKeyboardButton(f'Все', callback_data=f'{action}:date_time'))
@@ -302,11 +325,11 @@ def format_requests_count(count):
 
 def status_parser_priority_map(status_id):
   status_dict = {
-    4: 5,
+    4: 2,
     9: 1,
-    8: 4,
-    7: 3,
-    11: 2,
+    8: 5,
+    7: 4,
+    11: 3,
   }
   return status_dict.get(status_id, 99)
     
@@ -349,16 +372,16 @@ def paginate_buttons(action, page_number, total_count_adverts, page_size, user_i
   return inline_keyboard
 
 
-def get_first_place(user_id, campaign):
-  campaign_user = db_queries.get_user_by_telegram_user_id(user_id)
-  campaign_info = wb_queries.get_campaign_info(campaign_user, campaign)
-  campaign_pluse_words = wb_queries.get_stat_words(campaign_user, campaign)
+async def get_first_place(user_id, campaign):
+  campaign_user = await db_queries.get_user_by_telegram_user_id(user_id)  
+  campaign_info = await wb_queries.get_campaign_info(campaign_user, campaign)
+  campaign_pluse_words = await wb_queries.get_stat_words(campaign_user, campaign)
 
   check_word = campaign_info['campaign_key_word']
   if campaign_pluse_words['main_pluse_word']:
     check_word = campaign_pluse_words['main_pluse_word']
 
-  current_bids_table = wb_queries.search_adverts_by_keyword(check_word)
+  current_bids_table = await wb_queries.search_adverts_by_keyword(check_word)
   
   logger.info("current_bids_table")
   logger.info(current_bids_table)
@@ -371,40 +394,57 @@ def escape_telegram_specials(string):
 
   
 def logs_types_reply_markup(user_id, timestamp):
+  markup_inline = types.InlineKeyboardMarkup()
+  btn_wb_queries = types.InlineKeyboardButton(text='wb_queries', callback_data=f'logs: wb_queries user_id: {user_id} timestamp: {timestamp}')
+  markup_inline.add(btn_wb_queries)
+  return markup_inline
 
-    markup_inline = types.InlineKeyboardMarkup()
 
-    btn_wb_queries = types.InlineKeyboardButton(text='wb_queries', callback_data=f'logs: wb_queries user_id: {user_id} timestamp: {timestamp}')
+def advert_strategy_reply_markup(adv_id):
+  markup = types.InlineKeyboardMarkup()
 
-    markup_inline.add(btn_wb_queries)
+  markup.add(types.InlineKeyboardButton(text=ADV_STRATS['strategy_hold_the_position'], callback_data=f'strategy_hold_the_position:{adv_id}'))
+  markup.add(types.InlineKeyboardButton(text=ADV_STRATS['strategy_hold_the_bid'],  callback_data=f'strategy_hold_the_bid:{adv_id}'))
+  markup.add(types.InlineKeyboardButton(text=ADV_STRATS['strategy_combined'], callback_data=f'strategy_combined:{adv_id}'))
+  markup.add(types.InlineKeyboardButton(text=ADV_STRATS['strategy_combined_always_online'], callback_data=f'strategy_combined_always_online:{adv_id}'))
+  return markup
 
-    return markup_inline
-
-def advert_info_message_maker(adverts, page_number, page_size, user):
-  adverts = sorted(adverts, key=lambda x: status_parser_priority_map(x['statusId']))
+async def advert_info_message_maker(adverts, page_number, page_size, user):
+  if user.public_api_token:
+    adverts = sorted(adverts, key=lambda x: status_parser_priority_map(x['status']))
+  else:
+    adverts = sorted(adverts, key=lambda x: status_parser_priority_map(x['statusId']))
   
   if page_number != 1:
     adverts = adverts[(page_size*(page_number-1)):page_size*page_number]
   else:
     adverts = adverts[page_number-1:page_size]
   
-
-  lst_adverts_ids = [i['id'] for i in adverts]
-  db_adverts = db_queries.get_user_adverts_by_wb_ids(user.id, lst_adverts_ids)
+  if user.public_api_token:
+    lst_adverts_ids = [i['advertId'] for i in adverts]
+  else:
+    lst_adverts_ids = [i['id'] for i in adverts]
+    
+  db_adverts = await db_queries.get_user_adverts_by_wb_ids(user.id, lst_adverts_ids)
   id_to_db_adverts = {x.campaign_id: x for x in db_adverts}
   lst_adverts_ids = [i.campaign_id for i in db_adverts]
 
   result_msg = f'Список ваших рекламных компаний с cmp\.wildberries\.ru, страница: {page_number}\n\n'
   for advert in adverts:
-    stat = status_parser(advert['statusId'])
-
     campaign = mock.Mock()
-    campaign.campaign_id = advert['id']
+    
+    if user.public_api_token:
+      stat = status_parser(advert['status'])
+      campaign.campaign_id = advert['advertId']
+    else:
+      stat = status_parser(advert['statusId'])
+      campaign.campaign_id = advert['id']
+    
 
     budget_string = ''
     try:
       # first_place_price = get_first_place(user.telegram_user_id, campaign)
-      budget = wb_queries.get_budget(user, campaign)
+      budget = await wb_queries.get_budget(user, campaign)
       budget = budget.get("Бюджет компании")
     except Exception as e:
       budget = None
@@ -417,28 +457,34 @@ def advert_info_message_maker(adverts, page_number, page_size, user):
 
     add_delete_str = ''
     bot_status = ''
-    if advert['id'] in lst_adverts_ids:
-      db_advert = id_to_db_adverts.get(advert['id'])
+    if campaign.campaign_id in lst_adverts_ids:
+      db_advert = id_to_db_adverts.get(campaign.campaign_id)
       if db_advert:
         if db_advert.status == 'ON':
           bot_status     += f"\t Отслеживается\!"
-          add_delete_str += f"\t Перестать отслеживать РК: /delete\_adv\_{advert['id']}\n"
-          add_delete_str += f"\t Макс\. ставка: {db_advert.max_bid} макс\. место: {db_advert.place}\n"
+          if db_advert.strategy is not None and db_advert.strategy != None and db_advert.strategy != "None":
+            logger.warn(f"HERE {db_advert.strategy}")
+            add_delete_str += f"\t Стратегия отслеживания: {ADV_STRATS[db_advert.strategy]}\n"
+          add_delete_str += f"\t Перестать отслеживать: /delete\_adv\_{campaign.campaign_id}\n"
+          add_delete_str += f"\t Макс\. ставка: {db_advert.max_bid} макс\. место: {escape_telegram_specials(db_advert.place)}\n"
         else:
           bot_status     += f"\t Не отслеживается\!"
-          add_delete_str += f"\t Отслеживать РК: /add\_adv\_{advert['id']}\n"
+          add_delete_str += f"\t Отслеживать: /add\_adv\_{campaign.campaign_id}\n"
     else:
       bot_status     += f"\t Не отслеживается\!"
-      add_delete_str += f"\t Отслеживать РК: /add\_adv\_{advert['id']}\n"
+      add_delete_str += f"\t Отслеживать: /add\_adv\_{campaign.campaign_id}\n"
 
-    add_delete_str += f"\t Настроить РК: /adv\_settings\_{advert['id']}\n"
+    add_delete_str += f"\t Настроить: /adv\_settings\_{campaign.campaign_id}\n"
 
     # add_delete_str += f"\t Получить график аналитики: /user\_analitics\_grafic\_{advert['id']}\n"
 
-    campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{advert['id']}"
+    campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{campaign.campaign_id}"
     
-    result_msg += f"*Имя компании: {escape_telegram_specials(advert['campaignName'])}*\n"
-    result_msg += f"\t ID: [{advert['id']}]({campaign_link}) Статус: {stat}\n"
+    if user.public_api_token:
+      result_msg += f"*Имя компании: {escape_telegram_specials(advert['name'])}*\n"
+    else:
+      result_msg += f"*Имя компании: {escape_telegram_specials(advert['campaignName'])}*\n"
+    result_msg += f"\t ID: [{campaign.campaign_id}]({campaign_link}) Статус: {stat}\n"
 
     result_msg += budget_string
 
@@ -447,6 +493,7 @@ def advert_info_message_maker(adverts, page_number, page_size, user):
     result_msg += add_delete_str
     # TODO Текущие ставки на 1-2 месте по рекламному слову
     result_msg += f"\n"
+
   return result_msg
 
 # campaign_link = f"https://cmp.wildberries.ru/campaigns/list/all/edit/search/{advert['id']}"
@@ -493,10 +540,10 @@ def campaign_query_info_maker(lst_adverts_ids, user, message_id) -> dict:
     list_with_need_query.append(obj)
   return list_with_need_query
 
-def wrapper_get_budget(user_id, campaign_id):
+async def wrapper_get_budget(user_id, campaign_id):
   campaign = mock.Mock()
   campaign.campaign_id = campaign_id
-  user = db_queries.get_user_by_id(user_id)
+  user = await db_queries.get_user_by_id(user_id)
 
   wb_queries.get_budget(user, campaign)
 
@@ -504,12 +551,12 @@ def get_first_place(user_id, campaign_id):
   get_first_place(user_id, campaign_id)
 
 
-def get_search_result_message(keyword, city=None):
+async def get_search_result_message(keyword, city=None):
 
   if city == None:
     city = "Москва"
   
-  item_dicts = wb_queries.search_adverts_by_keyword(keyword)
+  item_dicts = await wb_queries.search_adverts_by_keyword(keyword)
   result_message = ''
   position_ids = []
 
@@ -522,7 +569,7 @@ def get_search_result_message(keyword, city=None):
     result_message += f'*{item_idex + 1}*  \\({pos}\\)   *{price}₽*,  [{p_id}](https://www.wildberries.ru/catalog/{p_id}/detail.aspx) 🔄 \n'
   
   result_message = f'Текущие рекламные ставки по запросу: *{keyword}*\nГород доставки: *{city}*\n\n'
-  adverts_info = wb_queries.get_products_info_by_wb_ids(position_ids, city)
+  adverts_info = await wb_queries.get_products_info_by_wb_ids(position_ids, city)
 
   for item_idex in range(len(item_dicts)):
 
@@ -536,7 +583,7 @@ def get_search_result_message(keyword, city=None):
     if advert_info:
       product_name = escape_telegram_specials(advert_info.get('name')[:30]) if advert_info.get('name')[:30] else product_id
       product_time = f'{advert_info.get("time2")}ч' if advert_info.get('time2') else ''
-      product_category_name = advert_info.get('category_name') if advert_info.get('category_name') else ''
+      product_category_name = escape_telegram_specials(advert_info.get('category_name')) if advert_info.get('category_name') else ''
       message_string = f'{position_index} \t \\({pos}\\) \t *{price}₽*, \t {product_category_name} \t {product_time} \t [{product_name}](https://www.wildberries.ru/catalog/{product_id}/detail.aspx)'
     else:
       message_string += ' возможно нет в наличии'
@@ -552,17 +599,21 @@ def check_sub(required_subs):
         async def wrapper(*args, **kwargs):
           message = args[0]
           user_id = message.from_user.id
-          user = db_queries.get_user_by_telegram_user_id(user_id)
+          user = await db_queries.get_user_by_telegram_user_id(user_id)
           
-          sub = db_queries.get_sub(user.subscriptions_id)
-          if sub is None:
-              await bot.send_message(user_id, "У вас недостаточно прав для выполнения данной команды, купите подписку")
-              return None
+          sub = await db_queries.get_sub(user.subscriptions_id)
+          if sub is None and '*' not in required_subs:
+            await bot.send_message(user_id, "У вас недостаточно прав для выполнения данной команды, купите подписку")
+            return None
+          elif sub is None and '*' in required_subs:
+            return await func(*args, sub_name="User", **kwargs)
           else:
-            sub_name = sub.title  
+            sub_name = sub.title
           
             if sub is not None and sub_name in required_subs:
-                return await func(*args, sub_name=sub_name, **kwargs)
+              return await func(*args, sub_name=sub_name, **kwargs)
+            elif sub is not None and '*' in required_subs:
+              return await func(*args, sub_name=sub_name, **kwargs)
             elif sub is not None and sub_name not in required_subs:
               await bot.send_message(user_id, "У вас недостаточно прав для выполнения данной команды, купите подписку по лучше")
               return None

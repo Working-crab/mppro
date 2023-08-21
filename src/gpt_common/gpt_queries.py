@@ -3,6 +3,7 @@ import openai
 from ui_backend.config import GPT_TOKEN, GPT_MODEL_NAME
 
 from db.queries import db_queries
+import asyncio
 
 from common.appLogger import appLogger
 logger = appLogger.getLogger(__name__)
@@ -10,15 +11,18 @@ logger_token = appLogger.getLogger(__name__+'_token')
 
 class gpt_queries:
 
-    def get_card_description(prompt, user_id):
+    async def get_card_description(prompt, user_id):
         
-        user = db_queries.get_user_by_id(user_id)
+        user = await db_queries.get_user_by_id(user_id)
+        
+        logger.warn("user")
+        logger.warn(user)
         
         if user.subscriptions_id == None:
             return "You do not have permission"
         
         logger.warn("after user")
-        gtp_requests = db_queries.get_user_gpt_requests(user.id)
+        gtp_requests = await db_queries.get_user_gpt_requests(user.id)
         
         if gtp_requests < 1:
             return "Not enough tokens"
@@ -37,10 +41,10 @@ class gpt_queries:
         logger.warn(completion)
         tokens_spent = completion.usage.total_tokens
         
-        db_queries.edit_user_transaction(user_id=user.telegram_user_id, token_amount=-tokens_spent, request_amount=-1, type="Карточка товара")
+        await db_queries.edit_user_transaction(user_id=user.telegram_user_id, token_amount=-tokens_spent, request_amount=-1, type="Карточка товара")
         
         completion_content = completion.choices[0].message.content
 
-        db_queries.add_action_history(user_id=user.id, action="gpt_get_card_description", action_description=f"Генерация карточки по запросу: '{prompt}': '{completion_content}'")
+        await db_queries.add_action_history(user_id=user.id, action="gpt_get_card_description", action_description=f"Генерация карточки по запросу: '{prompt}': '{completion_content}'")
   
         return completion_content

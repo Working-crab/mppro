@@ -169,7 +169,7 @@ cython_debug/
 
 
 # test folders
-help_info/
+# help_info/
 logs/
 (test)*
 
