@@ -4,6 +4,7 @@ import clickhouse_driver
 from fastapi.responses import StreamingResponse
 from io import BytesIO
 from datetime import datetime, timedelta
+from json import loads, dumps
 
 
 class CustomQueryParams:
@@ -61,7 +62,7 @@ async def main (params: CustomQueryParams = Depends()):
     
 @route.get('/statistics_search_words')
 async def main (params: CustomQueryParams = Depends()):
-    client = clickhouse_driver.Client.from_url(f"""clickhouse://default:@localhost:19000/default""")
+    client = clickhouse_driver.Client.from_url(f"""clickhouse://default:@localhost:9000/default""")
     result = client.execute(f""" SELECT * FROM product_position WHERE id_product = {params.id_product} and date_collected >= '{params.start_periud}' and date_collected <= '{params.end_periud}'""")
     df = pd.DataFrame(result)
     print(df)
@@ -85,4 +86,5 @@ async def main (params: CustomQueryParams = Depends()):
         df_result.append(res_obj)
 
     df = pd.DataFrame(df_result)
-    return {df.to_json()}
+    result = df.to_json(orient="index")
+    return result
