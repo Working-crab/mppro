@@ -65,7 +65,6 @@ async def main (params: CustomQueryParams = Depends()):
     client = clickhouse_driver.Client.from_url(f"""clickhouse://default:@localhost:9000/default""")
     result = client.execute(f""" SELECT * FROM product_position WHERE id_product = {params.id_product} and date_collected >= '{params.start_periud}' and date_collected <= '{params.end_periud}'""")
     df = pd.DataFrame(result)
-    print(df)
     search_words = df[3].unique()
     df[4] = pd.to_datetime(df[4])
     date_lst = df[4].unique()
@@ -86,5 +85,4 @@ async def main (params: CustomQueryParams = Depends()):
         df_result.append(res_obj)
 
     df = pd.DataFrame(df_result)
-    result = df.to_json(orient="index")
-    return result
+    return df.to_dict()
