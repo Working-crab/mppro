@@ -1478,15 +1478,26 @@ async def statistics_on_popular_queries(message):
     set_user_session_step(message, 'Show_statistics_menu')
     return
   result = await get_csv_statistics_search_words(p_id, start_date, end_date)
-  text = result['text']
-  search_words = text.split('\n')
-  search_words.pop()
-  if len(search_words) < 6:
-    await bot.send_message(message.chat.id, text)
-  else:
-    file = io.BytesIO(result['content'])
-    await bot.send_message(message.chat.id, "\n".join(search_words[0:6]) + "\n...")
-    await bot.send_document(message.chat.id, file, visible_file_name=f'admp.pro Статистика по поисковым запросам WB {p_id}.csv')
+  import pandas as pd
+  from create_table_engine.main_class import Create_table
+  
+  df = pd.read_json(io.BytesIO(result))
+  print(df)
+  creater_table = Create_table(df=df)
+  creater_table.create_table()
+  table_img = creater_table.get_table()
+
+  await bot.send_document(message.chat.id, io.BytesIO(result))
+  # await bot.send_photo(message.chat.id, table_img)
+  # text = result['text']
+  # search_words = text.split('\n')
+  # search_words.pop()
+  # if len(search_words) < 6:
+  #   await bot.send_message(message.chat.id, text)
+  # else:
+  #   file = io.BytesIO(result['content'])
+  #   await bot.send_message(message.chat.id, "\n".join(search_words[0:6]) + "\n...")
+  #   await bot.send_document(message.chat.id, file, visible_file_name=f'admp.pro Статистика по поисковым запросам WB {p_id}.csv')
     
   set_user_session_step(message, 'Show_statistics_menu')
 

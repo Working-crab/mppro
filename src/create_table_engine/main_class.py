@@ -9,7 +9,7 @@ class Create_table ():
         self.df = df
         self.w = width
         self.h = heigth
-        self.font = ImageFont.truetype(font=f"""{Path(Path.cwd(),'src','create_table_engine','Roboto-regular.ttf')}""", size=font_size)
+        self.font = ImageFont.truetype(font=f"""{Path(Path.cwd(),'src','create_table_engine','Roboto-Regular.ttf')}""", size=font_size)
         self.img = Image.new( mode = "RGB", size = (self.w, self.h), color=(255,255,255))
         self.draw = ImageDraw.Draw(self.img)
         self.__count_columns = self.__search_cout_columns()
