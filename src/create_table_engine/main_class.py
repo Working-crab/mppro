@@ -19,7 +19,7 @@ class Create_table ():
     
     def create_table(self):
         width_rectangle = self.w / (self.__count_columns)
-        height_rectangle = self.h / (self.__count_rows)
+        height_rectangle = self.h / (self.__count_rows+1)
 
         self.draw.rectangle((0,0,self.w,self.h),outline=(0,0,0),width=2)
         x = 0
@@ -31,10 +31,17 @@ class Create_table ():
             y+=height_rectangle
             self.draw.line(xy=((0, y),(self.w, y)), fill='black', width=2)
 
+        for i,val in enumerate(self.df.columns.values.tolist()):
+            y = height_rectangle * float(0) + (height_rectangle/2)
+            text = self.get_tex_box(str(val), width_rectangle)
+            x = width_rectangle * (i) + (width_rectangle/2)
+            self.draw.text(xy=(x,y),text=str(text),fill=(0,0,0), font=self.font,anchor='mm')
+
         for i,val in self.df.iterrows():
-            y = height_rectangle * (i) + (height_rectangle/2)
+            # print(height_rectangle * float(i), height_rectangle, i)
+            y = height_rectangle * float(int(i)+1) + (height_rectangle/2)
             for i2,val2 in enumerate(val):      
-                text = self.get_tex_box(val2, width_rectangle)
+                text = self.get_tex_box(str(val2), width_rectangle)
                 x = width_rectangle * (i2) + (width_rectangle/2)
                 self.draw.text(xy=(x,y),text=str(text),fill=(0,0,0), font=self.font,anchor='mm')
 
