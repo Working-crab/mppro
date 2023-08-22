@@ -4,6 +4,7 @@ import clickhouse_driver
 from fastapi.responses import StreamingResponse
 from io import BytesIO
 from datetime import datetime, timedelta
+from json import loads, dumps
 
 
 class CustomQueryParams:
@@ -85,4 +86,5 @@ async def main (params: CustomQueryParams = Depends()):
         df_result.append(res_obj)
 
     df = pd.DataFrame(df_result)
-    return {df.to_json()}
+    result = df.to_json(orient="index")
+    return result
