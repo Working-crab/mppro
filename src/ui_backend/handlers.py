@@ -1,4 +1,6 @@
 import asyncio
+import pandas as pd
+from PIL import Image
 import re
 from unittest import mock
 from user_analitics.graphic_analitic import graphics_analitics
@@ -18,6 +20,7 @@ from monorepository_communication.wb_scraper_api_queries import get_csv_statisti
 from datetime import datetime, timedelta
 from cache_worker.cache_worker import cache_worker
 from kafka_dir.general_publisher import queue_message_async
+from create_table_engine.main_class import Create_table
 import copy
 from gpt_common.gpt_queries import gpt_queries
 import json
@@ -1478,26 +1481,21 @@ async def statistics_on_popular_queries(message):
     set_user_session_step(message, 'Show_statistics_menu')
     return
   result = await get_csv_statistics_search_words(p_id, start_date, end_date)
-  import pandas as pd
-  from create_table_engine.main_class import Create_table
-  
-  df = pd.read_json(io.BytesIO(result))
-  print(df)
-  creater_table = Create_table(df=df)
-  creater_table.create_table()
-  table_img = creater_table.get_table()
+  df = pd.DataFrame(result.json())
 
-  await bot.send_document(message.chat.id, io.BytesIO(result))
-  # await bot.send_photo(message.chat.id, table_img)
-  # text = result['text']
-  # search_words = text.split('\n')
-  # search_words.pop()
-  # if len(search_words) < 6:
-  #   await bot.send_message(message.chat.id, text)
-  # else:
-  #   file = io.BytesIO(result['content'])
-  #   await bot.send_message(message.chat.id, "\n".join(search_words[0:6]) + "\n...")
-  #   await bot.send_document(message.chat.id, file, visible_file_name=f'admp.pro Статистика по поисковым запросам WB {p_id}.csv')
+  if len(df) < 6:
+    creater_table = Create_table(df=df)
+    creater_table.create_table()
+    table_img = creater_table.get_img_table()
+    await bot.send_photo(message.chat.id, table_img)
+  else:
+    file = io.BytesIO(result.content)
+    short_df = df.loc[::6]
+    creater_table = Create_table(df=short_df)
+    creater_table.create_table()
+    table_img = creater_table.get_img_table()
+    await bot.send_photo(message.chat.id, table_img)
+    await bot.send_document(message.chat.id, file, visible_file_name=f'admp.pro Статистика по поисковым запросам WB {p_id}.csv')
     
   set_user_session_step(message, 'Show_statistics_menu')
 

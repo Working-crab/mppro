@@ -49,7 +49,8 @@ class Create_table ():
         
         self.img.save(self.image, 'PNG')
     
-    def get_table (self):
+    def get_img_table (self):
+        self.image.seek(0)
         return self.image
 
     def get_tex_box(self, text, width):
