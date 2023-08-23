@@ -1,6 +1,9 @@
 name: base prod redeploy
 
 on:
+  push:
+    branches:
+      - master
   workflow_dispatch:
 
 jobs:
@@ -26,5 +29,5 @@ jobs:
             git checkout master &&
             git reset --hard origin/master &&
             git pull origin master &&
-            bash deploy.bash
+            bash deploy/deploy.bash
           '
