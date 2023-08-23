@@ -125,9 +125,10 @@ module.exports = {
     {
       ...defaults,
       name: 'wb_scraper', // scraps wb for stats
-      script: 'src/wb_scraper/main.py search_word 0 20000',
+      script: 'venv/bin/python3 src/wb_scraper/main.py search_word 0 20000',
       log_file: 'logs/pm2/wb_scraper.log',
       cron_restart: '0 0 * * *', // once per day
+      interpreter : undefined,
       env: {
         PYTHONPATH: 'src/',
         MONITORING_INITIATOR: 'wb_scraper',
