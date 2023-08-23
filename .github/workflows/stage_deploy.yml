@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Install SSH client
-        run: sudo apt-get install -y openssh-client
+        run: sudo apt-get install -y openssh-client sshpass
     
       - name: redeploy stage on test server
         env:
@@ -24,7 +24,7 @@ jobs:
           echo "$PRIVATE_KEY" > private_key && 
           chmod 600 private_key
           
-          ssh -o StrictHostKeyChecking=off -i private_key $USER_NAME@$HOSTNAME '
+          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=off -i private_key $USER_NAME@$HOSTNAME '
             cd /root/data &&
             git fetch --all &&
             git checkout stage &&
