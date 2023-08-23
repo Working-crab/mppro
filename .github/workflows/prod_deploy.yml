@@ -1,6 +1,9 @@
 name: base prod redeploy
 
 on:
+  push:
+    branches:
+      - master
   workflow_dispatch:
 
 jobs:
@@ -9,6 +12,9 @@ jobs:
     
     steps:
       - uses: actions/checkout@v3
+
+      - name: Install SSH client
+        run: sudo apt-get install -y openssh-client
     
       - name: redeploy prod on test server
         env:
@@ -26,5 +32,5 @@ jobs:
             git checkout master &&
             git reset --hard origin/master &&
             git pull origin master &&
-            bash deploy.bash
+            bash deploy/deploy.bash
           '
