@@ -5,7 +5,7 @@ cd .. && \
 mainWorkDirectory=`pwd` && \
 
 # docker
-docker compose -f docker-compose.yml up -d && \
+docker compose -f data/docker-compose.yml up -d && \
 
 # node
 cd src/admin_dashboard/frontend/analytics-service && \
