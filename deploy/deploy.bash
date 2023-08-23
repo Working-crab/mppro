@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# start from /deploy
+# to start "bash deploy/deploy.bash"
 mainWorkDirectory=`pwd` && \
 
 # docker
