@@ -25,7 +25,7 @@ jobs:
           chmod 600 private_key
           
           ssh -o StrictHostKeyChecking=off -i private_key ${USER_NAME}@${HOSTNAME} '
-            cd /root/data &&
+            cd /data &&
             git fetch --all &&
             git checkout stage &&
             git reset --hard origin/stage &&
