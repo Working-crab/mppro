@@ -1,21 +1,25 @@
 name: base stage redeploy
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ stage ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
       - uses: actions/checkout@v3
 
-      - name: redeploy prod on test server
+      - name: Install SSH client
+        run: sudo apt-get install -y openssh-client
+    
+      - name: redeploy stage on test server
         env:
             PRIVATE_KEY:  ${{ secrets.STAGE_PRIVATE_KEY  }}
             HOSTNAME :    ${{ secrets.STAGE_SSH_HOST  }}
             USER_NAME :   ${{ secrets.STAGE_SSH_USER  }}
-
+            
         run: |
           echo "$PRIVATE_KEY" > private_key && 
           chmod 600 private_key
@@ -23,8 +27,8 @@ jobs:
           ssh -o StrictHostKeyChecking=off -i private_key ${USER_NAME}@${HOSTNAME} '
             cd /root/data &&
             git fetch --all &&
-            git checkout master &&
-            git reset --hard origin/master &&
-            git pull origin master &&
+            git checkout stage &&
+            git reset --hard origin/stage &&
+            git pull origin stage &&
             bash deploy.bash
           '
