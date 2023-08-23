@@ -20,11 +20,8 @@ jobs:
             HOSTNAME :    ${{ secrets.STAGE_SSH_HOST  }}
             USER_NAME :   ${{ secrets.STAGE_SSH_USER  }}
             
-        run: |
-          echo "$PRIVATE_KEY" > private_key && 
-          chmod 600 private_key
-          
-          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=off -i private_key $USER_NAME@$HOSTNAME '
+        run: |          
+          sshpass -p "$STAGE_PRIVATE_KEY" ssh -o StrictHostKeyChecking=off -i private_key $USER_NAME@$HOSTNAME '
             cd /root/data &&
             git fetch --all &&
             git checkout stage &&
