@@ -20,7 +20,7 @@ jobs:
           echo "$PRIVATE_KEY" > private_key && 
           chmod 600 private_key
           
-          ssh -v -o StrictHostKeyChecking=off -i private_key ${USER_NAME}@${HOSTNAME} '
+          ssh -o StrictHostKeyChecking=off -i private_key ${USER_NAME}@${HOSTNAME} '
             cd /root/data &&
             git fetch --all &&
             git checkout master &&
