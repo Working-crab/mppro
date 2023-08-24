@@ -5,7 +5,7 @@ from class_list.Process_scraping_main_info import Process
 
 def scraping_product_main_info ():
     client = clickhouse_driver.Client.from_url(Main_var.DB_URL)
-    lst = client.execute(f"""SELECT DISTINCT id_product FROM product_position""")
+    lst = client.execute(f"""SELECT DISTINCT product_position.id_product, product.id FROM product_position left join product ON product_position.id_product = product.id where product.id = 0""")
     lst_id = []
     for val in lst:
         lst_id.append(val[0])   
