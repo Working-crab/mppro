@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# start from /deploy
-cd .. && \
+# to start "bash deploy/deploy.bash"
 mainWorkDirectory=`pwd` && \
 
 # docker
@@ -15,7 +14,7 @@ cd $mainWorkDirectory && \
 
 # python
 source venv/bin/activate && \
-pip install -r python_requirements.txt && \
+pip install -r deploy/python_requirements.txt && \
 alembic upgrade head && \
 
 # other
