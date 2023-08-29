@@ -1484,19 +1484,20 @@ async def statistics_on_popular_queries(message):
   df = pd.DataFrame(result.json())
 
   if len(df) < 6:
-    creater_table = Create_table(df=df.head(5))
+    creater_table = Create_table(df=df)
     creater_table.create_table()
     table_img = creater_table.get_img_table()
     await bot.send_photo(message.chat.id, table_img)
   else:
     # file = io.BytesIO(result.content)
     file = io.BytesIO()
-    df.to_csv(path_or_buf=file, encoding="utf-8")
-    short_df = df.loc[::6]
+    df.to_csv(path_or_buf=file, index= False,encoding='utf-8-sig')
+    short_df = df.head(5)
     creater_table = Create_table(df=short_df)
     creater_table.create_table()
     table_img = creater_table.get_img_table()
     await bot.send_photo(message.chat.id, table_img)
+    file.seek(0)
     await bot.send_document(message.chat.id, file, visible_file_name=f'admp.pro Статистика по поисковым запросам WB {p_id}.csv')
     
   set_user_session_step(message, 'Show_statistics_menu')
