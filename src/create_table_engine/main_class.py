@@ -5,7 +5,7 @@ from io import BytesIO
 from pathlib import Path
 
 class Create_table ():
-    def __init__(self, df : pd.DataFrame, width : int = 500, heigth : int = 500, font_size : int = 16) -> None:
+    def __init__(self, df : pd.DataFrame, width : int = 1000, heigth : int = 500, font_size : int = 14) -> None:
         self.df = df
         self.w = width
         self.h = heigth
@@ -64,7 +64,7 @@ class Create_table ():
             for i_t in text:
                 text_for+=i_t
                 if math.ceil((self.font.getmask(text_for).getbbox()[2]/width)) > 1:
-                    text_result += text_for[:-3] + "\n"
+                    text_result += text_for[:-3] + "-\n"
                     text_for = "" + text_for[-3] + text_for[-2] + text_for[-1]
             return text_result + text_for
 
