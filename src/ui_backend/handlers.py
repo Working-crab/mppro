@@ -1484,7 +1484,7 @@ async def statistics_on_popular_queries(message):
   df = pd.DataFrame(result.json())
 
   if len(df) < 6:
-    creater_table = Create_table(df=df)
+    creater_table = Create_table(df=df.head(5))
     creater_table.create_table()
     table_img = creater_table.get_img_table()
     await bot.send_photo(message.chat.id, table_img)
