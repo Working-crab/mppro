@@ -1489,7 +1489,9 @@ async def statistics_on_popular_queries(message):
     table_img = creater_table.get_img_table()
     await bot.send_photo(message.chat.id, table_img)
   else:
-    file = io.BytesIO(result.content)
+    # file = io.BytesIO(result.content)
+    file = io.BytesIO()
+    df.to_csv(path_or_buf=file, encoding="utf-8")
     short_df = df.loc[::6]
     creater_table = Create_table(df=short_df)
     creater_table.create_table()
