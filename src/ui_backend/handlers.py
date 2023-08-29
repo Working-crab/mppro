@@ -63,7 +63,7 @@ async def message_handler(message):
     #   return
     
     logger.warn(f'telegram_user_id {telegram_user_id}')
-    logger.warn(user_session)
+    # logger.warn(user_session)
 
     message.user_session = user_session
     message.user_session_old = copy.deepcopy(user_session)
@@ -115,7 +115,7 @@ async def message_handler(message):
       logger.warn('step_map_access_level error')
       logger.warn(e)
 
-    logger.warn(f"user_step {str(message.text)}")
+    # logger.warn(f"user_step {str(message.text)}")
     
     user_action_default = possible_actions.get('default')
     if user_action:
@@ -1396,8 +1396,7 @@ async def show_my_sub(message):
 
 # --- card product --------------------------------------------------------------------------------------------
 
-@check_sub(['Старт', 'Победитель', 'Мастер', 'Чемпион'])
-async def card_product(message, sub_name):
+async def card_product(message):
   user = await db_queries.get_user_by_telegram_user_id(message.chat.id)
   gtp_requests = await db_queries.get_user_gpt_requests(user_id=user.id)
     
@@ -1521,7 +1520,7 @@ step_map = {
     'Выключить Фиксированные фразы': adv_settings_switch_off_word,
     'Пополнить бюджет': adv_settings_add_budget,
     'Изменить статус': adv_settings_switch_status,
-    'Карточка товара': card_product,
+    'Карточка товара': {"action": card_product, "access_level": 1},
     'Посмотреть статус Фиксированных фраз': adv_settings_switch_fixed_word,
     'default': misSpell
   },
