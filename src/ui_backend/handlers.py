@@ -1380,13 +1380,14 @@ async def show_my_sub(message):
   if user.subscriptions_id:
     my_sub = await db_queries.get_sub(sub_id=user.subscriptions_id)
     await bot.send_message(message.chat.id, 'Подключен: `{}`\nОписание: `{}`\nСрок действия с `{}` по `{}`'.format(my_sub.title, my_sub.description, user.sub_start_date.strftime('%d/%m/%Y'), user.sub_end_date.strftime('%d/%m/%Y')), reply_markup=paid_service_reply_markup())
-    #TODO do another systeam
+    
     sub_list = await db_queries.get_all_sub()
-    if sub_list[-1].title != my_sub.title:
+    max_access_level = max([sub.access_level for sub in sub_list])
+    if max_access_level > my_sub.access_level:
       await bot.send_message(message.chat.id, 'Вы можете обновиться на более крутую подписку', reply_markup=paid_service_reply_markup())
       
       for sub in sub_list:
-        if sub.title == my_sub.title:
+        if sub.title == my_sub.title or sub.access_level < my_sub.access_level:
           continue
         await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
   else:
