@@ -575,7 +575,7 @@ class db_queries:
                 return 0
         
         
-    async def edit_user_transaction(user_id, type, token_amount, request_amount):
+    async def edit_user_transaction(user_id, type, request_amount):
         async with AsyncSession(engine) as session:
             result = await session.execute(select(User).where(User.telegram_user_id == int(user_id)))
             user = result.scalars().first()
@@ -583,8 +583,8 @@ class db_queries:
             add_tokens = GPT_Transaction(
                 user_id = user.id,
                 type = type,
-                token_amount = token_amount,
-                request_amount = request_amount
+                token_amount = int(request_amount) * 700,
+                request_amount = int(request_amount)
             )
             session.add(add_tokens)
             await session.commit()
