@@ -297,7 +297,7 @@ def reply_markup_trial(trial):
 def reply_markup_payment(purchase, user_data):
     markup = types.InlineKeyboardMarkup()
     markup.add(
-        # types.InlineKeyboardButton(text='Оплата через telegram', callback_data=f"payment:telegram:{purchase}:{user_data}"),
+        types.InlineKeyboardButton(text='Оплата через telegram', callback_data=f"payment:telegram:{purchase}:{user_data}"),
         types.InlineKeyboardButton(text='Оплата через сайт', callback_data=f"payment:site:{purchase}:{user_data}"),
     )
     return markup

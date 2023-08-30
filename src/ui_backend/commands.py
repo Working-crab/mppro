@@ -20,12 +20,10 @@ async def start(message):
     get_user = await db_queries.get_user_by_telegram_user_id(telegram_user_id=message.from_user.id)
     if not get_user:
         await db_queries.create_user(telegram_user_id=message.from_user.id, telegram_chat_id=message.chat.id, telegram_username=message.from_user.username)
-
         # queue_message_sync(
         #   message
         # )
-
-        await bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}, вы зарегистрировались в *{await bot.get_me().username}*', parse_mode='Markdown', reply_markup=universal_reply_markup(user_id=message.from_user.id))
+        await bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.first_name}, вы зарегистрировались в *Admp.pro*', parse_mode='Markdown', reply_markup=universal_reply_markup())
         await bot.send_message(message.chat.id, f'Так как вы только зарегистрировались, предлагаем Вам *Старт* подписку на нашего бота', parse_mode='Markdown', reply_markup=reply_markup_trial(trial=False))
     else:
         await bot.send_message(message.chat.id, f'Вы уже зарегистрированы')
@@ -160,15 +158,6 @@ async def delete_user_advert(message):
   await bot.send_message(message.chat.id, deletion_message)
 
 
-@bot.message_handler(commands=['buy'])
-async def buy_subscription(message):
-    try:
-        sub_list = await db_queries.get_all_sub()
-        for sub in sub_list:
-            await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nХотите ли вы оплатить через telegram?\nЕсли - Да, нажмите на кнопку `Оплата через телеграм`\nЕсли через сайт, нажмите на кнопку `Оплата через сайт`', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
-    except Exception as e:
-        await bot.send_message(message.chat.id, e)
-
 
 
 @bot.pre_checkout_query_handler(func=lambda query: True)
@@ -185,7 +174,7 @@ async def got_payment(message):
                      'Была подключена подписка: {}\nЕсли хотите узнать подробнее, нажмите - Моя подписка'.format(message.successful_payment.invoice_payload))
 
 
-    db_queries.update_sub(user_id=message.chat.id, sub_name=message.successful_payment.invoice_payload, total=total)
+    await db_queries.update_sub(user_id=message.chat.id, sub_name=message.successful_payment.invoice_payload, total=total)
 
 
 @bot.message_handler(commands=['show_active_sub'])

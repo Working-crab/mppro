@@ -1,4 +1,6 @@
 import asyncio
+import pandas as pd
+from PIL import Image
 import re
 from unittest import mock
 from user_analitics.graphic_analitic import graphics_analitics
@@ -18,6 +20,7 @@ from monorepository_communication.wb_scraper_api_queries import get_csv_statisti
 from datetime import datetime, timedelta
 from cache_worker.cache_worker import cache_worker
 from kafka_dir.general_publisher import queue_message_async
+from create_table_engine.main_class import Create_table
 import copy
 from gpt_common.gpt_queries import gpt_queries
 import json
@@ -1377,13 +1380,14 @@ async def show_my_sub(message):
   if user.subscriptions_id:
     my_sub = await db_queries.get_sub(sub_id=user.subscriptions_id)
     await bot.send_message(message.chat.id, 'Подключен: `{}`\nОписание: `{}`\nСрок действия с `{}` по `{}`'.format(my_sub.title, my_sub.description, user.sub_start_date.strftime('%d/%m/%Y'), user.sub_end_date.strftime('%d/%m/%Y')), reply_markup=paid_service_reply_markup())
-    #TODO do another systeam
+    
     sub_list = await db_queries.get_all_sub()
-    if sub_list[-1].title != my_sub.title:
+    max_access_level = max([sub.access_level for sub in sub_list])
+    if max_access_level > my_sub.access_level:
       await bot.send_message(message.chat.id, 'Вы можете обновиться на более крутую подписку', reply_markup=paid_service_reply_markup())
       
       for sub in sub_list:
-        if sub.title == my_sub.title:
+        if sub.title == my_sub.title or sub.access_level < my_sub.access_level:
           continue
         await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
   else:
@@ -1477,14 +1481,23 @@ async def statistics_on_popular_queries(message):
     set_user_session_step(message, 'Show_statistics_menu')
     return
   result = await get_csv_statistics_search_words(p_id, start_date, end_date)
-  text = result['text']
-  search_words = text.split('\n')
-  search_words.pop()
-  if len(search_words) < 6:
-    await bot.send_message(message.chat.id, text)
+  df = pd.DataFrame(result.json())
+
+  if len(df) < 6:
+    creater_table = Create_table(df=df)
+    creater_table.create_table()
+    table_img = creater_table.get_img_table()
+    await bot.send_photo(message.chat.id, table_img)
   else:
-    file = io.BytesIO(result['content'])
-    await bot.send_message(message.chat.id, "\n".join(search_words[0:6]) + "\n...")
+    # file = io.BytesIO(result.content)
+    file = io.BytesIO()
+    df.to_csv(path_or_buf=file, index= False,encoding='utf-8-sig')
+    short_df = df.head(5)
+    creater_table = Create_table(df=short_df)
+    creater_table.create_table()
+    table_img = creater_table.get_img_table()
+    await bot.send_photo(message.chat.id, table_img)
+    file.seek(0)
     await bot.send_document(message.chat.id, file, visible_file_name=f'admp.pro Статистика по поисковым запросам WB {p_id}.csv')
     
   set_user_session_step(message, 'Show_statistics_menu')
