@@ -54,15 +54,35 @@ async def payment_func(call):
             if purchase == "subscription":
                 sub_name = call.data.split(':')[3]
                 sub = await db_queries.get_sub_name(sub_name=sub_name)
-                product_price = [LabeledPrice(label=sub.title, amount=sub.price * 100)]
+                product_price = [LabeledPrice(label='Исходнная цена', amount=sub.price * 100)]
                 await bot.send_invoice(call.message.chat.id,
                                 title=sub.title,
                                 description=sub.description,
-                                invoice_payload=sub.title,
+                                invoice_payload=f'Subscription {sub.title}',
                                 provider_token=PAYMENT_TOKEN,
                                 currency='rub',
                                 prices=product_price,
                                 start_parameter='one-month-sub',
+                                is_flexible=False,
+                                )
+            elif purchase == "requests":
+                amounts, price = call.data.split(":")[3:]
+                product_prices = [
+                    LabeledPrice(label="Исходнная цена", amount=int(int(price) * 100)),
+                ]
+                # product_prices = [
+                #     LabeledPrice(label="Исходнная цена", amount=int(int(price) * 100)),
+                #     LabeledPrice(label=f"Скидка 10%", amount=int(-(int(price) // 10) * 100))  # обратите внимание на отрицательное значение
+                # ]
+
+                await bot.send_invoice(call.message.chat.id,
+                                title="ChatGPT запросы",
+                                description=f"Покупка {amounts} запросов",
+                                invoice_payload=f'ChatGPT {amounts}',
+                                provider_token=PAYMENT_TOKEN,
+                                currency='rub',
+                                prices=product_prices,
+                                start_parameter='gpt-requests',
                                 is_flexible=False,
                                 )
         except Exception as e:
@@ -163,18 +183,20 @@ async def delete_user_advert(message):
 @bot.pre_checkout_query_handler(func=lambda query: True)
 async def checkout(pre_checkout_query):
     await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True,
-                                  error_message="Aliens tried to steal your card's CVV, but we successfully protected your credentials,"
-                                                " try to pay again in a few minutes, we need a small rest.")
+                                  error_message="Произошла ошибка, попробуйте оплатить еще раз")
 
 
 @bot.message_handler(content_types=['successful_payment'])
 async def got_payment(message):
     total = message.successful_payment.total_amount / 100
-    await bot.send_message(message.chat.id,
-                     'Была подключена подписка: {}\nЕсли хотите узнать подробнее, нажмите - Моя подписка'.format(message.successful_payment.invoice_payload))
-
-
-    await db_queries.update_sub(user_id=message.chat.id, sub_name=message.successful_payment.invoice_payload, total=total)
+    if message.successful_payment.invoice_payload.split()[0] == 'Subscription':
+        await bot.send_message(message.chat.id,
+                         'Была подключена подписка: {}\nЕсли хотите узнать подробнее, нажмите - Моя подписка'.format(message.successful_payment.invoice_payload))
+        await db_queries.update_sub(user_id=message.chat.id, sub_name=message.successful_payment.invoice_payload.split()[1], total=total)
+    elif message.successful_payment.invoice_payload.split()[0] == 'ChatGPT':
+        await bot.send_message(message.chat.id,
+                         'Вы купили {} запросов: \nЕсли хотите узнать подробнее, нажмите - Платные услуги - Мои запросы'.format(message.successful_payment.invoice_payload.split()[1]))
+        await db_queries.edit_user_transaction(user_id=message.chat.id, type="Buy", request_amount=message.successful_payment.invoice_payload.split()[1])
 
 
 @bot.message_handler(commands=['show_active_sub'])
