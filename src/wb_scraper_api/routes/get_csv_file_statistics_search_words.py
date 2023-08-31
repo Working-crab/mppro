@@ -63,7 +63,7 @@ async def main (params: CustomQueryParams = Depends()):
 @route.get('/statistics_search_words')
 async def main (params: CustomQueryParams = Depends()):
     client = clickhouse_driver.Client.from_url(f"""clickhouse://default:@localhost:9000/default""")
-    result = client.execute(f""" SELECT * FROM product_position WHERE id_product = {params.id_product} and date_collected >= '{params.start_periud}' and date_collected <= '{params.end_periud}'""")
+    result = client.execute(f""" SELECT * FROM product_position WHERE id_product = {params.id_product} and date_collected >= '{params.start_periud}' and date_collected <= '{params.end_periud}' ORDER BY date_collected""")
     df = pd.DataFrame(result)
     search_words = df[3].unique()
     df[4] = pd.to_datetime(df[4])
