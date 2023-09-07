@@ -112,6 +112,7 @@ class wb_queries:
           'headers': headers,
           'data': data
         })
+        logger.warn(e)
         raise Exception("wb_query error " + str(e) + " ")
 
       logger.debug(f'user_id: {user_id} url: {url} \t headers: {str(headers)} \t result: {str(result)}')    

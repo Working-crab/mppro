@@ -63,7 +63,7 @@ def universal_reply_markup(search=False):
   btn_card = types.KeyboardButton(text='Карточка товара')
   btn_list_adverts = types.KeyboardButton(text='📑 Список рекламных компаний 📑')
   # btn_my_sub = types.KeyboardButton(text='🎟️ Моя подписка 🎟️')
-  btn_paid_service = types.KeyboardButton(text='⭐ Платные услуги ⭐')
+  btn_paid_service = types.KeyboardButton(text='⭐ Подписка и запросы ⭐')
   btn_additionally = types.KeyboardButton(text='⚙️ Дополнительные опции ⚙️')
   btn_statistics = types.KeyboardButton(text='Статистика')
 
@@ -297,8 +297,8 @@ def reply_markup_trial(trial):
 def reply_markup_payment(purchase, user_data):
     markup = types.InlineKeyboardMarkup()
     markup.add(
-        types.InlineKeyboardButton(text='Оплата через telegram', callback_data=f"payment:telegram:{purchase}:{user_data}"),
-        types.InlineKeyboardButton(text='Оплата через сайт', callback_data=f"payment:site:{purchase}:{user_data}"),
+        types.InlineKeyboardButton(text='Оплатить', callback_data=f"payment:telegram:{purchase}:{user_data}"),
+        # types.InlineKeyboardButton(text='Оплата через сайт', callback_data=f"payment:site:{purchase}:{user_data}"),
     )
     return markup
 

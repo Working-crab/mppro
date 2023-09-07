@@ -1343,7 +1343,7 @@ async def add_budget_next_step_handler(message):
     
     
 
-# Платные услуги -----------------------------------------------------------------------------------------------------------------------
+# Подписка и запросы -----------------------------------------------------------------------------------------------------------------------
 
 async def show_paid_services(message):
   await bot.send_message(message.chat.id, "Здравствуйте, здесь Вы можете купить *подписку* или *запросы* для ChatGPT", parse_mode="MarkdownV2", reply_markup=paid_service_reply_markup())
@@ -1389,12 +1389,12 @@ async def show_my_sub(message):
       for sub in sub_list:
         if sub.title == my_sub.title or sub.access_level < my_sub.access_level:
           continue
-        await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
+        await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}")) # \n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт
   else:
     await bot.send_message(message.chat.id, 'У вас не подключено никаких платных подписок\nНиже предоставлены варианты для покупки: ')
     sub_list = await db_queries.get_all_sub()
     for sub in sub_list:
-      await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}\n\nНа данный момент доступная оплата через сайт, нажмите на кнопку `Оплата через сайт`, чтобы оплатить через сайт', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
+      await bot.send_message(message.chat.id, f'Подписка - {sub.title}\nЦена - {sub.price}\nОписание - {sub.description}', reply_markup=reply_markup_payment(purchase="subscription", user_data=f"{sub.title}"))
 
 # --------------------------------------------------------------------------------------------------------------------------------
 
@@ -1511,7 +1511,7 @@ step_map = {
     'user_analitics_grafic': user_analitics_grafic,
     'Помощь': help,
     'Поиск': search_adverts,
-    'Платные услуги': show_paid_services,
+    'Подписка и запросы': show_paid_services,
     'Список рекламных компаний': {"action": list_adverts, "access_level": 1},
     'Выбрать город': choose_city,
     'Выбор:': choose_city_handler,
