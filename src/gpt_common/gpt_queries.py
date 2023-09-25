@@ -41,7 +41,7 @@ class gpt_queries:
         logger.warn(completion)
         tokens_spent = completion.usage.total_tokens
         
-        await db_queries.edit_user_transaction(user_id=user.telegram_user_id, token_amount=-tokens_spent, request_amount=-1, type="Карточка товара")
+        await db_queries.edit_user_transaction(user_id=user.telegram_user_id, request_amount=gtp_requests-1, type="Карточка товара")
         
         completion_content = completion.choices[0].message.content
 

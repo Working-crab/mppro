@@ -195,7 +195,7 @@ async def got_payment(message):
         await db_queries.update_sub(user_id=message.chat.id, sub_name=message.successful_payment.invoice_payload.split()[1], total=total)
     elif message.successful_payment.invoice_payload.split()[0] == 'ChatGPT':
         await bot.send_message(message.chat.id,
-                         'Вы купили {} запросов: \nЕсли хотите узнать подробнее, нажмите - Платные услуги - Мои запросы'.format(message.successful_payment.invoice_payload.split()[1]))
+                         'Вы купили {} запросов: \nЕсли хотите узнать подробнее, нажмите - Подписка и запросы - Мои запросы'.format(message.successful_payment.invoice_payload.split()[1]))
         await db_queries.edit_user_transaction(user_id=message.chat.id, type="Buy", request_amount=message.successful_payment.invoice_payload.split()[1])
 
 
