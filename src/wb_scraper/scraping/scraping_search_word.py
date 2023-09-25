@@ -18,4 +18,4 @@ def scrapping_search_word (min, max):
         i.join()  
     
     client = clickhouse_driver.Client.from_url(Main_var.DB_URL)
-    client.execute(f"""ALTER TABLE product_position DELETE WHERE date_collected < '{(datetime.now()-timedelta(days=7)).strftime('%Y-%m-%d')}' """)
+    client.execute(f"""ALTER TABLE product_position DELETE WHERE date_collected < '{(datetime.now()-timedelta(days=30)).strftime('%Y-%m-%d')}' """)
