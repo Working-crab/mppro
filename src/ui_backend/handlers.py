@@ -3,6 +3,7 @@ import pandas as pd
 from PIL import Image
 import re
 from unittest import mock
+from src.wb_scraper.update_info import scrapping_searching_word_latest
 from user_analitics.graphic_analitic import graphics_analitics
 from ui_backend.app import bot
 from ui_backend.common import (edit_token_reply_markup, format_requests_count, 
@@ -1462,9 +1463,15 @@ async def user_analitics_grafic(message):
 async def show_statistics_menu(message):
   await bot.send_message(message.chat.id, 'Меню статистики', reply_markup=statistics_reply_markup())
   set_user_session_step(message, 'Show_statistics_menu')
-
-async def id_getter(message):
+  
+  
+async def process_product_input(message):
   await bot.send_message(message.chat.id, 'Введите ID товара и опционально период')
+  set_user_session_step(message, 'Statistics_on_popular_queries')
+
+async def process_product_input_latest(message):
+  await bot.send_message(message.chat.id, 'Введите ID товара')
+  message.user_session['update_statistic'] = True
   set_user_session_step(message, 'Statistics_on_popular_queries')
 
 async def statistics_on_popular_queries(message):
@@ -1480,6 +1487,13 @@ async def statistics_on_popular_queries(message):
     await bot.send_message(message.chat.id, "Возможно вы ввели что-то неправильно, формат через пробелы 'id продукта' 'дата начала' 'дата окончания'")
     set_user_session_step(message, 'Show_statistics_menu')
     return
+  
+  if message.user_session.get('update_statistic') == True:
+    start_date = datetime.now().strftime('%Y-%m-%d')
+    end_date = datetime.now().strftime('%Y-%m-%d')
+    scrapping_searching_word_latest(p_id)
+    message.user_session['update_statistic'] = False
+  
   result = await get_csv_statistics_search_words(p_id, start_date, end_date)
   df = pd.DataFrame(result.json())
 
@@ -1544,7 +1558,8 @@ step_map = {
     'default': set_token_cmp_handler
   },
   'Show_statistics_menu':{
-    'Статистика по популярным запросам': id_getter,
+    'Статистика по популярным запросам': process_product_input,
+    'Последняя статистика по популярным запросам': process_product_input_latest,
     'Назад': menu_back,
   },
   'Statistics_on_popular_queries':{

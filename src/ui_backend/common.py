@@ -85,9 +85,10 @@ def statistics_reply_markup():
   markup_inline = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
   btn_place_by_searchword = types.KeyboardButton(text='Статистика по популярным запросам')
+  btn_place_by_searchword_latest = types.KeyboardButton(text='Последняя статистика по популярным запросам')
   btn_back = types.KeyboardButton(text='⏪ Назад ⏪')
 
-  markup_inline.add(btn_place_by_searchword, btn_back)
+  markup_inline.add(btn_place_by_searchword, btn_place_by_searchword_latest, btn_back)
 
   return markup_inline
 

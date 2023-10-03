@@ -11,29 +11,29 @@ class CustomQueryParams:
     def __init__(
         self,
         id_product: int | None = Query(description="Атрибут товара"),
-        start_periud: int | None  = Query(default=None, description="Старт периуда (unix time)"),
-        end_periud: int | None  = Query(default=None, description="Конец периуда (unix time)")
+        start_date: str | None  = Query(default=None, description="Старт периуда (unix time)"),
+        end_date: str | None  = Query(default=None, description="Конец периуда (unix time)")
     ):
         self.id_product = id_product
 
-        if start_periud == None:
-            self.start_periud = (datetime.now()-timedelta(days=7)).strftime('%Y-%m-%d')
-            print(self.start_periud)
+        if start_date == None or start_date is None or start_date == '':
+            self.start_date = (datetime.now()-timedelta(days=7)).strftime('%Y-%m-%d')
+            print(self.start_date)
         else:
-            self.start_periud = datetime.fromtimestamp(start_periud).strftime('%Y-%m-%d')
+            self.start_date = start_date
 
-        if start_periud == None:
-            self.end_periud = datetime.now().strftime('%Y-%m-%d')
-            print(self.end_periud)
+        if end_date == None or end_date is None or end_date == '':
+            self.end_date = datetime.now().strftime('%Y-%m-%d')
+            print(self.end_date)
         else:
-            self.end_periud = datetime.fromtimestamp(end_periud).strftime('%Y-%m-%d')
+            self.end_date = end_date
 
 route = APIRouter()
 
 @route.get('/csv_file_statistics_search_words')
 async def main (params: CustomQueryParams = Depends()):
     client = clickhouse_driver.Client.from_url(f"""clickhouse://default:@localhost:9000/default""")
-    result = client.execute(f""" SELECT * FROM product_position WHERE id_product = {params.id_product} and date_collected >= '{params.start_periud}' and date_collected <= '{params.end_periud}' ORDER BY date_collected""")
+    result = client.execute(f""" SELECT * FROM product_position WHERE id_product = {params.id_product} and date_collected >= '{params.start_date}' and date_collected <= '{params.end_date}' ORDER BY date_collected""")
     df = pd.DataFrame(result)
     search_words = df[3].unique()
     df[4] = pd.to_datetime(df[4])
@@ -63,7 +63,7 @@ async def main (params: CustomQueryParams = Depends()):
 @route.get('/statistics_search_words')
 async def main (params: CustomQueryParams = Depends()):
     client = clickhouse_driver.Client.from_url(f"""clickhouse://default:@localhost:9000/default""")
-    result = client.execute(f""" SELECT * FROM product_position WHERE id_product = {params.id_product} and date_collected >= '{params.start_periud}' and date_collected <= '{params.end_periud}' ORDER BY date_collected""")
+    result = client.execute(f""" SELECT * FROM product_position WHERE id_product = {params.id_product} and date_collected >= '{params.start_date}' and date_collected <= '{params.end_date}' ORDER BY date_collected""")
     df = pd.DataFrame(result)
     search_words = df[3].unique()
     df[4] = pd.to_datetime(df[4])

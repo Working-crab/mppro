@@ -9,7 +9,7 @@ import user_agent
 import clickhouse_driver
 import random
 from threading import Thread
-from class_list.main_var import Main_var
+from src.wb_scraper.class_list.main_var import Main_var
 
 class Process(multiprocessing.Process):
     def run(self):
