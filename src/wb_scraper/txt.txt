@@ -1,4 +1,5 @@
 запрос на товары бренда
 https://catalog.wb.ru/brands/5/catalog?appType=1&brand=113930&curr=rub&dest=-1172839&regions=80,38,83,4,64,33,68,70,30,40,86,69,22,1,31,66,48,114&sort=popular&spp=28&uclusters=8
 запрос на товар
-https://card.wb.ru/cards/detail?appType=1&curr=rub&dest=1&regions=80,38,83,4,64,33,68,70,30,40,86,69,22,1,31,66,48,114&spp=28&nm=58124742
+https://card.wb.ru/cards/detail?appType=1&curr=rub&dest=1&regions=80,38,83,4,64,33,68,70,30,40,86,69,22,1,31,66,48,114&spp=0&nm=74203070
+
