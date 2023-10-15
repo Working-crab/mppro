@@ -25,6 +25,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r deploy/python_requirements.txt
 
+      - name: Create logs directory
+        run: mkdir -p logs
+        
       - name: Run integration tests
         run: pytest src/tests/integration/test_wb_queries.py
     

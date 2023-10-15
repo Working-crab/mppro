@@ -3,6 +3,7 @@ import aiohttp
 
 from wb_common.wb_queries import wb_queries
 
+
 @pytest.mark.asyncio
 async def test_search_integration_with_wb_separate():
     keyword_to_test = "Платье"
