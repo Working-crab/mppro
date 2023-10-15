@@ -15,7 +15,10 @@ def reader_csv_file (min, max) :
                 continue
             if i > max:
                 break
-            search_words.append(r[0])
+            search_words.append({
+                "id" : r[0],
+                "position" : i
+            })
         return search_words
     
-    
+reader_csv_file(1,10)

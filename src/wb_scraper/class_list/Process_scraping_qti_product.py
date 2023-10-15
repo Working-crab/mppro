@@ -31,11 +31,12 @@ class Process(multiprocessing.Process):
                 task = asyncio.create_task(self.parse_search(session, str(product_id)))
                 self.tasks.append(task)
             result = await asyncio.gather(*self.tasks)
-            print(result)
+            # print(len(result))
+            self.insert_db_info(result)
                 
 
     async def parse_search(self, session, id : str = ""):
-        url = f"""https://card.wb.ru/cards/detail?appType=1&curr=rub&dest=1&regions=80,38,83,4,64,33,68,70,30,40,86,69,22,1,31,66,48,114&spp=0&nm={id}"""
+        url = f"""https://card.wb.ru/cards/detail?appType=1&curr=rub&dest=-1172839&regions=80,38,83,4,64,33,68,70,30,40,86,69,22,1,31,66,48,114&spp=0&nm={id}"""
         headers = {'user-agent':user_agent.generate_user_agent()}
         async with session.get(url,headers=headers) as response:
             try:
@@ -51,7 +52,10 @@ class Process(multiprocessing.Process):
                 hashrate = hashrate.get('data',{})
                 # print(hashrate.get("products",[])[0])
                 lst_sizes = []
-                for val in hashrate.get("products",[]).get(0,{}).get("sizes",[]):
+                product = hashrate.get("products",[]) if (len(hashrate.get("products",[]))!=0) else []
+                if len(hashrate.get("products",[]))==0:
+                    return
+                for val in hashrate.get("products",[])[0].get("sizes",[]):
                     lst_sizes.append(val)
                 
                 result['size'] = lst_sizes
@@ -61,5 +65,7 @@ class Process(multiprocessing.Process):
             finally:
                 return result
             
-    def insert_db_info (self):
-        pass
+    def insert_db_info (self, res):
+        if (res.size == []):
+            pass
+        
