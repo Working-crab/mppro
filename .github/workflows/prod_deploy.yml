@@ -25,8 +25,10 @@ jobs:
       - name: Create logs directory
         run: mkdir -p logs
 
-      - name: Run integration tests
-        run: pytest src/tests/integration/test_wb_queries.py
+      - name: Run tests
+        run: |
+        pytest src/tests/integration/test_wb_queries.py
+        pytest src/tests/unit/test_wb_logic.py
 
       - name: Install SSH client
         run: sudo apt-get install -y openssh-client
