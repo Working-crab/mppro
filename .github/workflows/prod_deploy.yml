@@ -12,9 +12,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install SSH client
-        run: sudo apt-get install -y openssh-client
-
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
@@ -27,9 +24,12 @@ jobs:
 
       - name: Create logs directory
         run: mkdir -p logs
-        
+
       - name: Run integration tests
         run: pytest src/tests/integration/test_wb_queries.py
+
+      - name: Install SSH client
+        run: sudo apt-get install -y openssh-client
     
       - name: redeploy prod on test server
         env:
