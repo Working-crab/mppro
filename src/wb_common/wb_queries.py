@@ -220,24 +220,7 @@ class wb_queries:
 
   async def search_adverts_by_keyword(keyword, user_id=None):
     res = await wb_queries.wb_query(method='GET', url=f'https://catalog-ads.wildberries.ru/api/v5/search?keyword={keyword}', user_id=user_id)
-    wb_search_positions = None
-    
-    # kill me please
-    if res and res.get('pages') and res.get('pages')[0] and res.get('pages')[0].get('positions') and len(res.get('pages')[0].get('positions')) > 0:
-      wb_search_positions = res.get('pages')[0].get('positions')[0:CONSTS['slice_count']]
-    
-    res = res['adverts'][0:CONSTS['slice_count']] if res.get('adverts') is not None else []
-    result = []
-    position = 0
-    for advert in res:
-      result.append({
-        "price": advert['cpm'],
-        "p_id": advert['id'],
-        "position": position,
-        "wb_search_position": wb_search_positions[position]
-      })
-      position +=1
-    return result
+    return res
 
 
   async def get_campaign_info(user, campaign, send_exeption=False, use_public_api = True):

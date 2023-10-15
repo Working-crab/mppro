@@ -3,6 +3,7 @@ from functools import wraps
 from ui_backend.config import syncBot
 from telebot import types
 from db.queries import db_queries
+from wb_common.wb_logic import wb_logic
 from wb_common.wb_queries import wb_queries
 from wb_common.wb_api_queries import wb_api_queries
 from unittest import mock
@@ -382,7 +383,8 @@ async def get_first_place(user_id, campaign):
   if campaign_pluse_words['main_pluse_word']:
     check_word = campaign_pluse_words['main_pluse_word']
 
-  current_bids_table = await wb_queries.search_adverts_by_keyword(check_word)
+  query = await wb_queries.search_adverts_by_keyword(check_word)
+  current_bids_table = await wb_logic.search_adverts_by_keyword(query)
   
   logger.info("current_bids_table")
   logger.info(current_bids_table)
@@ -557,7 +559,8 @@ async def get_search_result_message(keyword, city=None):
   if city == None:
     city = "Москва"
   
-  item_dicts = await wb_queries.search_adverts_by_keyword(keyword)
+  query = await wb_queries.search_adverts_by_keyword(keyword)
+  item_dicts = await wb_logic.search_adverts_by_keyword(query)
   result_message = ''
   position_ids = []
 

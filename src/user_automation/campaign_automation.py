@@ -1,6 +1,7 @@
 
 import asyncio
 from db.queries import db_queries
+from wb_common.wb_logic import wb_logic
 from wb_common.wb_queries import wb_queries
 from wb_common.wb_api_queries import wb_api_queries
 import time
@@ -75,7 +76,8 @@ class campaign_automation:
     # if campaign_pluse_words['main_pluse_word']:
     #   check_word = campaign_pluse_words['main_pluse_word']
 
-    current_bids_table = await wb_queries.search_adverts_by_keyword(check_word)
+    query = await wb_queries.search_adverts_by_keyword(check_word)
+    current_bids_table = await wb_logic.search_adverts_by_keyword(query)
 
     campaign_strategy = 'strategy_combined'
     if campaign.strategy:

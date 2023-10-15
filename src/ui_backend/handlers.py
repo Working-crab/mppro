@@ -16,6 +16,7 @@ from ui_backend.common import (edit_token_reply_markup, format_requests_count,
   paid_requests_inline_markup, advert_strategy_reply_markup, statistics_reply_markup, ADV_STRATS)
 from telebot import types
 from db.queries import db_queries
+from wb_common.wb_logic import wb_logic
 from wb_common.wb_queries import wb_queries
 from wb_common.wb_api_queries import wb_api_queries
 from monorepository_communication.wb_scraper_api_queries import get_csv_statistics_search_words
@@ -291,7 +292,9 @@ async def search_next_step_handler(message, after_city_choose=False):
   user = await db_queries.get_user_by_telegram_user_id(telegram_user_id)
   
   proccesing = await bot.send_message(message.chat.id, 'Обработка запроса...')
-  item_dicts = await wb_queries.search_adverts_by_keyword(keyword, telegram_user_id)
+  query = await wb_queries.search_adverts_by_keyword(keyword, telegram_user_id)
+  logger.warn(f'query: {query}')
+  item_dicts = await wb_logic.search_adverts_by_keyword(query)
   result_message = ''
   position_ids = []
   
