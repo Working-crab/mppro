@@ -3,6 +3,7 @@ import pandas as pd
 from PIL import Image
 import re
 from unittest import mock
+from kafka_dir.general_consumer import create_async_consumer
 from src.wb_scraper.update_info import scrapping_searching_word_latest
 from user_analitics.graphic_analitic import graphics_analitics
 from ui_backend.app import bot
@@ -1488,10 +1489,25 @@ async def statistics_on_popular_queries(message):
     set_user_session_step(message, 'Show_statistics_menu')
     return
   
+  async def consume_message(consumer):
+    try:
+      async for msg in consumer:
+        if msg.value.get('status') == 'completed':
+          break
+    finally:
+      await consumer.stop()
+
   if message.user_session.get('update_statistic') == True:
     start_date = datetime.now().strftime('%Y-%m-%d')
     end_date = datetime.now().strftime('%Y-%m-%d')
-    scrapping_searching_word_latest(p_id)
+    consumer = await create_async_consumer('scraper_statistic') #TODO
+    await scrapping_searching_word_latest(p_id)
+    
+    try:
+      await asyncio.wait_for(consume_message(consumer), timeout=30.0)
+    except asyncio.TimeoutError:
+      await bot.send_message(message.chat.id, 'К сожалению, сервис не успел полностью обновить данные')
+    
     message.user_session['update_statistic'] = False
   
   result = await get_csv_statistics_search_words(p_id, start_date, end_date)

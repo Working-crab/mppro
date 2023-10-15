@@ -9,7 +9,8 @@ import user_agent
 import clickhouse_driver
 import random
 from threading import Thread
-from src.wb_scraper.class_list.main_var import Main_var
+from kafka_dir.general_publisher import queue_message_async
+from wb_scraper.class_list.main_var import Main_var
 
 class Process(multiprocessing.Process):
     def run(self):
@@ -41,6 +42,7 @@ class Process(multiprocessing.Process):
                 th = Thread(target=self.db_insert_info, args=(result,))
                 th.start()
                 self.tasks.clear()
+            await queue_message_async(topic='scraper_statistic', status='completed', date=self.date_collected)
                     
     
     async def parse_search(self, session, page, search_word):

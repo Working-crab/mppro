@@ -18,7 +18,7 @@ logger_token = appLogger.getLogger(__name__+'_token')
 CONSTS = {
   'Referer_async default': 'https://cmp.wildberries.ru/campaigns/list/all',
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 YaBrowser/22.11.5.715 Yowser/2.5 Safari/537.36',
-  'slice_count': 10
+  'slice_count': 8
 }
 
 class wb_queries:
